@@ -1569,6 +1569,38 @@ function toggleAcsCodeFallback(code) {
   modules.notify();
 }
 
+
+async function testApplicantReportFlow() {
+  const flowUrl = 'https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f14216e9ffbb4101b5f5c7967895a81f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V1LRs5VLQeeDdkG7H0U_e15ChR9hO66xGlCdXTK-m2o';
+
+  const payload = {
+    itemId: 7,
+    email: 'kele@fergerstrom.net',
+    recommendingInstructorEmail: 'kele.fergerstrom@icloud.com',
+    applicantName: 'Test Applicant',
+    pdfFileName: 'TestReport.pdf',
+    pdfBase64: 'dGVzdA=='
+  };
+
+  try {
+    const response = await fetch(flowUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log('Flow status:', response.status);
+    console.log(await response.text());
+
+    alert('Flow triggered. Check Power Automate run history.');
+  } catch (error) {
+    console.error('Flow trigger failed:', error);
+    alert('Flow trigger failed. Check console.');
+  }
+}
+
 function applyAcsCodeHighlights() {
   document.querySelectorAll('[data-acs-code]').forEach(el => {
     const code = el.dataset.acsCode;
@@ -1654,7 +1686,26 @@ async function submitToSharePoint() {
       throw new Error(`Flow failed with status ${response.status}`);
     }
 
-    alert('Submitted to SharePoint successfully.');
+    const result = await response.json();
+
+    console.log('SharePoint Item ID:', result.itemId);
+
+    await fetch('https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f14216e9ffbb4101b5f5c7967895a81f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V1LRs5VLQeeDdkG7H0U_e15ChR9hO66xGlCdXTK-m2o', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        itemId: Number(result.itemId),
+        email: 'kele@fergerstrom.net',
+        recommendingInstructorEmail: 'kele.fergerstrom@icloud.com',
+        applicantName: store.applicant.appName || 'Test Applicant',
+        pdfFileName: `Applicant_Report_Test_${Date.now()}.pdf`,
+        pdfBase64: 'dGVzdA=='
+      })
+    });
+
+    alert(`Submitted to SharePoint successfully. Item ID: ${result.itemId}. PDF flow triggered.`);
   } catch (error) {
     console.error(error);
     alert('Submission failed. Check Power Automate run history and browser console.');
@@ -1977,3 +2028,94 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
+
+window.setScenarioGradeFromOral = function(select) {
+  const rawTaskCode = select.dataset.taskCode;
+  const grade = select.value;
+
+  const parts = rawTaskCode ? rawTaskCode.split('.') : [];
+
+  const taskCode =
+    parts.length >= 3
+      ? parts.slice(0, 3).join('.')
+      : rawTaskCode || '';
+
+  const gradeType =
+    parts.length >= 4
+      ? parts[3].charAt(0).toUpperCase()
+      : '';
+
+  const areas = getCurrentAreas();
+  const tasks = getCurrentTasks(areas);
+
+  const matchingTask = tasks.find(task =>
+    task.code === taskCode ||
+    task.filterCode === taskCode ||
+    task.code === rawTaskCode ||
+    task.filterCode === rawTaskCode
+  );
+
+  console.log('Scenario grade selected:', {
+    rawTaskCode,
+    taskCode,
+    gradeType,
+    grade,
+    matchingTask,
+    filterCode: matchingTask?.filterCode
+  });
+
+  if (!matchingTask || !grade || !gradeType || !store) return;
+
+  const filterCode = matchingTask.filterCode;
+
+  store.checkedElements[filterCode] = true;
+
+  store.grades[`${filterCode}.${gradeType}`] = grade;
+
+  console.log('Single K/R/S grade after update:', {
+    filterCode,
+    gradeType,
+    value: store.grades[`${filterCode}.${gradeType}`]
+  });
+
+  modules.notify();
+};
+
+window.storeGeneratedScenario = function(payload) {
+  if (!store) return;
+
+  store.generatedScenario = payload;
+};
+
+window.getStoredGeneratedScenario = function() {
+  return store?.generatedScenario || null;
+};
+
+window.getScenarioGradeFromDetailedView = function(rawTaskCode) {
+  const parts = rawTaskCode ? rawTaskCode.split('.') : [];
+
+  const taskCode =
+    parts.length >= 3
+      ? parts.slice(0, 3).join('.')
+      : rawTaskCode || '';
+
+  const gradeType =
+    parts.length >= 4
+      ? parts[3].charAt(0).toUpperCase()
+      : '';
+
+  if (!taskCode || !gradeType || !store) return '';
+
+  const areas = getCurrentAreas();
+  const tasks = getCurrentTasks(areas);
+
+  const matchingTask = tasks.find(task =>
+    task.code === taskCode ||
+    task.filterCode === taskCode
+  );
+
+  if (!matchingTask) return '';
+
+  return store.grades?.[`${matchingTask.filterCode}.${gradeType}`] || '';
+};
+
