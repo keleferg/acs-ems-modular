@@ -67,8 +67,18 @@ function renderTask(task, store) {
   const grades = getTaskGrades(task);
   const expanded = store.expandedTasks[task.filterCode];
 
-  const manuallyChecked = store.checkedElements?.[task.filterCode] === true;
-  const isChecked = manuallyChecked || status === 'pass';
+  const hasAllKrsNumericGrades = ['K', 'R', 'S'].every(type => {
+  const value = store.grades?.[`${task.filterCode}.${type}`];
+
+  return (
+    value === '1' ||
+    value === '2' ||
+    value === '3' ||
+    value === '4'
+  );
+});
+
+const isChecked = hasAllKrsNumericGrades;
 
   const examinerNote = store.examinerNotes?.[task.filterCode] || '';
 

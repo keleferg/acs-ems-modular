@@ -8,6 +8,7 @@ const SCENARIO_DATABASE_PATHS = {
 let loadedScenarioDatabases = {};
 
 const SCENARIO_TIME_KEY = 'acs_ems_scenario_times_v1';
+const FLIGHT_TASK_ORDER_KEY = 'acs_ems_flight_task_order_v1';
 
 export function renderScenarioEngine(containerId) {
   const el = document.getElementById(containerId);
@@ -17,7 +18,7 @@ export function renderScenarioEngine(containerId) {
     <div class="scenario-engine">
       <h2>Oral / Flight Portion</h2>
       <p>
-        Generate a chronological oral exam. The Flight Portion uses the same task layout as Detailed View, excluding AOA I.
+        Generate a chronological oral exam. The Flight Portion uses the Detailed View task layout, excludes AOA I, and records Skill grades only.
       </p>
 
       <div class="scenario-controls">
@@ -481,8 +482,6 @@ function refreshDurations(times) {
   window.updateApplicantDurationFromScenario?.('flight', flightDecimal);
 }
 
-const FLIGHT_TASK_ORDER_KEY = 'acs_ems_flight_task_order_v1';
-
 function renderFlightPortionDetailed() {
   const container = document.getElementById('flightDetailedContainer');
   if (!container) return;
@@ -515,32 +514,54 @@ function renderFlightPortionDetailed() {
 
     const taskCard = temp.querySelector('.task-card');
 
-    if (taskCard) {
-      taskCard.dataset.flightTaskCode = task.filterCode;
-      taskCard.style.marginBottom = '10px';
+    if (!taskCard) return;
 
-      const header = taskCard.querySelector('.task-header');
+    taskCard.dataset.flightTaskCode = task.filterCode;
+    taskCard.style.marginBottom = '10px';
 
-      if (header && !header.querySelector('.drag-handle')) {
-        const handle = document.createElement('span');
-        handle.className = 'drag-handle';
-        handle.textContent = '☰';
-        handle.title = 'Drag to reorder';
-        handle.style.cursor = 'grab';
-        handle.style.fontWeight = '700';
-        handle.style.fontSize = '1.2rem';
-        handle.style.padding = '0 8px';
-        handle.style.userSelect = 'none';
+    const header = taskCard.querySelector('.task-header');
 
-        header.insertBefore(handle, header.firstChild);
-      }
+    if (header && !header.querySelector('.drag-handle')) {
+      const handle = document.createElement('span');
+      handle.className = 'drag-handle';
+      handle.textContent = '☰';
+      handle.title = 'Drag to reorder';
+      handle.style.cursor = 'grab';
+      handle.style.fontWeight = '700';
+      handle.style.fontSize = '1.2rem';
+      handle.style.padding = '0 8px';
+      handle.style.userSelect = 'none';
 
-      list.appendChild(taskCard);
+      header.insertBefore(handle, header.firstChild);
     }
+
+    list.appendChild(taskCard);
   });
 
+  simplifyFlightTaskCardsToSkillOnly();
   wireFlightTaskCardEvents();
   wireFlightTaskSortable();
+}
+
+function simplifyFlightTaskCardsToSkillOnly() {
+  const list = document.getElementById('flightTaskSortableList');
+  if (!list) return;
+
+  list.querySelectorAll('.task-card').forEach(card => {
+    card.querySelectorAll('.grade-item').forEach(item => {
+      const select = item.querySelector('[data-grade]');
+      const gradeType = select?.dataset.grade;
+
+      if (gradeType === 'K' || gradeType === 'R') {
+        item.remove();
+      }
+
+      if (gradeType === 'S') {
+        const label = item.querySelector('.grade-label');
+        if (label) label.textContent = 'Grade';
+      }
+    });
+  });
 }
 
 function wireFlightTaskCardEvents() {
@@ -580,10 +601,19 @@ function wireFlightTaskCardEvents() {
 
   list.querySelectorAll('[data-task-check]').forEach(box => {
     box.addEventListener('change', event => {
+      event.stopPropagation();
+
       const taskCode = event.target.dataset.taskCheck;
       const checked = event.target.checked;
 
       window.setDetailedTaskCheckFromFlight?.(taskCode, checked);
+
+      const card = event.target.closest('.task-card');
+      const sSelect = card?.querySelector('[data-grade="S"]');
+
+      if (sSelect) {
+        sSelect.value = checked ? '3' : 'NP';
+      }
     });
   });
 

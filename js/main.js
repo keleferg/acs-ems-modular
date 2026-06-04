@@ -604,7 +604,7 @@ if (aircraftClassGroup) {
       modules.toggleTask(taskCode),
 
     onTaskCheck: (taskCode, checked) =>
-      handleTaskCheck(taskCode, checked),
+      handleTaskCheck(taskCode, checked, { setAllGradesToThree: true }),
 
     onExaminerNoteChange: (taskCode, note) =>
       handleExaminerNoteChange(taskCode, note)
@@ -881,12 +881,14 @@ function syncPracticalTestOutcomeFromOutcomeTab(summary = null) {
   return store.practicalTestOutcome || '';
 }
 
-function handleTaskCheck(taskCode, checked) {
+function handleTaskCheck(taskCode, checked, options = {}) {
   store.checkedElements[taskCode] = checked;
 
-  ['K', 'R', 'S'].forEach(type => {
-    store.grades[`${taskCode}.${type}`] = checked ? '3' : 'NP';
-  });
+  if (options.setAllGradesToThree) {
+    ['K', 'R', 'S'].forEach(type => {
+      store.grades[`${taskCode}.${type}`] = checked ? '3' : 'NP';
+    });
+  }
 
   modules.notify();
 }
@@ -2109,7 +2111,16 @@ window.setDetailedGradeFromFlight = function(taskCode, gradeType, value) {
 window.setDetailedTaskCheckFromFlight = function(taskCode, checked) {
   if (!taskCode || !store) return;
 
-  handleTaskCheck(taskCode, checked);
+  store.checkedElements[taskCode] = checked;
+
+  if (checked) {
+    store.grades[`${taskCode}.S`] = '3';
+  } else {
+    store.grades[`${taskCode}.S`] = 'NP';
+  }
+
+  modules.notify();
+  saveToLocalStorage();
 };
 
 window.setDetailedExaminerNoteFromFlight = function(taskCode, note) {
