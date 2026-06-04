@@ -213,3 +213,15 @@
   color: #666;
   font-style: italic;
 }
+
+.sortable-ghost {
+  opacity: 0.4;
+}
+
+.drag-handle {
+  color: #64748b;
+}
+
+.drag-handle:hover {
+  color: #0f172a;
+}

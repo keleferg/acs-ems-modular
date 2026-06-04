@@ -1,12 +1,16 @@
 import { calculateTaskStatus } from '../logic/grading.js';
 
-export function renderSummary(container, areas) {
+export function renderSummary(container, areas, store = window.store) {
   if (!container) return;
+
+  const selectedAcsCodes =
+    store?.selectedAcsCodes ||
+    window.getSelectedAcsCodes?.() ||
+    [];
 
   container.innerHTML = `
     <div class="summary-grid">
       ${areas.map(area => {
-        const statuses = area.tasks.map(calculateTaskStatus);
         const required = area.tasks.filter(t => t.isRequired);
 
         const passed = area.tasks.filter(t =>
@@ -26,17 +30,33 @@ export function renderSummary(container, areas) {
             </div>
 
             <div class="summary-dots">
-              ${statuses.map(status => `
-                <span
-                  class="summary-dot ${getDotClass(status)}"
-                  title="${formatStatus(status)}"
-                ></span>
-              `).join('')}
+              ${area.tasks.map(task => {
+                const status = calculateTaskStatus(task);
+
+                const isAktFlagged =
+                  selectedAcsCodes.includes(task.code) ||
+                  selectedAcsCodes.includes(task.filterCode);
+
+                return `
+                  <span
+                    class="summary-dot ${getDotClass(status)} ${isAktFlagged ? 'dot-akt-flagged' : ''}"
+                    title="${escapeHtml(task.code || task.filterCode || '')} — ${formatStatus(status)}${isAktFlagged ? ' — AKTR Deficiency' : ''}"
+                  ></span>
+                `;
+              }).join('')}
             </div>
           </div>
         `;
       }).join('')}
     </div>
+
+    <style>
+      .summary-dot.dot-akt-flagged {
+        border: 2px solid #ff4fa3 !important;
+        box-shadow: 0 0 0 2px #ffd6e8 !important;
+        outline: none !important;
+      }
+    </style>
   `;
 }
 
@@ -56,4 +76,13 @@ function formatStatus(status) {
     incomplete: 'Incomplete',
     'not-required': 'Not Required'
   })[status] ?? status;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }

@@ -202,431 +202,431 @@
     {
       "Scenario_ID": "PP-SC001",
       "Segment_ID": "ES-001",
-      "Segment_Order": 1,
+      "Segment_Order": 10,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Pilot / documents"
     },
     {
       "Scenario_ID": "PP-SC001",
       "Segment_ID": "ES-002",
-      "Segment_Order": 2,
+      "Segment_Order": 20,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Aircraft documents / airworthiness"
     },
     {
       "Scenario_ID": "PP-SC001",
       "Segment_ID": "ES-003",
-      "Segment_Order": 3,
+      "Segment_Order": 40,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Weather"
     },
     {
       "Scenario_ID": "PP-SC001",
       "Segment_ID": "ES-005",
-      "Segment_Order": 4,
+      "Segment_Order": 50,
       "Required": "Yes",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Weight and balance / performance"
     },
     {
       "Scenario_ID": "PP-SC001",
       "Segment_ID": "ES-006",
-      "Segment_Order": 5,
+      "Segment_Order": 50,
       "Required": "Yes",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Weight and balance / performance"
     },
     {
       "Scenario_ID": "PP-SC001",
       "Segment_ID": "ES-007",
-      "Segment_Order": 6,
+      "Segment_Order": 60,
       "Required": "Yes",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Airspace / airport operations"
     },
     {
       "Scenario_ID": "PP-SC001",
       "Segment_ID": "ES-009",
-      "Segment_Order": 7,
+      "Segment_Order": 120,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "ADM wrap-up"
     },
     {
       "Scenario_ID": "PP-SC002",
       "Segment_ID": "ES-001",
-      "Segment_Order": 1,
+      "Segment_Order": 10,
       "Required": "Yes",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC002",
-      "Segment_ID": "ES-003",
-      "Segment_Order": 2,
-      "Required": "Yes",
-      "Min_Questions": 4,
-      "Max_Questions": 6,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Pilot / documents"
     },
     {
       "Scenario_ID": "PP-SC002",
       "Segment_ID": "ES-004",
-      "Segment_Order": 3,
+      "Segment_Order": 30,
       "Required": "Yes",
       "Min_Questions": 5,
       "Max_Questions": 7,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Flight planning"
     },
     {
       "Scenario_ID": "PP-SC002",
-      "Segment_ID": "ES-005",
-      "Segment_Order": 4,
-      "Required": "Yes",
-      "Min_Questions": 2,
-      "Max_Questions": 4,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC002",
-      "Segment_ID": "ES-006",
-      "Segment_Order": 5,
-      "Required": "Yes",
-      "Min_Questions": 3,
-      "Max_Questions": 5,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC002",
-      "Segment_ID": "ES-007",
-      "Segment_Order": 6,
-      "Required": "Yes",
-      "Min_Questions": 3,
-      "Max_Questions": 5,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC002",
-      "Segment_ID": "ES-008",
-      "Segment_Order": 7,
+      "Segment_ID": "ES-003",
+      "Segment_Order": 40,
       "Required": "Yes",
       "Min_Questions": 4,
       "Max_Questions": 6,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Weather"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Segment_ID": "ES-005",
+      "Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Segment_ID": "ES-006",
+      "Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Segment_ID": "ES-007",
+      "Segment_Order": 60,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Airspace / airport operations"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Segment_ID": "ES-008",
+      "Segment_Order": 80,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute / navigation"
     },
     {
       "Scenario_ID": "PP-SC002",
       "Segment_ID": "ES-012",
-      "Segment_Order": 8,
+      "Segment_Order": 90,
       "Required": "No",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Diversion / lost procedures"
     },
     {
       "Scenario_ID": "PP-SC002",
       "Segment_ID": "ES-009",
-      "Segment_Order": 9,
+      "Segment_Order": 120,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "ADM wrap-up"
     },
     {
       "Scenario_ID": "PP-SC003",
       "Segment_ID": "ES-001",
-      "Segment_Order": 1,
+      "Segment_Order": 10,
       "Required": "Yes",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC003",
-      "Segment_ID": "ES-003",
-      "Segment_Order": 2,
-      "Required": "Yes",
-      "Min_Questions": 4,
-      "Max_Questions": 6,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Pilot / documents"
     },
     {
       "Scenario_ID": "PP-SC003",
       "Segment_ID": "ES-004",
-      "Segment_Order": 3,
+      "Segment_Order": 30,
       "Required": "Yes",
       "Min_Questions": 4,
       "Max_Questions": 6,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Flight planning"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Segment_ID": "ES-003",
+      "Segment_Order": 40,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weather"
     },
     {
       "Scenario_ID": "PP-SC003",
       "Segment_ID": "ES-008",
-      "Segment_Order": 4,
+      "Segment_Order": 80,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Enroute / navigation"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Segment_ID": "ES-012",
+      "Segment_Order": 90,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion / lost procedures"
     },
     {
       "Scenario_ID": "PP-SC003",
       "Segment_ID": "ES-011",
-      "Segment_Order": 5,
+      "Segment_Order": 100,
       "Required": "No",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC003",
-      "Segment_ID": "ES-012",
-      "Segment_Order": 6,
-      "Required": "Yes",
-      "Min_Questions": 3,
-      "Max_Questions": 5,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Systems / emergencies"
     },
     {
       "Scenario_ID": "PP-SC003",
       "Segment_ID": "ES-009",
-      "Segment_Order": 7,
+      "Segment_Order": 120,
       "Required": "Yes",
       "Min_Questions": 4,
       "Max_Questions": 6,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC004",
-      "Segment_ID": "ES-003",
-      "Segment_Order": 1,
-      "Required": "Yes",
-      "Min_Questions": 5,
-      "Max_Questions": 7,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "ADM wrap-up"
     },
     {
       "Scenario_ID": "PP-SC004",
       "Segment_ID": "ES-004",
-      "Segment_Order": 2,
+      "Segment_Order": 30,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Flight planning"
     },
     {
       "Scenario_ID": "PP-SC004",
-      "Segment_ID": "ES-006",
-      "Segment_Order": 3,
-      "Required": "Yes",
-      "Min_Questions": 2,
-      "Max_Questions": 4,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC004",
-      "Segment_ID": "ES-007",
-      "Segment_Order": 4,
-      "Required": "Yes",
-      "Min_Questions": 2,
-      "Max_Questions": 4,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC004",
-      "Segment_ID": "ES-008",
-      "Segment_Order": 5,
-      "Required": "No",
-      "Min_Questions": 2,
-      "Max_Questions": 4,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC004",
-      "Segment_ID": "ES-012",
-      "Segment_Order": 6,
-      "Required": "Yes",
-      "Min_Questions": 4,
-      "Max_Questions": 6,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC004",
-      "Segment_ID": "ES-009",
-      "Segment_Order": 7,
+      "Segment_ID": "ES-003",
+      "Segment_Order": 40,
       "Required": "Yes",
       "Min_Questions": 5,
       "Max_Questions": 7,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Weather"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Segment_ID": "ES-006",
+      "Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Segment_ID": "ES-007",
+      "Segment_Order": 60,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Airspace / airport operations"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Segment_ID": "ES-008",
+      "Segment_Order": 80,
+      "Required": "No",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute / navigation"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Segment_ID": "ES-012",
+      "Segment_Order": 90,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion / lost procedures"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Segment_ID": "ES-009",
+      "Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 5,
+      "Max_Questions": 7,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-001",
-      "Segment_Order": 1,
+      "Segment_Order": 10,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Pilot / documents"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-002",
-      "Segment_Order": 2,
+      "Segment_Order": 20,
       "Required": "Yes",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Aircraft documents / airworthiness"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-003",
-      "Segment_Order": 3,
+      "Segment_Order": 40,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Weather"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-007",
-      "Segment_Order": 4,
+      "Segment_Order": 60,
       "Required": "Yes",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Airspace / airport operations"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-010",
-      "Segment_Order": 5,
+      "Segment_Order": 100,
       "Required": "No",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Systems / emergencies"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-011",
-      "Segment_Order": 6,
+      "Segment_Order": 100,
       "Required": "No",
       "Min_Questions": 2,
       "Max_Questions": 4,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Systems / emergencies"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-013",
-      "Segment_Order": 7,
+      "Segment_Order": 110,
       "Required": "Yes",
       "Min_Questions": 5,
       "Max_Questions": 7,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
-    },
-    {
-      "Scenario_ID": "PP-SC005",
-      "Segment_ID": "ES-014",
-      "Segment_Order": 8,
-      "Required": "Yes",
-      "Min_Questions": 2,
-      "Max_Questions": 4,
-      "Randomize": "Yes",
-      "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "Arrival / landing"
     },
     {
       "Scenario_ID": "PP-SC005",
       "Segment_ID": "ES-009",
-      "Segment_Order": 9,
+      "Segment_Order": 120,
       "Required": "Yes",
       "Min_Questions": 3,
       "Max_Questions": 5,
       "Randomize": "Yes",
       "Active": "Yes",
-      "Notes": "Initial Private Pilot oral generator mapping"
+      "Notes": "ADM wrap-up"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Segment_ID": "ES-014",
+      "Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
     }
   ],
   "Event_Master": [

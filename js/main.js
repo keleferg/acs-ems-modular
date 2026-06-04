@@ -288,6 +288,7 @@ async function loadModules() {
   try {
     const scenarioModule = await import('./views/scenarioView.js');
     modules.renderScenarioEngine = scenarioModule.renderScenarioEngine;
+    modules.setScenarioDetailedRenderer?.(modules.renderDetailed);
   } catch (error) {
     console.warn('Scenario engine did not load. App will continue without it.', error);
   }
@@ -616,7 +617,7 @@ if (aircraftClassGroup) {
     scenarioRendered = true;
   }
 
-  modules.renderSummary?.($('viewSummary'), areas);
+  modules.renderSummary?.($('viewSummary'), areas, store);
   modules.renderDebrief?.($('viewDebrief'), areas, store);
   modules.renderOutcome?.(summary);
 
@@ -650,7 +651,14 @@ function syncActiveView() {
 
   const activeId = `view${store.activeView[0].toUpperCase()}${store.activeView.slice(1)}`;
   $(activeId)?.classList.add('active');
-}
+
+  const outcomeOnlyActions = $('outcomeOnlyActions');
+
+  if (outcomeOnlyActions) {
+    outcomeOnlyActions.style.display =
+      store.activeView === 'outcome' ? 'flex' : 'none';
+  }
+}  
 
 function wireFullAppEvents() {
   document.querySelectorAll('.view-tab').forEach(tab => {
@@ -2028,6 +2036,88 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
+
+window.updateApplicantDurationFromScenario = function(section, decimalHours) {
+  if (!store) return;
+
+  const value = decimalHours ? String(decimalHours) : '';
+
+  if (section === 'oral') {
+    store.applicant.appGroundDuration = value;
+
+    const input = document.getElementById('appGroundDuration');
+    if (input) input.value = value;
+  }
+
+  if (section === 'flight') {
+    store.applicant.appFlightDuration = value;
+
+    const input = document.getElementById('appFlightDuration');
+    if (input) input.value = value;
+  }
+
+  saveToLocalStorage();
+};
+
+window.getFlightPortionAreas = function() {
+  const areas = getCurrentAreas();
+
+  return areas.filter(area =>
+    String(area.roman || '').trim() !== 'I'
+  );
+};
+
+window.getFlightPortionTasks = function() {
+  return window.getFlightPortionAreas()
+    .flatMap(area => area.tasks);
+};
+
+window.getFlightPortionAreas = function() {
+  const areas = getCurrentAreas();
+
+  return areas.filter(area =>
+    String(area.roman || '').trim() !== 'I'
+  );
+};
+
+window.renderFlightDetailedArea = function(container, area) {
+  if (!container || !modules.renderDetailed) return;
+
+  modules.renderDetailed(container, area, store, {
+    onGradeChange: (taskCode, gradeType, value) =>
+      modules.setGrade(taskCode, gradeType, value),
+
+    onToggleTask: taskCode =>
+      modules.toggleTask(taskCode),
+
+    onTaskCheck: (taskCode, checked) =>
+      handleTaskCheck(taskCode, checked),
+
+    onExaminerNoteChange: (taskCode, note) =>
+      handleExaminerNoteChange(taskCode, note)
+  });
+
+  applyAcsCodeHighlights();
+};
+
+window.setDetailedGradeFromFlight = function(taskCode, gradeType, value) {
+  if (!taskCode || !gradeType || !store) return;
+
+  modules.setGrade(taskCode, gradeType, value);
+};
+
+window.setDetailedTaskCheckFromFlight = function(taskCode, checked) {
+  if (!taskCode || !store) return;
+
+  handleTaskCheck(taskCode, checked);
+};
+
+window.setDetailedExaminerNoteFromFlight = function(taskCode, note) {
+  if (!taskCode || !store) return;
+
+  handleExaminerNoteChange(taskCode, note);
+  saveToLocalStorage();
+};
 
 window.setScenarioGradeFromOral = function(select) {
   const rawTaskCode = select.dataset.taskCode;
