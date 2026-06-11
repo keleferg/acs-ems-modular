@@ -1,7 +1,8 @@
 export const CHECKLIST_DATA = [
 { id: "eligibility", title: "Eligibility Checklist", icon: "fa-user-check", items: [
 "Verify that the Examiner is current and qualified to conduct the test",
-{ text: "Welcome and make introductions", children: ["Facilities overview", "Privacy, Exits", "Restrooms", "Water, snacks"] },
+{ text: "Welcome and make introductions", indent: 1, 
+     text: ["Facilities overview", "Privacy, Exits", "Restrooms", "Water, snacks"] },
 "Telephones off",
 "Confirm type of practical test and if a retest",
 { text: "Qualify the applicant", children: ["Application (8710-1)", "Photo/signature Identification (Note type on 8710-1 and return)", "Airman Certificate", "Medical (note date and limitations)", "Foreign License and Letter of Verification of Authenticity (if applicable)", "Knowledge test results and review endorsement (if needed)", "Pilot logbook and/or training records", "Verify flight times and endorsements"] },

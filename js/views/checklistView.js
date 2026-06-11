@@ -213,6 +213,171 @@ function getAeronauticalExperienceRequirements(cert, rating, type) {
     };
   }
 
+  if (cert === 'Instrument') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.65(d)',
+    items: [
+      { text: 'At least 50 hours of cross-country flight time as pilot in command.', indent: 0 },
+      { text: 'At least 10 hours of cross-country PIC time must be in airplanes for an instrument-airplane rating.', indent: 1 },
+
+      { text: 'At least 40 hours of actual or simulated instrument time.', indent: 0 },
+      { text: 'At least 15 hours of instrument flight training from an authorized instructor in the aircraft category for the instrument rating sought.', indent: 1 },
+
+      { text: 'At least 3 hours of instrument training appropriate to the rating sought from an authorized instructor within 2 calendar months before the practical test.', indent: 0 },
+
+      { text: 'Instrument cross-country flight training under IFR.', indent: 0 },
+      { text: 'One cross-country flight of at least 250 nautical miles along airways or by directed routing from ATC.', indent: 1 },
+      { text: 'An instrument approach at each airport.', indent: 1 },
+      { text: 'Three different kinds of approaches with the use of navigation systems.', indent: 1 }
+    ]
+  };
+}
+
+if (cert === 'Commercial' && rating === 'ASEL') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.129(a)',
+    items: [
+      { text: 'At least 250 hours of flight time as a pilot.', indent: 0 },
+
+      { text: '100 hours in powered aircraft.', indent: 1 },
+      { text: '50 hours in airplanes.', indent: 2 },
+
+      { text: '100 hours of pilot-in-command flight time.', indent: 1 },
+      { text: '50 hours of cross-country flight time as pilot in command.', indent: 2 },
+
+      { text: '20 hours of training from an authorized instructor in the areas of operation listed in §61.127(b)(1).', indent: 0 },
+
+      { text: '10 hours of instrument training using a view-limiting device, including attitude instrument flying, partial-panel skills, recovery from unusual flight attitudes, and intercepting/tracking navigation systems.', indent: 1 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours of training in night VFR conditions with 10 takeoffs and 10 landings at an airport with an operating control tower.', indent: 1 },
+
+      { text: '3 hours of practical test preparation within 2 calendar months before the practical test.', indent: 1 },
+
+      { text: '10 hours of solo flight in a single-engine airplane OR 10 hours performing PIC duties with an authorized instructor onboard.', indent: 0 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours in night VFR conditions with 10 takeoffs and 10 landings at an airport with an operating control tower.', indent: 1 }
+    ]
+  };
+}
+
+if (cert === 'Commercial' && rating === 'AMEL') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.129(b)',
+    items: [
+      { text: 'At least 250 hours of flight time as a pilot.', indent: 0 },
+
+      { text: '100 hours in powered aircraft.', indent: 1 },
+      { text: '50 hours in airplanes.', indent: 2 },
+
+      { text: '100 hours of pilot-in-command flight time.', indent: 1 },
+      { text: '50 hours of cross-country flight time as pilot in command.', indent: 2 },
+
+      { text: '20 hours of training from an authorized instructor in the areas of operation listed in §61.127(b)(2).', indent: 0 },
+
+      { text: '10 hours of instrument training using a view-limiting device, including attitude instrument flying, partial-panel skills, recovery from unusual flight attitudes, and intercepting/tracking navigation systems.', indent: 1 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance in a multiengine airplane.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours in night VFR conditions with 10 takeoffs and 10 landings at an airport with an operating control tower in a multiengine airplane.', indent: 1 },
+
+      { text: '3 hours of practical test preparation in a multiengine airplane within 2 calendar months before the practical test.', indent: 1 },
+
+      { text: '10 hours of solo flight time in a multiengine airplane OR 10 hours performing PIC duties in a multiengine airplane with an authorized instructor onboard.', indent: 0 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance in a multiengine airplane.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours in night VFR conditions with 10 takeoffs and 10 landings at an airport with an operating control tower in a multiengine airplane.', indent: 1 }
+    ]
+  };
+}
+
+if (cert === 'Commercial' && rating === 'ASES') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.129(c)',
+    items: [
+      { text: 'At least 250 hours of flight time as a pilot.', indent: 0 },
+
+      { text: '100 hours in powered aircraft.', indent: 1 },
+      { text: '50 hours in airplanes.', indent: 2 },
+
+      { text: '100 hours of pilot-in-command flight time.', indent: 1 },
+      { text: '50 hours of cross-country flight time as pilot in command.', indent: 2 },
+
+      { text: '20 hours of training from an authorized instructor in the areas of operation listed in §61.127(b)(3).', indent: 0 },
+
+      { text: '10 hours of instrument training using a view-limiting device, including attitude instrument flying, partial-panel skills, recovery from unusual flight attitudes, and intercepting/tracking navigation systems.', indent: 1 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance in a single-engine seaplane.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours in night VFR conditions with 10 takeoffs and 10 landings at an airport or operating area in a single-engine seaplane.', indent: 1 },
+
+      { text: '3 hours of practical test preparation in a single-engine seaplane within 2 calendar months before the practical test.', indent: 1 },
+
+      { text: '10 hours of solo flight time in a single-engine seaplane OR 10 hours performing PIC duties in a single-engine seaplane with an authorized instructor onboard.', indent: 0 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance in a single-engine seaplane.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours in night VFR conditions with 10 takeoffs and 10 landings at an airport or operating area in a single-engine seaplane.', indent: 1 }
+    ]
+  };
+}
+
+if (cert === 'Commercial' && rating === 'AMES') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.129(d)',
+    items: [
+      { text: 'At least 250 hours of flight time as a pilot.', indent: 0 },
+
+      { text: '100 hours in powered aircraft.', indent: 1 },
+      { text: '50 hours in airplanes.', indent: 2 },
+
+      { text: '100 hours of pilot-in-command flight time.', indent: 1 },
+      { text: '50 hours of cross-country flight time as pilot in command.', indent: 2 },
+
+      { text: '20 hours of training from an authorized instructor in the areas of operation listed in §61.127(b)(4).', indent: 0 },
+
+      { text: '10 hours of instrument training using a view-limiting device, including attitude instrument flying, partial-panel skills, recovery from unusual flight attitudes, and intercepting/tracking navigation systems.', indent: 1 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance in a multiengine seaplane.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours in night VFR conditions with 10 takeoffs and 10 landings at an airport or operating area in a multiengine seaplane.', indent: 1 },
+
+      { text: '3 hours of practical test preparation in a multiengine seaplane within 2 calendar months before the practical test.', indent: 1 },
+
+      { text: '10 hours of solo flight time in a multiengine seaplane OR 10 hours performing PIC duties in a multiengine seaplane with an authorized instructor onboard.', indent: 0 },
+
+      { text: 'One cross-country flight of at least 300 nautical miles total distance in a multiengine seaplane.', indent: 1 },
+      { text: 'Landings at three points.', indent: 2 },
+      { text: 'One segment of at least 250 nautical miles straight-line distance.', indent: 2 },
+
+      { text: '5 hours in night VFR conditions with 10 takeoffs and 10 landings at an airport or operating area in a multiengine seaplane.', indent: 1 }
+    ]
+  };
+}
+
   if (cert === 'Private' && rating === 'ASEL') {
     return {
       title: 'Aeronautical Experience Requirements',
@@ -237,6 +402,140 @@ function getAeronauticalExperienceRequirements(cert, rating, type) {
       ]
     };
   }
+
+  if (cert === 'Private' && rating === 'AMEL') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.109(b)',
+    items: [
+      { text: 'At least 40 hours of flight time.', indent: 0 },
+
+      { text: 'At least 20 hours of flight training from an authorized instructor.', indent: 1 },
+
+      { text: '3 hours of cross-country flight training in a multiengine airplane.', indent: 2 },
+
+      { text: '3 hours of night flight training in a multiengine airplane.', indent: 2 },
+      { text: 'One night cross-country flight over 100 nautical miles total distance.', indent: 3 },
+      { text: '10 takeoffs and 10 landings to a full stop at an airport.', indent: 3 },
+
+      { text: '3 hours of flight training in a multiengine airplane solely by reference to instruments.', indent: 2 },
+      { text: 'Straight-and-level flight.', indent: 3 },
+      { text: 'Constant airspeed climbs and descents.', indent: 3 },
+      { text: 'Turns to a heading.', indent: 3 },
+      { text: 'Recovery from unusual flight attitudes.', indent: 3 },
+      { text: 'Radio communications.', indent: 3 },
+      { text: 'Use of navigation systems/facilities and radar services appropriate to instrument flight.', indent: 3 },
+
+      { text: '3 hours of flight training in a multiengine airplane within the preceding 2 calendar months in preparation for the practical test.', indent: 2 },
+
+      { text: 'At least 10 hours of solo flight time in a multiengine airplane.', indent: 1 },
+
+      { text: '5 hours of solo cross-country flight time.', indent: 2 },
+
+      { text: 'One solo cross-country flight of at least 150 nautical miles total distance.', indent: 2 },
+      { text: 'Full-stop landings at three points.', indent: 3 },
+      { text: 'One segment of more than 50 nautical miles straight-line distance between takeoff and landing locations.', indent: 3 },
+
+      { text: 'Three takeoffs and three landings to a full stop at an airport with an operating control tower.', indent: 2 }
+    ]
+  };
+}
+
+if (cert === 'Private' && rating === 'ASES') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.109(c)',
+    items: [
+      { text: 'At least 40 hours of flight time.', indent: 0 },
+
+      { text: 'At least 20 hours of flight training from an authorized instructor.', indent: 1 },
+
+      { text: '3 hours of cross-country flight training in a single-engine seaplane.', indent: 2 },
+
+      { text: '3 hours of night flight training in a single-engine seaplane.', indent: 2 },
+      { text: 'One night cross-country flight over 100 nautical miles total distance.', indent: 3 },
+      { text: '10 takeoffs and 10 landings to a full stop at an airport or operating area.', indent: 3 },
+
+      { text: '3 hours of flight training in a single-engine seaplane solely by reference to instruments.', indent: 2 },
+      { text: 'Straight-and-level flight.', indent: 3 },
+      { text: 'Constant airspeed climbs and descents.', indent: 3 },
+      { text: 'Turns to a heading.', indent: 3 },
+      { text: 'Recovery from unusual flight attitudes.', indent: 3 },
+      { text: 'Radio communications.', indent: 3 },
+      { text: 'Use of navigation systems/facilities and radar services appropriate to instrument flight.', indent: 3 },
+
+      { text: '3 hours of flight training in a single-engine seaplane within the preceding 2 calendar months in preparation for the practical test.', indent: 2 },
+
+      { text: 'At least 10 hours of solo flight time in a single-engine seaplane.', indent: 1 },
+
+      { text: '5 hours of solo cross-country flight time.', indent: 2 },
+
+      { text: 'One solo cross-country flight of at least 150 nautical miles total distance.', indent: 2 },
+      { text: 'Full-stop landings at three points.', indent: 3 },
+      { text: 'One segment of more than 50 nautical miles straight-line distance between takeoff and landing locations.', indent: 3 },
+
+      { text: 'Three takeoffs and three landings to a full stop at an airport or operating area.', indent: 2 }
+    ]
+  };
+}
+
+if (cert === 'Private' && rating === 'AMES') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.109(d)',
+    items: [
+      { text: 'At least 40 hours of flight time.', indent: 0 },
+
+      { text: 'At least 20 hours of flight training from an authorized instructor.', indent: 1 },
+
+      { text: '3 hours of cross-country flight training in a multiengine seaplane.', indent: 2 },
+
+      { text: '3 hours of night flight training in a multiengine seaplane.', indent: 2 },
+      { text: 'One night cross-country flight over 100 nautical miles total distance.', indent: 3 },
+      { text: '10 takeoffs and 10 landings to a full stop at an airport or operating area.', indent: 3 },
+
+      { text: '3 hours of flight training in a multiengine seaplane solely by reference to instruments.', indent: 2 },
+      { text: 'Straight-and-level flight.', indent: 3 },
+      { text: 'Constant airspeed climbs and descents.', indent: 3 },
+      { text: 'Turns to a heading.', indent: 3 },
+      { text: 'Recovery from unusual flight attitudes.', indent: 3 },
+      { text: 'Radio communications.', indent: 3 },
+      { text: 'Use of navigation systems/facilities and radar services appropriate to instrument flight.', indent: 3 },
+
+      { text: '3 hours of flight training in a multiengine seaplane within the preceding 2 calendar months in preparation for the practical test.', indent: 2 },
+
+      { text: 'At least 10 hours of solo flight time in a multiengine seaplane.', indent: 1 },
+
+      { text: '5 hours of solo cross-country flight time.', indent: 2 },
+
+      { text: 'One solo cross-country flight of at least 150 nautical miles total distance.', indent: 2 },
+      { text: 'Full-stop landings at three points.', indent: 3 },
+      { text: 'One segment of more than 50 nautical miles straight-line distance between takeoff and landing locations.', indent: 3 },
+
+      { text: 'Three takeoffs and three landings to a full stop at an airport or operating area.', indent: 2 }
+    ]
+  };
+}
+
+if (cert === 'Private' && rating === 'GLIDER') {
+  return {
+    title: 'Aeronautical Experience Requirements',
+    reference: '14 CFR §61.109(f)',
+    items: [
+      { text: 'At least 10 hours of flight time in a glider.', indent: 0 },
+      { text: 'At least 20 total flights in a glider.', indent: 0 },
+
+      { text: 'At least 2 hours of flight training in a glider from an authorized instructor.', indent: 1 },
+      { text: 'At least 10 training flights in a glider with an authorized instructor.', indent: 1 },
+
+      { text: 'At least 2 hours of solo flight time in a glider.', indent: 1 },
+      { text: 'At least 10 solo flights in a glider.', indent: 1 },
+
+      { text: 'If the applicant has logged at least 40 hours of flight time in heavier-than-air aircraft, verify at least 3 training flights in a glider with an authorized instructor.', indent: 0 },
+      { text: 'If the applicant has logged at least 40 hours of flight time in heavier-than-air aircraft, verify at least 10 solo flights in a glider.', indent: 0 }
+    ]
+  };
+}
 
   return {
     title: 'Aeronautical Experience Requirements',
@@ -272,6 +571,36 @@ function getRequiredEndorsements(cert, rating, type) {
       ]
     };
   }
+
+ if (cert === 'Instrument' && type === 'Initial') {
+  return {
+    title: 'Required Endorsements',
+    reference: 'AC 61-65K',
+    items: [
+      { text: 'A.42 — Aeronautical Knowledge Test: Instrument Rating — §61.65(a) and §61.65(b)' },
+
+      { text: 'A.43 — Review of Instrument Rating Knowledge Test Deficiencies — §61.39(a)(6)(iii), if applicable' },
+
+      { text: 'A.44 — Instrument Rating Practical Test — §61.39(a)(6)(i) and (ii), §61.65(a), (d), and (e)' }
+    ]
+  };
+}
+
+if (cert === 'Commercial' && type === 'Initial') {
+  return {
+    title: 'Required Endorsements',
+    reference: 'AC 61-65K',
+    items: [
+      { text: 'A.1 — Prerequisites for Practical Test' },
+
+      { text: 'A.2 — Review of Knowledge Test Deficiencies (if applicable)' },
+
+      { text: 'A.38 — Commercial Pilot Aeronautical Knowledge Test' },
+
+      { text: 'A.39 — Commercial Pilot Practical Test' }
+    ]
+  };
+}
 
   if (type === 'Additional') {
     return {

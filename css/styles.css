@@ -225,3 +225,13 @@
 .drag-handle:hover {
   color: #0f172a;
 }
+
+.print-button button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}

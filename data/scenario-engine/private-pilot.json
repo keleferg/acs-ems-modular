@@ -198,6 +198,62 @@
       "Active": "Yes"
     }
   ],
+  "Phase_Of_Flight_Master": [
+    {
+      "Phase_ID": "POF-001",
+      "Phase_Name": "Preflight Preparation",
+      "Phase_Order": 10,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-002",
+      "Phase_Name": "Preflight Procedures",
+      "Phase_Order": 20,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-003",
+      "Phase_Name": "Engine Start",
+      "Phase_Order": 30,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-004",
+      "Phase_Name": "Taxi / Before Takeoff",
+      "Phase_Order": 40,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-005",
+      "Phase_Name": "Takeoff and Climb",
+      "Phase_Order": 50,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-006",
+      "Phase_Name": "Cruise",
+      "Phase_Order": 60,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-007",
+      "Phase_Name": "Descent / Approach",
+      "Phase_Order": 70,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-008",
+      "Phase_Name": "Landing",
+      "Phase_Order": 80,
+      "Active": "Yes"
+    },
+    {
+      "Phase_ID": "POF-009",
+      "Phase_Name": "After Landing / Parking Procedures",
+      "Phase_Order": 90,
+      "Active": "Yes"
+    }
+  ],
   "Scenario_Segment_Map": [
     {
       "Scenario_ID": "PP-SC001",
@@ -629,6 +685,957 @@
       "Notes": "ADM wrap-up"
     }
   ],
+  "Scenario_Phase_Segment_Map": [
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-001",
+      "Phase_Segment_Order": 10,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Pilot / documents"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-002",
+      "Phase_Segment_Order": 20,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Aircraft documents / airworthiness"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 40,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weather"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-002",
+      "Segment_ID": "ES-005",
+      "Phase_Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-002",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-005",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 60,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Airspace / airport operations"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-009",
+      "Segment_ID": "ES-009",
+      "Phase_Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-001",
+      "Phase_Segment_Order": 10,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Pilot / documents"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-004",
+      "Phase_Segment_Order": 30,
+      "Required": "Yes",
+      "Min_Questions": 5,
+      "Max_Questions": 7,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Flight planning"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 40,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weather"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-002",
+      "Segment_ID": "ES-005",
+      "Phase_Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-002",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-005",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 60,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Airspace / airport operations"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-008",
+      "Phase_Segment_Order": 80,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute / navigation"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 90,
+      "Required": "No",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion / lost procedures"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-009",
+      "Segment_ID": "ES-009",
+      "Phase_Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-001",
+      "Phase_Segment_Order": 10,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Pilot / documents"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-004",
+      "Phase_Segment_Order": 30,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Flight planning"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 40,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weather"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-008",
+      "Phase_Segment_Order": 80,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute / navigation"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 90,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion / lost procedures"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-011",
+      "Phase_Segment_Order": 100,
+      "Required": "No",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems / emergencies"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-009",
+      "Segment_ID": "ES-009",
+      "Phase_Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-004",
+      "Phase_Segment_Order": 30,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Flight planning"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 40,
+      "Required": "Yes",
+      "Min_Questions": 5,
+      "Max_Questions": 7,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weather"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-002",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 50,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weight and balance / performance"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-005",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 60,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Airspace / airport operations"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-008",
+      "Phase_Segment_Order": 80,
+      "Required": "No",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute / navigation"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 90,
+      "Required": "Yes",
+      "Min_Questions": 4,
+      "Max_Questions": 6,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion / lost procedures"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-009",
+      "Segment_ID": "ES-009",
+      "Phase_Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 5,
+      "Max_Questions": 7,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-001",
+      "Phase_Segment_Order": 10,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Pilot / documents"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-002",
+      "Phase_Segment_Order": 20,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Aircraft documents / airworthiness"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-001",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 40,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Weather"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-005",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 60,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Airspace / airport operations"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-010",
+      "Phase_Segment_Order": 100,
+      "Required": "No",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems / emergencies"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-011",
+      "Phase_Segment_Order": 100,
+      "Required": "No",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems / emergencies"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-013",
+      "Phase_Segment_Order": 110,
+      "Required": "Yes",
+      "Min_Questions": 5,
+      "Max_Questions": 7,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Arrival / landing"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-009",
+      "Segment_ID": "ES-009",
+      "Phase_Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 3,
+      "Max_Questions": 5,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-009",
+      "Segment_ID": "ES-014",
+      "Phase_Segment_Order": 120,
+      "Required": "Yes",
+      "Min_Questions": 2,
+      "Max_Questions": 4,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "ADM wrap-up"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 61,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Updated weather / onboard weather limitations in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 71,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Destination weather / approach decision"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 62,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute airspace and communications"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 72,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Arrival airspace entry / clearance requirements"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 63,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion or shorter runway performance recalculation"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 73,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Landing performance before arrival"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-010",
+      "Phase_Segment_Order": 64,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems malfunction scenario in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 65,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion decision point"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 61,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Updated weather / onboard weather limitations in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 71,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Destination weather / approach decision"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 62,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute airspace and communications"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 72,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Arrival airspace entry / clearance requirements"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 63,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion or shorter runway performance recalculation"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 73,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Landing performance before arrival"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-010",
+      "Phase_Segment_Order": 64,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems malfunction scenario in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC002",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 65,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion decision point"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 61,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Updated weather / onboard weather limitations in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 71,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Destination weather / approach decision"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 62,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute airspace and communications"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 72,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Arrival airspace entry / clearance requirements"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 63,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion or shorter runway performance recalculation"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 73,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Landing performance before arrival"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-010",
+      "Phase_Segment_Order": 64,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems malfunction scenario in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC003",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 65,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion decision point"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 61,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Updated weather / onboard weather limitations in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 71,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Destination weather / approach decision"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 62,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute airspace and communications"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 72,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Arrival airspace entry / clearance requirements"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 63,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion or shorter runway performance recalculation"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 73,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Landing performance before arrival"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-010",
+      "Phase_Segment_Order": 64,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems malfunction scenario in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC004",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 65,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion decision point"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 61,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Updated weather / onboard weather limitations in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-003",
+      "Phase_Segment_Order": 71,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Destination weather / approach decision"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 62,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Enroute airspace and communications"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-007",
+      "Phase_Segment_Order": 72,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Arrival airspace entry / clearance requirements"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 63,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion or shorter runway performance recalculation"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-007",
+      "Segment_ID": "ES-006",
+      "Phase_Segment_Order": 73,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Landing performance before arrival"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-010",
+      "Phase_Segment_Order": 64,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Systems malfunction scenario in cruise"
+    },
+    {
+      "Scenario_ID": "PP-SC005",
+      "Phase_ID": "POF-006",
+      "Segment_ID": "ES-012",
+      "Phase_Segment_Order": 65,
+      "Required": "No",
+      "Min_Questions": 1,
+      "Max_Questions": 3,
+      "Randomize": "Yes",
+      "Active": "Yes",
+      "Notes": "Diversion decision point"
+    }
+  ],
+  
   "Event_Master": [
     {
       "Event_ID": "EVT-001",
@@ -725,6 +1732,181 @@
       "Phase": "Enroute",
       "Difficulty": "Hard",
       "Active": "Yes"
+    }
+  ],
+
+  "Scenario_Trigger_Event_Map": [
+  {
+    "Scenario_ID": "PP-SC001",
+    "Phase_ID": "POF-006",
+    "Event_ID": "EVT-001",
+    "Trigger_Order": 10,
+    "Required": "No",
+    "Probability": 50,
+    "Active": "Yes",
+    "Narrative": "While in cruise, the applicant reports that the primary GPS or tablet navigation source has failed."
+  }
+],
+
+"Scenario_Flow_Master": [
+  {
+    "Flow_ID": "PP-SC001-FLOW-001",
+    "Scenario_ID": "PP-SC001",
+    "Phase_ID": "POF-001",
+    "Flow_Order": 10,
+    "Flow_Type": "Narrative",
+    "Title": "Scenario Introduction",
+    "Narrative": "You show up for your planned flight to _____. You are planning on taking your best friend and I to _____ for dinner, and coming back after dinner. Your friend has brought a box of cargo to be dropped off for a friend at the destination.",
+    "Segment_ID": "",
+    "Required": "Yes",
+    "Active": "Yes"
+  },
+  {
+    "Flow_ID": "PP-SC001-FLOW-020",
+    "Scenario_ID": "PP-SC001",
+    "Phase_ID": "POF-001",
+    "Flow_Order": 20,
+    "Flow_Type": "Question_Block",
+    "Title": "Pilot Qualifications",
+    "Narrative": "",
+    "Segment_ID": "ES-001",
+    "Required": "Yes",
+    "Active": "Yes"
+  },
+  {
+    "Flow_ID": "PP-SC001-FLOW-030",
+    "Scenario_ID": "PP-SC001",
+    "Phase_ID": "POF-001",
+    "Flow_Order": 30,
+    "Flow_Type": "Trigger",
+    "Title": "Aircraft Change",
+    "Narrative": "As you are about to head out to the airplane, the aircraft you intended to fly returned with a mechanical problem. You are offered a similar model of aircraft with slightly different avionics.",
+    "Segment_ID": "ES-001",
+    "Required": "Yes",
+    "Active": "Yes"
+  },
+  {
+    "Flow_ID": "PP-SC001-FLOW-040",
+    "Scenario_ID": "PP-SC001",
+    "Phase_ID": "POF-001",
+    "Flow_Order": 40,
+    "Flow_Type": "Question_Block",
+    "Title": "Aircraft Airworthiness",
+    "Narrative": "You decide to accept the new airplane or the airplane has been repaired. You begin checking the aircraft to ensure it is legal to fly.",
+    "Segment_ID": "ES-002",
+    "Required": "Yes",
+    "Active": "Yes"
+  }
+],
+
+  "Event_Phase_Map": [
+    {
+      "Event_ID": "EVT-001",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Enroute"
+    },
+    {
+      "Event_ID": "EVT-002",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Enroute"
+    },
+    {
+      "Event_ID": "EVT-003",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Enroute"
+    },
+    {
+      "Event_ID": "EVT-004",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Enroute / Arrival"
+    },
+    {
+      "Event_ID": "EVT-004",
+      "Phase_ID": "POF-007",
+      "Active": "Yes",
+      "Notes": "Enroute / Arrival"
+    },
+    {
+      "Event_ID": "EVT-005",
+      "Phase_ID": "POF-001",
+      "Active": "Yes",
+      "Notes": "Preflight / Arrival"
+    },
+    {
+      "Event_ID": "EVT-005",
+      "Phase_ID": "POF-007",
+      "Active": "Yes",
+      "Notes": "Preflight / Arrival"
+    },
+    {
+      "Event_ID": "EVT-006",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Enroute"
+    },
+    {
+      "Event_ID": "EVT-007",
+      "Phase_ID": "POF-005",
+      "Active": "Yes",
+      "Notes": "Departure / Enroute"
+    },
+    {
+      "Event_ID": "EVT-007",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Departure / Enroute"
+    },
+    {
+      "Event_ID": "EVT-008",
+      "Phase_ID": "POF-001",
+      "Active": "Yes",
+      "Notes": "Preflight"
+    },
+    {
+      "Event_ID": "EVT-009",
+      "Phase_ID": "POF-001",
+      "Active": "Yes",
+      "Notes": "Preflight / Departure"
+    },
+    {
+      "Event_ID": "EVT-009",
+      "Phase_ID": "POF-005",
+      "Active": "Yes",
+      "Notes": "Preflight / Departure"
+    },
+    {
+      "Event_ID": "EVT-010",
+      "Phase_ID": "POF-001",
+      "Active": "Yes",
+      "Notes": "Preflight / Enroute"
+    },
+    {
+      "Event_ID": "EVT-010",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Preflight / Enroute"
+    },
+    {
+      "Event_ID": "EVT-011",
+      "Phase_ID": "POF-005",
+      "Active": "Yes",
+      "Notes": "Departure / Arrival"
+    },
+    {
+      "Event_ID": "EVT-011",
+      "Phase_ID": "POF-007",
+      "Active": "Yes",
+      "Notes": "Departure / Arrival"
+    },
+    {
+      "Event_ID": "EVT-012",
+      "Phase_ID": "POF-006",
+      "Active": "Yes",
+      "Notes": "Enroute"
     }
   ],
   "Event_Segment_Map": [

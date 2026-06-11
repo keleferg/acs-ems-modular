@@ -1,8 +1,8 @@
 const SCENARIO_DATABASE_PATHS = {
-  private: '/data/scenario-engine/private-pilot.json',
-  instrument: '/data/scenario-engine/instrument-airplane.json',
-  commercial: '/data/scenario-engine/commercial-airplane.json',
-  cfi: '/data/scenario-engine/cfi-mei.json'
+  private: 'data/scenario-engine/private-pilot.json',
+  instrument: 'data/scenario-engine/instrument-airplane.json',
+  commercial: 'data/scenario-engine/commercial-airplane.json',
+  cfi: 'data/scenario-engine/cfi-mei.json'
 };
 
 let loadedScenarioDatabases = {};
@@ -103,15 +103,9 @@ async function loadScenarioDatabase(type) {
 }
 
 async function generateScenario() {
-  const cert =
-    document.getElementById('scenarioCertificate')?.value || 'private';
-
-  const rating =
-    document.getElementById('scenarioRating')?.value || 'ASEL';
-
-  const scenarioNumber =
-    document.getElementById('scenarioNumber')?.value || 'random';
-
+  const cert = document.getElementById('scenarioCertificate')?.value || 'private';
+  const rating = document.getElementById('scenarioRating')?.value || 'ASEL';
+  const scenarioNumber = document.getElementById('scenarioNumber')?.value || 'random';
   const output = document.getElementById('scenarioOutput');
 
   if (!output) return;
@@ -125,12 +119,8 @@ async function generateScenario() {
     let scenario;
 
     if (scenarioNumber === 'random') {
-      const applicableScenarios =
-        scenarios.filter(s => isApplicable(s, rating));
-
-      scenario = randomItem(
-        applicableScenarios.length ? applicableScenarios : scenarios
-      );
+      const applicableScenarios = scenarios.filter(s => isApplicable(s, rating));
+      scenario = randomItem(applicableScenarios.length ? applicableScenarios : scenarios);
     } else {
       scenario =
         scenarios.find(s => String(s.Scenario_Number) === String(scenarioNumber)) ||
@@ -166,40 +156,42 @@ async function generateScenario() {
 function buildGeneratedScenario(db, scenario, rating) {
   const scenarioId = scenario.Scenario_ID;
 
-  const segmentMaps = (db.Scenario_Segment_Map || [])
-    .filter(m => m.Scenario_ID === scenarioId)
+  const phases = (db.Phase_Of_Flight_Master || [])
+    .filter(p => p.Active !== 'No')
     .sort((a, b) =>
-      Number(a.Segment_Order || 999) -
-      Number(b.Segment_Order || 999)
+      Number(a.Phase_Order || 999) -
+      Number(b.Phase_Order || 999)
     );
 
-  return segmentMaps
-    .map(map => {
-      const segment = (db.Evaluation_Segment_Master || [])
-        .find(s => s.Segment_ID === map.Segment_ID);
+  const flowItems = (db.Scenario_Flow_Master || [])
+    .filter(f =>
+      f.Scenario_ID === scenarioId &&
+      f.Active !== 'No'
+    )
+    .sort((a, b) =>
+      Number(a.Flow_Order || 999) -
+      Number(b.Flow_Order || 999)
+    );
 
-      const items = getItemsForSegment(db, map.Segment_ID, rating);
+  return phases.map(phase => {
+    const phaseFlows = flowItems
+      .filter(f => f.Phase_ID === phase.Phase_ID)
+      .map(flow => {
+        const items = flow.Segment_ID
+          ? getItemsForSegment(db, flow.Segment_ID, rating)
+          : [];
 
-      const min =
-        Number(map.Min_Questions) ||
-        Number(map.Min_Q) ||
-        Number(map.Min_Items) ||
-        3;
+        return {
+          flow,
+          items
+        };
+      });
 
-      const max =
-        Number(map.Max_Questions) ||
-        Number(map.Max_Q) ||
-        Number(map.Max_Items) ||
-        min;
-
-      const count = Math.max(min, Math.min(max, items.length));
-
-      return {
-        segment,
-        items: pickRandom(items, count)
-      };
-    })
-    .filter(group => group.segment && group.items.length);
+    return {
+      phase,
+      flows: phaseFlows
+    };
+  });
 }
 
 function getItemsForSegment(db, segmentId, rating) {
@@ -223,8 +215,102 @@ function getItemsForSegment(db, segmentId, rating) {
 }
 
 function renderGeneratedScenario(output, scenario, generatedSegments) {
-  const oralItems = generatedSegments.flatMap(group => group.items);
   const times = getSavedScenarioTimes();
+
+  const oralHtml = (generatedSegments || [])
+    .map(phaseGroup => {
+      const phaseName =
+        phaseGroup.phase?.Phase_Name ||
+        'Unassigned Phase';
+
+        const seenPhaseQuestions = new Set();
+
+      const flowHtml = (phaseGroup.flows || [])
+        .map(flowGroup => {
+          const flow = flowGroup.flow || {};
+          const flowType = flow.Flow_Type || 'Question_Block';
+          const title = flow.Title || '';
+          const narrative = flow.Narrative || '';
+
+          const items = dedupeItemsForPhase(
+            flowGroup.items || [],
+            seenPhaseQuestions
+          );
+
+          const questionsHtml = items
+            .map(item =>
+              renderGradedItem({
+                number: '',
+                title: getItemPrompt(item),
+                answer: getItemAnswer(item),
+                code: getItemTaskCode(item)
+              })
+            )
+            .join('');
+
+          if (flowType === 'Narrative') {
+            return `
+              <div style="
+                margin:14px 0;
+                padding:12px;
+                background:#f8fafc;
+                border:1px solid #d0d7de;
+                border-radius:8px;
+              ">
+                ${title ? `<strong>${escapeHtml(title)}</strong>` : ''}
+                <p>${escapeHtml(narrative)}</p>
+              </div>
+            `;
+          }
+
+          if (flowType === 'Trigger') {
+            return `
+              <div style="
+                margin:14px 0;
+                padding:12px;
+                border-left:4px solid #f59e0b;
+                background:#fffbeb;
+                border-radius:8px;
+              ">
+                <strong>${escapeHtml(title || 'Trigger Event')}</strong>
+                ${narrative ? `<p>${escapeHtml(narrative)}</p>` : ''}
+              </div>
+
+              ${questionsHtml}
+            `;
+          }
+
+          return `
+            ${title ? `<h4 style="margin-top:14px;">${escapeHtml(title)}</h4>` : ''}
+            ${narrative ? `<p>${escapeHtml(narrative)}</p>` : ''}
+            ${questionsHtml}
+          `;
+        })
+        .join('');
+
+      const phaseBodyHtml = flowHtml || `
+        <p style="
+          margin:8px 0 16px 0;
+          color:#64748b;
+          font-style:italic;
+        ">
+          No flow items assigned for this phase.
+        </p>
+      `;
+
+      return `
+        <h3 style="
+          margin-top:24px;
+          border-bottom:1px solid #d0d7de;
+          padding-bottom:4px;
+        ">
+          ${escapeHtml(phaseName)}
+        </h3>
+
+        ${phaseBodyHtml}
+      `;
+    })
+    .join('');
 
   output.innerHTML = `
     <details class="scenario-card">
@@ -253,12 +339,7 @@ function renderGeneratedScenario(output, scenario, generatedSegments) {
 
       <h3 style="margin-top:22px;">Oral Exam Questions</h3>
 
-      ${oralItems.map((item, index) => renderGradedItem({
-        number: index + 1,
-        title: getItemPrompt(item),
-        answer: getItemAnswer(item),
-        code: getItemTaskCode(item)
-      })).join('')}
+      ${oralHtml}
     </details>
 
     <details class="scenario-card">
@@ -390,9 +471,11 @@ function renderGradedItem({ number, title, answer, code }) {
         gap:8px;
         cursor:pointer;
       ">
-        <span style="font-weight:700; min-width:28px;">
-          ${number}.
-        </span>
+        ${number ? `
+          <span style="font-weight:700; min-width:28px;">
+            ${number}.
+          </span>
+        ` : ''}
 
         <select
           class="scenario-grade-select"
@@ -777,6 +860,14 @@ function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function normalizeQuestionKey(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -784,4 +875,75 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function shouldIncludeTrigger(triggerMap) {
+  if (triggerMap.Required === 'Yes') return true;
+
+  const probability = Number(triggerMap.Probability);
+
+  if (!probability) return false;
+
+  return Math.random() * 100 < probability;
+}
+
+function buildTriggeredEvent(db, triggerMap, rating) {
+  const event = (db.Event_Master || [])
+    .find(e => e.Event_ID === triggerMap.Event_ID);
+
+  if (!event) return null;
+
+  const eventSegmentMaps = (db.Event_Segment_Map || [])
+    .filter(m =>
+      m.Event_ID === triggerMap.Event_ID &&
+      m.Active !== 'No'
+    );
+
+  const items = eventSegmentMaps.flatMap(map => {
+    const segmentItems = getItemsForSegment(
+      db,
+      map.Segment_ID,
+      rating
+    );
+
+    const min = Number(map.Min_Questions) || 0;
+    const max = Number(map.Max_Questions) || min;
+    const count = Math.max(min, Math.min(max, segmentItems.length));
+
+    return pickRandom(segmentItems, count);
+  });
+
+  return {
+    event,
+    narrative: triggerMap.Narrative || event.Description || '',
+    items
+  };
+}
+
+function dedupeItems(items) {
+  const seen = new Set();
+
+  return (items || []).filter(item => {
+    const key = normalizeQuestionKey(getItemPrompt(item));
+
+    if (!key) return false;
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeItemsForPhase(items, seen) {
+  return (items || []).filter(item => {
+    const key = normalizeQuestionKey(getItemPrompt(item));
+
+    if (!key) return false;
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
 }

@@ -715,10 +715,14 @@ function wireFullAppEvents() {
     clearLocalStorageSave();
 
     modules.resetStore();
+
+    store.eligibilityChecks = {};
+    store.expandedEligibilitySections = {};
+
     ensureStoreDefaults();
     populateRatingDropdown();
     modules.notify();
-});
+    });
 }
 
 function wireReportActionButtons() {
@@ -1016,6 +1020,15 @@ function renderRequiredBriefings(container) {
           >
             <div class="checklist-header" data-briefing-toggle="${escapeHtml(section.id)}">
               <div class="checklist-header-left">
+                <input
+                  type="checkbox"
+                  class="briefing-master-check"
+                  data-briefing-master-check="${escapeHtml(section.id)}"
+                  ${status.complete ? 'checked' : ''}
+                  title="Check or uncheck all items in this section"
+                  onclick="event.stopPropagation();"
+                />
+
                 <i class="fas fa-clipboard-check section-icon"></i>
                 <h3>${escapeHtml(section.title)}</h3>
               </div>
@@ -1114,6 +1127,38 @@ function renderRequiredBriefings(container) {
       modules.notify();
     });
   });
+
+  container.querySelectorAll('[data-briefing-master-check]').forEach(master => {
+  master.addEventListener('change', event => {
+    event.stopPropagation();
+
+    const sectionId = event.target.dataset.briefingMasterCheck;
+    const checked = event.target.checked;
+
+    const section = REQUIRED_BRIEFINGS.find(item => item.id === sectionId);
+    if (!section) return;
+
+    store.requiredBriefings ??= {};
+    store.requiredBriefings[section.id] ??= {};
+
+    (section.items || []).forEach((_, index) => {
+      store.requiredBriefings[section.id][index] = checked;
+    });
+
+    (section.groups || []).forEach(group => {
+      if (isBriefingGroupDisabled(group)) return;
+
+      const groupKey = `${section.id}.${group.id}`;
+      store.requiredBriefings[groupKey] ??= {};
+
+      group.items.forEach((_, index) => {
+        store.requiredBriefings[groupKey][index] = checked;
+      });
+    });
+
+    modules.notify();
+  });
+});
 
   container.querySelectorAll('[data-required-briefing-section]').forEach(input => {
     input.addEventListener('change', event => {
@@ -1736,10 +1781,11 @@ function generatePracticalTestReport(reportType = 'applicant') {
   const applicant = store.applicant;
   const notes = store.examinerNotes ?? {};
   const applicantName = applicant.appName || '';
-const aircraftDisplay = [
-  applicant.appAircraftType,
-  applicant.appNNumber
-].filter(Boolean).join(' / ');
+
+  const aircraftDisplay = [
+    applicant.appAircraftType,
+    applicant.appNNumber
+  ].filter(Boolean).join(' / ');
 
   const reportTitle = isApplicant
     ? 'Applicant Practical Test Report'
@@ -1753,252 +1799,375 @@ const aircraftDisplay = [
   }
 
   const getTaskStatus = task => {
-  const row = summary.statuses?.find(item =>
-    item.task?.filterCode === task.filterCode
-  );
+    const row = summary.statuses?.find(item =>
+      item.task?.filterCode === task.filterCode
+    );
 
-  const k = store.grades?.[`${task.filterCode}.K`] || 'NP';
-  const r = store.grades?.[`${task.filterCode}.R`] || 'NP';
-  const s = store.grades?.[`${task.filterCode}.S`] || 'NP';
+    const k = store.grades?.[`${task.filterCode}.K`] || 'NP';
+    const r = store.grades?.[`${task.filterCode}.R`] || 'NP';
+    const s = store.grades?.[`${task.filterCode}.S`] || 'NP';
 
-  const hasGrade = [k, r, s].some(value => value && value !== 'NP');
+    const hasGrade = [k, r, s].some(value => value && value !== 'NP');
 
-  if (row?.status === 'not-required' && !hasGrade) {
-    return 'Not Required';
-  }
-
-  if (row?.status === 'not-required' && hasGrade) {
-    if ([k, r, s].includes('2') || [k, r, s].includes('1')) {
-      return 'Unsatisfactory';
+    if (row?.status === 'not-required' && !hasGrade) {
+      return 'Not Required';
     }
 
-    if ([k, r, s].includes('3') || [k, r, s].includes('4')) {
-      return 'Satisfactory';
+    if (row?.status === 'not-required' && hasGrade) {
+      if ([k, r, s].includes('2') || [k, r, s].includes('1')) {
+        return 'Unsatisfactory';
+      }
+
+      if ([k, r, s].includes('3') || [k, r, s].includes('4')) {
+        return 'Satisfactory';
+      }
+
+      return 'Not Required';
     }
 
-    return 'Not Required';
-  }
+    if (!row) return 'Incomplete';
+    if (row.status === 'fail') return 'Unsatisfactory';
+    if (row.status === 'incomplete') return 'Incomplete';
 
-  if (!row) return 'Incomplete';
-
-  if (row.status === 'fail') return 'Unsatisfactory';
-  if (row.status === 'incomplete') return 'Incomplete';
-  return 'Satisfactory';
-};
+    return 'Satisfactory';
+  };
 
   const getStatusClass = status => {
-  if (status === 'Satisfactory') return 'status-sat';
-  if (status === 'Unsatisfactory') return 'status-unsat';
-  if (status === 'Not Required') return 'status-notreq';
-  return 'status-inc';
-};
+    if (status === 'Satisfactory') return 'status-sat';
+    if (status === 'Unsatisfactory') return 'status-unsat';
+    if (status === 'Not Required') return 'status-notreq';
+    return 'status-inc';
+  };
+
+  const taskRows = tasks.map(task => {
+    const status = getTaskStatus(task);
+    const note = notes[task.filterCode] || '';
+    const isHighlighted = store.selectedAcsCodes?.includes(task.code);
+
+    return `
+      <tr>
+        <td class="task-code-col ${isHighlighted ? 'acs-highlight' : ''}">
+          ${escapeReport(task.code)}
+        </td>
+
+        <td class="task-title-col ${isHighlighted ? 'acs-highlight' : ''}">
+          ${escapeReport(task.title)}
+        </td>
+
+        <td class="task-status-col ${getStatusClass(status)}">
+          ${escapeReport(status)}
+        </td>
+
+        ${!isApplicant ? `
+          <td class="note-col">
+            ${note ? escapeReport(note).replace(/\n/g, '<br>') : ''}
+          </td>
+        ` : ''}
+      </tr>
+    `;
+  }).join('');
+
+  const detailRows = tasks.map(t => `
+    <tr>
+      <td>${escapeReport(t.code)}</td>
+      <td>${escapeReport(t.title)}</td>
+      <td>${escapeReport(store.grades?.[t.filterCode + '.K'] || 'NP')}</td>
+      <td>${escapeReport(store.grades?.[t.filterCode + '.R'] || 'NP')}</td>
+      <td>${escapeReport(store.grades?.[t.filterCode + '.S'] || 'NP')}</td>
+    </tr>
+  `).join('');
+
+  reportWindow.document.open();
 
   reportWindow.document.write(`
 <!DOCTYPE html>
 <html>
 <head>
-<title>${escapeReport(reportTitle)}</title>
+  <title>${escapeReport(reportTitle)}</title>
 
-<style>
-body { font-family: Arial; padding: 32px; }
-h1 { border-bottom: 3px solid #000; }
-h2 { 
-  margin-top: 24px; 
-  border-bottom: 1px solid #ccc; 
-}
+  <style>
+    @page {
+      size: letter portrait;
+      margin: 0.5in;
+    }
 
-.acs-highlight {
-  background: #ffd6e8 !important;
-}
+    * {
+      box-sizing: border-box;
+    }
 
-.top-report-grid {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 24px;
-  margin-top: 20px;
-}
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #111;
+      font-size: 12pt;
+      line-height: 1.3;
+    }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
+    .report-page {
+      width: 100%;
+    }
 
-th, td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  vertical-align: top;
-}
+    h1 {
+      font-size: 20pt;
+      margin: 0 0 12px 0;
+      border-bottom: 2px solid #000;
+      padding-bottom: 4px;
+    }
 
-th {
-  background: #f0f0f0;
-}
+    h2 {
+      font-size: 14pt;
+      margin: 18px 0 8px 0;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 3px;
+    }
 
-.badge {
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-weight: bold;
-}
+    .top-report-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      align-items: start;
+      margin-bottom: 12px;
+    }
 
-.pass { background: green; color: white; }
-.fail { background: red; color: white; }
-.incomplete { background: orange; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
 
-.status-sat {
-  background: #d4edda;
-  color: #155724;
-  font-weight: bold;
-}
+    .info-table,
+    .result-table,
+    .task-summary-table,
+    .detail-table {
+      width: 100%;
+      table-layout: fixed;
+    }
 
-.status-unsat {
-  background: #f8d7da;
-  color: #721c24;
-  font-weight: bold;
-}
+    .info-table th,
+    .result-table th {
+      width: 150px;
+      white-space: nowrap;
+    }
 
-.status-inc {
-  background: #fff3cd;
-  color: #856404;
-  font-weight: bold;
-}
+    .info-table td,
+    .result-table td {
+      white-space: normal;
+    }
 
-.print-button {
-  margin-bottom: 20px;
-}
+    .task-code-col {
+      width: 85px;
+      white-space: nowrap;
+    }
 
-@media print {
-  .print-button { display:none; }
-}
+    .task-status-col {
+      width: 130px;
+      white-space: nowrap;
+    }
 
-.status-notreq {
-  background: #e5e7eb;
-  color: #374151;
-  font-weight: bold;
-}
-</style>
+    .task-title-col {
+      width: auto;
+      white-space: normal;
+    }
+
+    .note-col {
+      width: 220px;
+      white-space: normal;
+    }
+
+    th,
+    td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f0f0;
+      font-weight: bold;
+    }
+
+    tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .pass {
+      background: green;
+      color: white;
+    }
+
+    .fail {
+      background: red;
+      color: white;
+    }
+
+    .incomplete {
+      background: orange;
+      color: black;
+    }
+
+    .status-sat {
+      background: #d4edda;
+      color: #155724;
+      font-weight: bold;
+    }
+
+    .status-unsat {
+      background: #f8d7da;
+      color: #721c24;
+      font-weight: bold;
+    }
+
+    .status-inc {
+      background: #fff3cd;
+      color: #856404;
+      font-weight: bold;
+    }
+
+    .status-notreq {
+      background: #e5e7eb;
+      color: #374151;
+      font-weight: bold;
+    }
+
+    .acs-highlight {
+      background: #ffd6e8 !important;
+    }
+
+    .outcome-notes {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 80px;
+      background: #fafafa;
+      width: 100%;
+      white-space: normal;
+    }
+
+    .print-button {
+      margin-bottom: 12px;
+    }
+
+    .print-button button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 11pt;
+    }
+
+    @media print {
+      .print-button {
+        display: none;
+      }
+
+      body {
+        zoom: 1;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <div class="report-page">
 
-<button class="print-button" onclick="window.print()">Print / Save PDF</button>
+    <div class="print-button">
+      <button onclick="window.print()">Print / Save PDF</button>
+      <button onclick="window.close()" style="margin-left:10px;">Close Report</button>
+    </div>
 
-<h1>${escapeReport(reportTitle)}</h1>
+    <h1>${escapeReport(reportTitle)}</h1>
 
-<div class="top-report-grid">
+    <div class="top-report-grid">
+      <div>
+        <h2>Applicant Information</h2>
 
-  <div>
-    <h2>Applicant Information</h2>
-    <table>
-      <tr><th>Name</th><td>${escapeReport(applicantName)}</td></tr>
-      <tr><th>Date</th><td>${escapeReport(formatDateMMDDYYYY(applicant.appDate))}</td></tr>
-      <tr><th>Certificate</th><td>${escapeReport(applicant.appCertificate)}</td></tr>
-      <tr><th>Rating</th><td>${escapeReport(formatRatingLabel(applicant.appRating))}</td></tr>
-      <tr><th>Exam Type</th><td>${escapeReport(applicant.appExamType)}</td></tr>
-      <tr><th>Aircraft</th><td>${escapeReport(aircraftDisplay)}</td></tr>
-      <tr><th>Examiner</th><td>${escapeReport(applicant.appExaminer)}</td></tr>
+        <table class="info-table">
+          <tr><th>Name</th><td>${escapeReport(applicantName)}</td></tr>
+          <tr><th>Date</th><td>${escapeReport(formatDateMMDDYYYY(applicant.appDate))}</td></tr>
+          <tr><th>Certificate</th><td>${escapeReport(applicant.appCertificate)}</td></tr>
+          <tr><th>Rating</th><td>${escapeReport(formatRatingLabel(applicant.appRating))}</td></tr>
+          <tr><th>Exam Type</th><td>${escapeReport(applicant.appExamType)}</td></tr>
+          <tr><th>Aircraft</th><td>${escapeReport(aircraftDisplay)}</td></tr>
+          <tr><th>Examiner</th><td>${escapeReport(applicant.appExaminer)}</td></tr>
+        </table>
+      </div>
+
+      <div>
+        <h2>Overall Result</h2>
+
+        <p style="margin:0 0 10px 0;">
+          <span class="badge ${
+            summary.overall === 'SATISFACTORY'
+              ? 'pass'
+              : summary.overall === 'UNSATISFACTORY'
+              ? 'fail'
+              : 'incomplete'
+          }">
+            ${escapeReport(summary.overall)}
+          </span>
+        </p>
+
+        <table class="result-table">
+          <tr><th>Tasks Passed</th><td>${summary.passedRequiredTasks}</td></tr>
+          <tr><th>Failed</th><td>${summary.failedTasks}</td></tr>
+          <tr><th>Incomplete</th><td>${summary.incompleteRequiredTasks}</td></tr>
+          <tr><th>Ground Duration</th><td>${escapeReport(applicant.appGroundDuration)}</td></tr>
+          <tr><th>Flight Duration</th><td>${escapeReport(applicant.appFlightDuration)}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <h2>Task Summary</h2>
+
+    <table class="task-summary-table">
+      <tr>
+        <th class="task-code-col">Task</th>
+        <th class="task-title-col">Title</th>
+        <th class="task-status-col">Status</th>
+        ${!isApplicant ? '<th class="note-col">Examiner Note</th>' : ''}
+      </tr>
+
+      ${taskRows}
     </table>
+
+    <h2>Outcome Notes</h2>
+
+    <div class="outcome-notes">
+      ${escapeReport(store.outcomeNotes || 'None').replace(/\n/g, '<br>')}
+    </div>
+
+    ${
+      !isApplicant
+        ? `
+          <h2>Detailed K / R / S Breakdown</h2>
+
+          <table class="detail-table">
+            <tr>
+              <th>Task</th>
+              <th>Title</th>
+              <th>K</th>
+              <th>R</th>
+              <th>S</th>
+            </tr>
+
+            ${detailRows}
+          </table>
+        `
+        : ''
+    }
+
   </div>
-
-  <div>
-    <h2>Overall Result</h2>
-
-    <p>
-      <span class="badge ${
-        summary.overall === 'SATISFACTORY'
-          ? 'pass'
-          : summary.overall === 'UNSATISFACTORY'
-          ? 'fail'
-          : 'incomplete'
-      }">
-        ${escapeReport(summary.overall)}
-      </span>
-    </p>
-
-    <table>
-  <tr><th>Tasks Passed</th><td>${summary.passedRequiredTasks}</td></tr>
-  <tr><th>Failed</th><td>${summary.failedTasks}</td></tr>
-  <tr><th>Incomplete</th><td>${summary.incompleteRequiredTasks}</td></tr>
-  <tr><th>Ground Duration</th><td>${escapeReport(applicant.appGroundDuration)}</td></tr>
-  <tr><th>Flight Duration</th><td>${escapeReport(applicant.appFlightDuration)}</td></tr>
-</table>
-  </div>
-
-</div>
-
-<h2>Task Summary</h2>
-
-<table>
-  <tr>
-    <th>Task</th>
-    <th>Title</th>
-    <th>Status</th>
-    <th>Examiner Note</th>
-  </tr>
-
-  ${tasks.map(task => {
-  const status = getTaskStatus(task);
-  const note = notes[task.filterCode] || '';
-
-  const isHighlighted = store.selectedAcsCodes?.includes(task.code);
-
-  return `
-    <tr>
-      <td class="${isHighlighted ? 'acs-highlight' : ''}">
-  ${escapeReport(task.code)}
-</td>
-<td class="${isHighlighted ? 'acs-highlight' : ''}">
-  ${escapeReport(task.title)}
-</td>
-<td class="${getStatusClass(status)}">
-  ${escapeReport(status)}
-</td>
-<td>
-  ${note ? escapeReport(note).replace(/\n/g, '<br>') : ''}
-</td>
-    </tr>
-  `;
-}).join('')}
-</table>
-
-<h2>Outcome Notes</h2>
-<div style="
-  border:1px solid #ccc;
-  padding:10px;
-  min-height:80px;
-  background:#fafafa;
-">
-  ${escapeReport(store.outcomeNotes || 'None').replace(/\n/g, '<br>')}
-</div>
-
-${
-  !isApplicant
-    ? `
-<h2>Detailed K / R / S Breakdown</h2>
-
-<table>
-<tr>
-  <th>Task</th>
-  <th>Title</th>
-  <th>K</th>
-  <th>R</th>
-  <th>S</th>
-</tr>
-
-${tasks.map(t => `
-<tr>
-<td>${escapeReport(t.code)}</td>
-<td>${escapeReport(t.title)}</td>
-<td>${escapeReport(store.grades?.[t.filterCode + '.K'] || 'NP')}</td>
-<td>${escapeReport(store.grades?.[t.filterCode + '.R'] || 'NP')}</td>
-<td>${escapeReport(store.grades?.[t.filterCode + '.S'] || 'NP')}</td>
-</tr>
-`).join('')}
-
-</table>
-`
-    : ''
-}
-
 </body>
 </html>
 `);
