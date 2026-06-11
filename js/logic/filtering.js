@@ -40,6 +40,10 @@ export function getRequiredAdditionalCodes(applicant) {
   );
 }
 
+function isRetest(applicant) {
+  return applicant.appRetest === 'Yes';
+}
+
 export function getAvailableHeldRatings(certificate, rating) {
   const maps = ADDITIONAL_MAPS?.[certificate] ?? {};
   const prefix = `${rating}_from_`;
@@ -62,14 +66,6 @@ function normalizeTaskCode(area, task) {
 }
 
 function shouldRemoveForAmeInstrumentPrivileges(applicant, code) {
-  /*
-    Instrument Rating Airplane Additional:
-
-    If AME Instrument Privileges is selected as "No",
-    remove:
-    - VII_C Instrument Approach and Landing with an Inoperative Engine
-    - VII_D Approach with Loss of Primary Flight Instrument Indicators
-  */
   if (
     applicant.appCertificate === 'Instrument' &&
     applicant.appRating === 'Instrument Airplane' &&
@@ -84,14 +80,6 @@ function shouldRemoveForAmeInstrumentPrivileges(applicant, code) {
 }
 
 function shouldMakeNotRequiredForAmeInstrumentPrivileges(applicant, code) {
-  /*
-    Airplane Multiengine Additional:
-
-    If AME Instrument Privileges is selected as "No",
-    keep the tasks visible but mark these as not required:
-    - X_C
-    - X_D
-  */
   if (
     applicant.appRating === 'AMEL' &&
     applicant.appAmelInstrument === 'No' &&
@@ -106,6 +94,7 @@ function shouldMakeNotRequiredForAmeInstrumentPrivileges(applicant, code) {
 export function buildVisibleAreas(areas, applicant) {
   const requiredSet = getRequiredAdditionalCodes(applicant);
   const isAdditional = applicant.appExamType === 'Additional';
+  const retestMode = isRetest(applicant);
 
   return areas
     .map(area => {
@@ -122,37 +111,23 @@ export function buildVisibleAreas(areas, applicant) {
             applicant.appRating
           );
 
-          let isRequired = isAdditional
-            ? requiredSet
-              ? requiredSet.has(code)
-              : false
-            : appliesToRating;
+          let isRequired = retestMode
+            ? false
+            : isAdditional
+              ? requiredSet
+                ? requiredSet.has(code)
+                : false
+              : appliesToRating;
 
           if (shouldMakeNotRequiredForAmeInstrumentPrivileges(applicant, code)) {
             isRequired = false;
           }
 
-          /*
-            Initial-rating logic:
-
-            For an Initial practical test, show ONLY tasks that apply to the
-            selected rating/class. Example: Private / ASEL / Initial should
-            only show tasks tagged ASEL, plus untagged common tasks.
-
-            Additional-rating logic:
-
-            For Additional ratings, show tasks that normally apply to the
-            selected rating OR tasks specifically required by the FAA
-            additional-rating table.
-
-            Special Instrument Additional exception:
-
-            If AME Instrument Privileges = No, VII_C and VII_D are removed
-            before this display logic is applied.
-          */
-          const shouldShow = isAdditional
-            ? appliesToRating || isRequired
-            : appliesToRating;
+          const shouldShow = retestMode
+            ? appliesToRating
+            : isAdditional
+              ? appliesToRating || isRequired
+              : appliesToRating;
 
           if (!shouldShow) {
             return null;
@@ -166,7 +141,8 @@ export function buildVisibleAreas(areas, applicant) {
             phase: area.phase,
             filterCode: code,
             isRequired,
-            isAdditional
+            isAdditional,
+            isRetest: retestMode
           };
         })
         .filter(Boolean);
@@ -180,6 +156,10 @@ export function buildVisibleAreas(areas, applicant) {
 }
 
 export function getFilterMessage(applicant) {
+  if (applicant.appRetest === 'Yes') {
+    return 'Retest mode active: all applicable tasks are shown as not required. Select or grade only the items that need retesting.';
+  }
+
   if (applicant.appExamType !== 'Additional') {
     return '';
   }
