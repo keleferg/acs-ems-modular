@@ -27,7 +27,7 @@ export function renderChecklists(container) {
           <div class="checklist-body">
             <div class="checklist-items">
               ${section.items.map((item, itemIndex) => `
-                <div class="checklist-item">
+                <div class="checklist-item" style="margin-left:${Number(item.indent || 0) * 24}px;">
                   <input
                     type="checkbox"
                     data-checklist-check="${sectionIndex}"

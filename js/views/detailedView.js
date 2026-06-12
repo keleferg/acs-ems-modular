@@ -89,14 +89,18 @@ const isChecked = hasAllKrsNumericGrades;
     return val && val !== 'NP';
   });
 
-const requiredClass = task.isAdditional
-  ? (task.isRequired
+const isSelectionMode = task.isAdditional || task.isRetest;
+
+const requiredClass = isSelectionMode
+  ? (task.isRequired || hasUserInteraction
       ? 'required-addon'
-      : (hasUserInteraction ? '' : 'not-addon-required')
+      : 'not-addon-required'
     )
   : '';
 
-  const requiredLabel = task.isAdditional
+const requiredLabel = task.isRetest
+  ? (hasUserInteraction ? 'Selected Retest Task' : 'Retest Task / Not Selected')
+  : task.isAdditional
     ? (task.isRequired ? 'Required Additional Task' : 'Not Required / Optional')
     : 'Required Task';
 

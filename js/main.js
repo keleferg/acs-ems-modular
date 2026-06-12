@@ -48,97 +48,120 @@ const REQUIRED_BRIEFINGS = [
     id: 'establishEligibility',
     title: 'Establish Eligibility',
     items: [
-      'Welcome and make introductions',
-      'Facilities overview',
-      'Privacy, exits',
-      'Restrooms',
-      'Water, snacks',
-      'Telephones off',
-      'Confirm type of practical test and if a retest',
-      'Qualify the applicant',
-      'Application (8710-1)',
-      'Photo/signature Identification (note type on 8710-1 and return)',
-      'Airman Certificate',
-      'Medical (note date and limitations)',
-      'Foreign License and Letter of Verification of Authenticity, if applicable',
-      'Knowledge test results and review endorsement, if needed',
-      'Pilot logbook and/or training records',
-      'Verify flight times and endorsements',
-      'Applicant signs IACRA 8710',
-      'Qualify the aircraft',
-      'Review maintenance records per Order 8900.2',
-      'Instrument or ATP current NavData',
-      'Inoperative equipment'
+      { text: 'Welcome and make introductions', indent: 0 },
+      { text: 'Facilities overview', indent: 1 },
+      { text: 'Privacy, exits', indent: 1 },
+      { text: 'Restrooms', indent: 1 },
+      { text: 'Water, snacks', indent: 1 },
+
+      { text: 'Telephones off', indent: 0 },
+
+      { text: 'Confirm type of practical test and if a retest', indent: 0 },
+
+      { text: 'Qualify the applicant', indent: 0 },
+      { text: 'Application (8710-1)', indent: 1 },
+      { text: 'Photo/signature Identification (note type on 8710-1 and return)', indent: 1 },
+      { text: 'Airman Certificate', indent: 1 },
+      { text: 'Medical (note date and limitations)', indent: 1 },
+      { text: 'Foreign License and Letter of Verification of Authenticity, if applicable', indent: 1 },
+      { text: 'Knowledge test results and review endorsement, if needed', indent: 1 },
+      { text: 'Pilot logbook and/or training records', indent: 1 },
+      { text: 'Verify flight times and endorsements', indent: 1 },
+
+      { text: 'Discuss Pilots Bill of Rights', indent: 0 },
+      { text: 'Applicant signs IACRA 8710', indent: 0 },
+
+      { text: 'Qualify the aircraft', indent: 0 },
+      { text: 'Review maintenance records per Order 8900.2', indent: 1 },
+      { text: 'Instrument or ATP current NavData', indent: 1 },
+      { text: 'Inoperative equipment', indent: 1 }
     ]
   },
+
   {
     id: 'pretestBriefing',
     title: 'Pretest Briefing',
     items: [
-      'Current navigational charts and/or current NavData on Electronic Flight Bag',
-      'The test will be done in accordance with the FAA ACS(s) and FAA Order 8900.2',
-      'Plan of Action will be used',
-      'Will be taking notes during test for debriefing',
-      'Perfection is not the standard',
-      'Oral questioning will continue throughout all portions of the test',
-      'Three possible outcomes',
-      'Temporary certificate',
-      'Letter of discontinuance',
-      'Conditions leading to letter of discontinuance',
-      'Notice of disapproval',
-      'Conditions leading to disapproval',
-      'Any questions before we begin the test?',
-      'Announce: “The test has begun”'
+      { text: 'Current navigational charts and/or current NavData on Electronic Flight Bag', indent: 0 },
+
+      { text: 'Advise applicant that:', indent: 0 },
+      { text: 'The test will be done in accordance with the FAA ACS(s) and FAA Order 8900.2', indent: 1 },
+      { text: 'Plan of Action will be used', indent: 1 },
+      { text: 'Will be taking notes during test for debriefing', indent: 1 },
+      { text: 'Perfection is not the standard', indent: 1 },
+      { text: 'Oral questioning will continue throughout all portions of the test', indent: 1 },
+
+      { text: 'Discuss three possible outcomes', indent: 0 },
+      { text: 'Temporary certificate', indent: 1 },
+      { text: 'Letter of discontinuance', indent: 1 },
+      { text: 'Conditions leading to letter of discontinuance', indent: 2 },
+      { text: 'Notice of disapproval', indent: 1 },
+      { text: 'Conditions leading to disapproval', indent: 2 },
+
+      { text: 'Any questions before we begin the test?', indent: 0 },
+      { text: 'Announce: “The test has begun”', indent: 1 }
     ]
   },
+
   {
     id: 'preflightBriefing',
     title: 'Preflight Briefing',
     items: [
-      'Brief flight profile / overall scenario',
-      'Applicant remains PIC under 14 CFR §61.47 during entire flight',
-      'Discuss actual instrument conditions, if applicable',
-      'Simulated emergencies',
-      'DPE action / announcement',
-      'Engine failure — takeoff and landing',
-      'Other simulated emergencies',
-      'Feathering, if applicable',
-      'Actual emergencies',
-      'Actual engine failure',
-      'Other actual emergencies',
-      'Transfer of controls — brief how it will be done',
-      'Collision avoidance — air and ground',
-      'Looking for reported and unreported traffic',
-      'Clearing prior to maneuvering',
-      'Primary responsibility',
-      'Preflight duties',
-      'Weight and balance',
-      'Performance',
-      'First flight of day',
-      'VFR / IFR requirements',
-      'Aircraft systems',
-      'MEL / KOEL / inoperative equipment',
-      'Oral questions will continue throughout the test',
-      'Focus on normal operations',
-      'Exercise PIC authority at all times',
-      'Testing with POA will continue IAW ACS(s)',
-      'Will continue to take notes',
-      'Continue / discontinue if task is unsatisfactory',
-      'Any questions?',
-      'Are you ready for the flight evaluation?',
-      'Return aircraft documents to the aircraft',
-      'Observe entire preflight preparation and preflight inspection'
+      { text: 'Brief flight profile / overall scenario', indent: 0 },
+
+      { text: 'Applicant remains PIC under 14 CFR §61.47 during entire flight', indent: 0 },
+      { text: 'Exercise PIC authority at all times', indent: 1 },
+      { text: 'Focus on normal operations', indent: 1 },
+
+      { text: 'Discuss actual instrument conditions, if applicable', indent: 0 },
+
+      { text: 'Simulated emergencies', indent: 0 },
+      { text: 'DPE action / announcement', indent: 1 },
+      { text: 'Engine failure — takeoff and landing', indent: 1 },
+      { text: 'Other simulated emergencies', indent: 1 },
+      { text: 'Feathering, if applicable', indent: 2 },
+
+      { text: 'Actual emergencies', indent: 0 },
+      { text: 'Actual engine failure', indent: 1 },
+      { text: 'Other actual emergencies', indent: 1 },
+
+      { text: 'Transfer of controls — brief how it will be done', indent: 0 },
+
+      { text: 'Collision avoidance — air and ground', indent: 0 },
+      { text: 'Looking for reported and unreported traffic', indent: 1 },
+      { text: 'Clearing prior to maneuvering', indent: 1 },
+      { text: 'Primary responsibility', indent: 1 },
+
+      { text: 'Preflight duties', indent: 0 },
+      { text: 'Weight and balance', indent: 1 },
+      { text: 'Performance', indent: 1 },
+      { text: 'First flight of day', indent: 1 },
+      { text: 'VFR / IFR requirements', indent: 1 },
+      { text: 'Aircraft systems', indent: 1 },
+      { text: 'MEL / KOEL / inoperative equipment', indent: 1 },
+
+      { text: 'Oral questions will continue throughout the test', indent: 0 },
+      { text: 'Testing with POA will continue IAW ACS(s)', indent: 1 },
+
+      { text: 'Will continue to take notes', indent: 0 },
+      { text: 'Continue / discontinue if task is unsatisfactory', indent: 1 },
+      { text: 'Any questions?', indent: 1 },
+      { text: 'Are you ready for the flight evaluation?', indent: 1 },
+
+      { text: 'Return aircraft documents to the aircraft', indent: 0 },
+      { text: 'Observe entire preflight preparation and preflight inspection', indent: 0 }
     ]
   },
+
   {
     id: 'postFlightBriefing',
     title: 'Post Flight Briefing',
     items: [
-      'Ensure applicant is debriefed in private',
-      'Encourage recommending instructor to be present',
-      'Reaffirm the outcome of the test',
-      'Use notes taken to debrief performance',
-      'Highlight areas that were above standard'
+      { text: 'Ensure applicant is debriefed in private', indent: 0 },
+      { text: 'Encourage recommending instructor to be present', indent: 1 },
+      { text: 'Reaffirm the outcome of the test', indent: 1 },
+      { text: 'Use notes taken to debrief performance', indent: 1 },
+      { text: 'Highlight areas that were above standard', indent: 2 }
     ],
     groups: [
       {
@@ -146,11 +169,11 @@ const REQUIRED_BRIEFINGS = [
         title: 'Satisfactory Outcome',
         outcome: 'SATISFACTORY',
         items: [
-          'Complete paperwork',
-          'Have airman sign temporary certificate',
-          'Advise temporary certificate is valid for 120 days',
-          'Explain what to do if certificate is not received',
-          'Offer to sign airman’s logbook'
+          { text: 'Complete paperwork', indent: 0 },
+          { text: 'Have airman sign temporary certificate', indent: 0 },
+          { text: 'Advise temporary certificate is valid for 120 days', indent: 0 },
+          { text: 'Explain what to do if certificate is not received', indent: 0 },
+          { text: 'Offer to sign airman’s logbook', indent: 0 }
         ]
       },
       {
@@ -158,11 +181,11 @@ const REQUIRED_BRIEFINGS = [
         title: 'Unsatisfactory Outcome',
         outcome: 'UNSATISFACTORY',
         items: [
-          'Allow applicant time alone while paperwork is completed',
-          'Use ACS to explain reasons for disapproval',
-          'Advise timeframe to retest and keep Notice of Disapproval',
-          'Return knowledge test, if applicable',
-          'Offer to sign airman’s logbook, not required'
+          { text: 'Allow applicant time alone while paperwork is completed', indent: 0 },
+          { text: 'Use ACS to explain reasons for disapproval', indent: 0 },
+          { text: 'Advise timeframe to retest and keep Notice of Disapproval', indent: 0 },
+          { text: 'Return knowledge test, if applicable', indent: 0 },
+          { text: 'Offer to sign airman’s logbook, not required', indent: 0 }
         ]
       },
       {
@@ -170,10 +193,10 @@ const REQUIRED_BRIEFINGS = [
         title: 'Letter of Discontinuance',
         outcome: 'DISCONTINUANCE',
         items: [
-          'Review items that need to be completed',
-          'Return knowledge test, if applicable',
-          'Advise timeframe to retest and keep Letter of Discontinuance',
-          'Offer to sign airman’s logbook'
+          { text: 'Review items that need to be completed', indent: 0 },
+          { text: 'Return knowledge test, if applicable', indent: 0 },
+          { text: 'Advise timeframe to retest and keep Letter of Discontinuance', indent: 0 },
+          { text: 'Offer to sign airman’s logbook', indent: 0 }
         ]
       }
     ]
@@ -284,6 +307,7 @@ async function loadModules() {
   };
 
   store = modules.store;
+  
 
   try {
     const scenarioModule = await import('./views/scenarioView.js');
@@ -325,6 +349,8 @@ function ensureStoreDefaults() {
   store.applicant.appRatingHeld ??= '';
   store.applicant.appAmelInstrument ??= '';
   store.showAllTasksReferenceMode ??= false;
+  store.practicalTestOutcome ??= '';
+  store.discontinuanceManuallySelected ??= false;
   
 
   store.checkedElements ??= {};
@@ -341,7 +367,7 @@ function ensureStoreDefaults() {
   store.expandedBriefings ??= {};
   store.eligibilityChecks ??= {};
   store.expandedEligibilitySections ??= {};
-  store.practicalTestOutcome ??= '';
+
 }
 
 function formatRatingLabel(rating) {
@@ -469,8 +495,16 @@ async function lookupApplicantByDMS() {
     appInstructor: data.appInstructor || data.RecommendingInstructorName,
     appFTN: data.appFTN || data.FTNNumber,
     appDMS: data.appDMS || data.DMSPreapprovalNumber,
-    appRetest: data.appRetest || data.Title
-  };
+
+    appRetest:
+      data.appRetest ||
+      data.Retest?.Value ||
+      data.Retest ||
+      data.IsRetest?.Value ||
+      data.IsRetest ||
+      data.Title ||
+      'No'
+      };
 
   Object.entries(fieldMap).forEach(([fieldId, value]) => {
     if (value === undefined || value === null || value === '') return;
@@ -505,9 +539,16 @@ function handleApplicantChange(field, value) {
   }
 
   if (field === 'appExamType') {
-    store.applicant.appExamType = value;
-    store.applicant.appRatingHeld = '';
+  store.applicant.appExamType = value;
+  store.applicant.appRatingHeld = '';
+
+  // NEW
+  store.retestSelectedTasks ??= [];
+
+  if (value === 'Retest') {
+    store.retestSelectedTasks = [];
   }
+}
 
   modules.updateApplicant(field, value);
 }
@@ -669,20 +710,55 @@ function wireFullAppEvents() {
   });
 
   document.addEventListener('change', event => {
-    if (isOutcomeTabField(event.target)) {
-      syncPracticalTestOutcomeFromOutcomeTab();
-      updatePostFlightOutcomeGroups(document);
-    }
-  });
+  if (!isOutcomeTabField(event.target)) return;
+
+  const selectedOutcome = normalizePracticalTestOutcome(
+    event.target.value ||
+    event.target.options?.[event.target.selectedIndex]?.textContent ||
+    event.target.closest('label')?.innerText ||
+    event.target.parentElement?.innerText
+  );
+
+  if (selectedOutcome === 'DISCONTINUANCE') {
+    store.discontinuanceManuallySelected = true;
+    store.practicalTestOutcome = 'DISCONTINUANCE';
+  } else {
+    store.discontinuanceManuallySelected = false;
+    syncPracticalTestOutcomeFromOutcomeTab();
+  }
+
+  updatePostFlightOutcomeGroups(document);
+  modules.notify();
+});
 
   $('btnLookupApplicant')?.addEventListener('click', lookupApplicantByDMS);
 
   document.addEventListener('click', () => {
-    setTimeout(() => {
-      syncPracticalTestOutcomeFromOutcomeTab();
-      updatePostFlightOutcomeGroups(document);
-    }, 0);
-  });
+  setTimeout(() => {
+    updatePostFlightOutcomeGroups(document);
+  }, 0);
+});
+
+document.addEventListener('click', event => {
+  const btn = event.target.closest('.outcome-btn');
+  if (!btn) return;
+
+  const selectedOutcome = btn.dataset.outcome;
+
+  if (selectedOutcome === 'discontinuance') {
+    store.discontinuanceManuallySelected = true;
+    store.practicalTestOutcome = 'DISCONTINUANCE';
+
+    document.querySelectorAll('.outcome-btn').forEach(button => {
+      button.classList.remove('selected-sat', 'selected-unsat', 'selected-disc');
+    });
+
+    btn.classList.add('selected-disc');
+
+    updatePostFlightOutcomeGroups(document);
+    modules.notify();
+  }
+});
 
   $('btnExpandAll')?.addEventListener('click', () => {
     getCurrentTasks().forEach(task => {
@@ -806,93 +882,58 @@ function normalizePracticalTestOutcome(value) {
   const text = String(value || '').toUpperCase().trim();
 
   if (!text) return '';
-  if (text.includes('INCOMPLETE')) return '';
-  if (text.includes('UNSATISFACTORY')) return 'UNSATISFACTORY';
 
   if (
-    text.includes('DISCONTINUE') ||
     text.includes('DISCONTINUANCE') ||
+    text.includes('DISCONTINUE') ||
     text.includes('DISCONTINUED')
   ) {
     return 'DISCONTINUANCE';
   }
 
+  if (text.includes('UNSATISFACTORY')) return 'UNSATISFACTORY';
+
   if (text.includes('SATISFACTORY')) return 'SATISFACTORY';
+
+  if (text.includes('INCOMPLETE')) return '';
 
   return '';
 }
 
 function syncPracticalTestOutcomeFromOutcomeTab(summary = null) {
-  const outcomeView = $('viewOutcome');
-  let detected = '';
-
-  const select =
-    outcomeView?.querySelector('select#practicalTestOutcome') ||
-    outcomeView?.querySelector('select#testOutcome') ||
-    outcomeView?.querySelector('select#finalOutcome') ||
-    outcomeView?.querySelector('select#outcome') ||
-    outcomeView?.querySelector('select[name="practicalTestOutcome"]') ||
-    outcomeView?.querySelector('select[name="testOutcome"]') ||
-    outcomeView?.querySelector('select[name="finalOutcome"]') ||
-    outcomeView?.querySelector('select[name="outcome"]');
-
-  if (select) {
-    detected = normalizePracticalTestOutcome(
-      select.value ||
-      select.options?.[select.selectedIndex]?.textContent
-    );
+  if (store.discontinuanceManuallySelected) {
+    store.practicalTestOutcome = 'DISCONTINUANCE';
+    return store.practicalTestOutcome;
   }
 
-  if (!detected) {
-    const checked =
-      outcomeView?.querySelector('input[name="practicalTestOutcome"]:checked') ||
-      outcomeView?.querySelector('input[name="testOutcome"]:checked') ||
-      outcomeView?.querySelector('input[name="finalOutcome"]:checked') ||
-      outcomeView?.querySelector('input[name="outcome"]:checked');
+  if (summary?.overall) {
+    const summaryOutcome = normalizePracticalTestOutcome(summary.overall);
 
-    if (checked) {
-      detected = normalizePracticalTestOutcome(
-        checked.value ||
-        checked.closest('label')?.innerText ||
-        checked.parentElement?.innerText
-      );
+    if (
+      summaryOutcome === 'SATISFACTORY' ||
+      summaryOutcome === 'UNSATISFACTORY'
+    ) {
+      store.practicalTestOutcome = summaryOutcome;
+      return store.practicalTestOutcome;
     }
-  }
 
-  if (!detected) {
-    const outcomeControl = outcomeView?.querySelector(
-      '[data-outcome].active, [data-outcome].selected, [data-outcome][aria-pressed="true"], ' +
-      '[data-practical-test-outcome].active, [data-practical-test-outcome].selected, [data-practical-test-outcome][aria-pressed="true"]'
-    );
-
-    if (outcomeControl) {
-      detected = normalizePracticalTestOutcome(
-        outcomeControl.dataset.outcome ||
-        outcomeControl.dataset.practicalTestOutcome ||
-        outcomeControl.innerText
-      );
-    }
-  }
-
-  if (!detected && summary?.overall) {
-    detected = normalizePracticalTestOutcome(summary.overall);
-  }
-
-  if (detected) {
-    store.practicalTestOutcome = detected;
+    store.practicalTestOutcome = '';
+    return '';
   }
 
   return store.practicalTestOutcome || '';
 }
 
+  
+
 function handleTaskCheck(taskCode, checked, options = {}) {
   store.checkedElements[taskCode] = checked;
 
   if (options.setAllGradesToThree) {
-    ['K', 'R', 'S'].forEach(type => {
-      store.grades[`${taskCode}.${type}`] = checked ? '3' : 'NP';
-    });
-  }
+  ['K', 'R', 'S'].forEach(type => {
+    store.grades[`${taskCode}.${type}`] = checked ? '3' : 'NP';
+  });
+}
 
   modules.notify();
 }
@@ -913,7 +954,6 @@ function setBriefingItemChecked(sectionId, index, checked) {
 }
 
 function getSelectedPostFlightOutcome() {
-  syncPracticalTestOutcomeFromOutcomeTab();
   return store.practicalTestOutcome || '';
 }
 
@@ -1049,7 +1089,10 @@ function renderRequiredBriefings(container) {
                   const itemKey = `${section.id}_${index}`;
 
                   return `
-                    <div class="checklist-item ${checked ? 'checked' : ''}">
+                    <div
+                      class="checklist-item ${checked ? 'checked' : ''}"
+                      style="margin-left:${(item.indent || 0) * 24}px;"
+                    >
                       <input
                         type="checkbox"
                         id="briefing_${escapeHtml(itemKey)}"
@@ -1057,7 +1100,10 @@ function renderRequiredBriefings(container) {
                         data-required-briefing-index="${index}"
                         ${checked ? 'checked' : ''}
                       />
-                      <label for="briefing_${escapeHtml(itemKey)}">${escapeHtml(item)}</label>
+
+                      <label for="briefing_${escapeHtml(itemKey)}">
+                        ${escapeHtml(item.text)}
+                      </label>
                     </div>
                   `;
                 }).join('')}
@@ -1085,7 +1131,10 @@ function renderRequiredBriefings(container) {
                         const itemKey = `${groupKey}_${index}`;
 
                         return `
-                          <div class="checklist-item ${checked ? 'checked' : ''}">
+                          <div
+                            class="checklist-item ${checked ? 'checked' : ''}"
+                            style="margin-left:${Number(item.indent || 0) * 24}px;"
+                          >
                             <input
                               type="checkbox"
                               id="briefing_${escapeHtml(itemKey)}"
@@ -1094,7 +1143,7 @@ function renderRequiredBriefings(container) {
                               ${checked ? 'checked' : ''}
                               ${groupDisabled ? 'disabled' : ''}
                             />
-                            <label for="briefing_${escapeHtml(itemKey)}">${escapeHtml(item)}</label>
+                            <label for="briefing_${escapeHtml(itemKey)}">${escapeHtml(item.text)}</label>
                           </div>
                         `;
                       }).join('')}
@@ -1745,6 +1794,8 @@ async function submitToSharePoint() {
 
     console.log('SharePoint Item ID:', result.itemId);
 
+    const reportHtml = buildPracticalTestReportHtml('applicant');
+
     await fetch('https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f14216e9ffbb4101b5f5c7967895a81f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V1LRs5VLQeeDdkG7H0U_e15ChR9hO66xGlCdXTK-m2o', {
       method: 'POST',
       headers: {
@@ -1752,15 +1803,18 @@ async function submitToSharePoint() {
       },
       body: JSON.stringify({
         itemId: Number(result.itemId),
-        email: 'kele@fergerstrom.net',
-        recommendingInstructorEmail: 'kele.fergerstrom@icloud.com',
-        applicantName: store.applicant.appName || 'Test Applicant',
-        pdfFileName: `Applicant_Report_Test_${Date.now()}.pdf`,
-        pdfBase64: 'dGVzdA=='
+        email: store.applicant.appEmail || 'kele@fergerstrom.net',
+        recommendingInstructorEmail:
+          store.applicant.appInstructorEmail ||
+          store.applicant.recommendingInstructorEmail ||
+          'kele.fergerstrom@icloud.com',
+        applicantName: store.applicant.appName || 'Applicant',
+        pdfFileName: `Applicant_Practical_Test_Report_${Date.now()}.pdf`,
+        reportHtml
       })
     });
 
-    alert(`Submitted to SharePoint successfully. Item ID: ${result.itemId}. PDF flow triggered.`);
+    alert(`Submitted to SharePoint successfully. Item ID: ${result.itemId}. Report HTML sent to PDF/email flow.`);
   } catch (error) {
     console.error(error);
     alert('Submission failed. Check Power Automate run history and browser console.');
@@ -1772,7 +1826,7 @@ async function submitToSharePoint() {
   }
 }
 
-function generatePracticalTestReport(reportType = 'applicant') {
+function buildPracticalTestReportHtml(reportType = 'applicant') {
   const isApplicant = reportType === 'applicant';
 
   const areas = getCurrentAreas();
@@ -1782,6 +1836,29 @@ function generatePracticalTestReport(reportType = 'applicant') {
   const notes = store.examinerNotes ?? {};
   const applicantName = applicant.appName || '';
 
+  const getTaskKeys = task => {
+    const keys = [
+      task.filterCode,
+      task.code,
+      task.id,
+      `${task.areaId}_${task.id}`,
+      String(task.code || '').replaceAll('.', '_'),
+      String(task.filterCode || '').replaceAll('_', '.')
+    ];
+
+    return [...new Set(keys.filter(Boolean))];
+  };
+
+  const getExaminerNote = task => {
+    const keys = getTaskKeys(task);
+
+    for (const key of keys) {
+      if (notes[key]) return notes[key];
+    }
+
+    return '';
+  };
+
   const aircraftDisplay = [
     applicant.appAircraftType,
     applicant.appNNumber
@@ -1790,13 +1867,6 @@ function generatePracticalTestReport(reportType = 'applicant') {
   const reportTitle = isApplicant
     ? 'Applicant Practical Test Report'
     : 'Designee Practical Test Report';
-
-  const reportWindow = window.open('', '_blank');
-
-  if (!reportWindow) {
-    alert('Popup blocked. Please allow popups for this site.');
-    return;
-  }
 
   const getTaskStatus = task => {
     const row = summary.statuses?.find(item =>
@@ -1839,10 +1909,21 @@ function generatePracticalTestReport(reportType = 'applicant') {
     return 'status-inc';
   };
 
+  const isAcsHighlighted = task => {
+    const selected = store.selectedAcsCodes || [];
+
+    return (
+      selected.includes(task.code) ||
+      selected.includes(task.filterCode) ||
+      selected.includes(String(task.filterCode || '').replaceAll('_', '.')) ||
+      selected.includes(String(task.code || '').replaceAll('.', '_'))
+    );
+  };
+
   const taskRows = tasks.map(task => {
     const status = getTaskStatus(task);
-    const note = notes[task.filterCode] || '';
-    const isHighlighted = store.selectedAcsCodes?.includes(task.code);
+    const note = getExaminerNote(task);
+    const isHighlighted = isAcsHighlighted(task);
 
     return `
       <tr>
@@ -1858,28 +1939,34 @@ function generatePracticalTestReport(reportType = 'applicant') {
           ${escapeReport(status)}
         </td>
 
-        ${!isApplicant ? `
-          <td class="note-col">
-            ${note ? escapeReport(note).replace(/\n/g, '<br>') : ''}
-          </td>
-        ` : ''}
+        <td class="note-col">
+          ${note ? escapeReport(note).replace(/\n/g, '<br>') : ''}
+        </td>
       </tr>
     `;
   }).join('');
 
-  const detailRows = tasks.map(t => `
-    <tr>
-      <td>${escapeReport(t.code)}</td>
-      <td>${escapeReport(t.title)}</td>
-      <td>${escapeReport(store.grades?.[t.filterCode + '.K'] || 'NP')}</td>
-      <td>${escapeReport(store.grades?.[t.filterCode + '.R'] || 'NP')}</td>
-      <td>${escapeReport(store.grades?.[t.filterCode + '.S'] || 'NP')}</td>
-    </tr>
-  `).join('');
+  const detailRows = tasks.map(task => {
+    const note = getExaminerNote(task);
+    const isHighlighted = isAcsHighlighted(task);
 
-  reportWindow.document.open();
+    return `
+      <tr>
+        <td class="${isHighlighted ? 'acs-highlight' : ''}">
+          ${escapeReport(task.code)}
+        </td>
+        <td class="${isHighlighted ? 'acs-highlight' : ''}">
+          ${escapeReport(task.title)}
+        </td>
+        <td>${escapeReport(store.grades?.[`${task.filterCode}.K`] || 'NP')}</td>
+        <td>${escapeReport(store.grades?.[`${task.filterCode}.R`] || 'NP')}</td>
+        <td>${escapeReport(store.grades?.[`${task.filterCode}.S`] || 'NP')}</td>
+        <td>${note ? escapeReport(note).replace(/\n/g, '<br>') : ''}</td>
+      </tr>
+    `;
+  }).join('');
 
-  reportWindow.document.write(`
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -2098,6 +2185,7 @@ function generatePracticalTestReport(reportType = 'applicant') {
           <tr><th>Certificate</th><td>${escapeReport(applicant.appCertificate)}</td></tr>
           <tr><th>Rating</th><td>${escapeReport(formatRatingLabel(applicant.appRating))}</td></tr>
           <tr><th>Exam Type</th><td>${escapeReport(applicant.appExamType)}</td></tr>
+          <tr><th>Retest</th><td>${escapeReport(applicant.appRetest || 'No')}</td></tr>
           <tr><th>Aircraft</th><td>${escapeReport(aircraftDisplay)}</td></tr>
           <tr><th>Examiner</th><td>${escapeReport(applicant.appExaminer)}</td></tr>
         </table>
@@ -2135,7 +2223,7 @@ function generatePracticalTestReport(reportType = 'applicant') {
         <th class="task-code-col">Task</th>
         <th class="task-title-col">Title</th>
         <th class="task-status-col">Status</th>
-        ${!isApplicant ? '<th class="note-col">Examiner Note</th>' : ''}
+        <th class="note-col">Examiner Note</th>
       </tr>
 
       ${taskRows}
@@ -2159,6 +2247,7 @@ function generatePracticalTestReport(reportType = 'applicant') {
               <th>K</th>
               <th>R</th>
               <th>S</th>
+              <th>Examiner Note</th>
             </tr>
 
             ${detailRows}
@@ -2170,9 +2259,27 @@ function generatePracticalTestReport(reportType = 'applicant') {
   </div>
 </body>
 </html>
-`);
+`;
+}
 
+function generatePracticalTestReport(reportType = 'applicant') {
+  const html = buildPracticalTestReportHtml(reportType);
+  const reportWindow = window.open('', '_blank');
+
+  if (!reportWindow) {
+    alert('Popup blocked. Please allow popups for this site.');
+    return;
+  }
+
+  reportWindow.document.open();
+  reportWindow.document.write(html);
   reportWindow.document.close();
+}
+
+async function generateApplicantReportPdfBase64() {
+  return {
+    reportHtml: buildPracticalTestReportHtml('applicant')
+  };
 }
 
 function generateCheckrideReport() {
