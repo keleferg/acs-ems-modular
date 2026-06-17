@@ -793,18 +793,27 @@ function calculateDecimalDuration(start, end) {
 
 function isApplicable(item, rating) {
   const value = String(
+    item.Applicable_Rating ||
     item.Applicability ||
     item.Rating ||
-    ''
-  );
+    'BOTH'
+  ).toUpperCase();
 
-  if (!value) return true;
+  const selectedRating = String(
+    rating || ''
+  ).toUpperCase();
+
+  if (
+    !value ||
+    value === 'BOTH' ||
+    value === 'ALL'
+  ) {
+    return true;
+  }
 
   return (
-    value === 'All' ||
-    value === 'Both' ||
-    value === rating ||
-    value.includes(rating)
+    value === selectedRating ||
+    value.includes(selectedRating)
   );
 }
 
