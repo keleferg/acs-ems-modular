@@ -273,8 +273,7 @@ async function loadModules() {
     debriefModule,
     outcomeModule,
     checklistModule,
-    exportModule,
-    supabaseModule
+    exportModule
   ] = await Promise.all([
     import('./data/index.js'),
     import('./state/store.js'),
@@ -288,8 +287,7 @@ async function loadModules() {
     import('./views/debriefView.js'),
     import('./views/outcomeView.js'),
     import('./views/checklistView.js'),
-    import('./services/exportService.js'),
-    import('./services/supabaseService.js')
+    import('./services/exportService.js')
   ]);
 
   modules = {
@@ -305,8 +303,7 @@ async function loadModules() {
     ...debriefModule,
     ...outcomeModule,
     ...checklistModule,
-    ...exportModule,
-    ...supabaseModule
+    ...exportModule
   };
 
   store = modules.store;
@@ -330,7 +327,6 @@ function initApp() {
 
   populateRatingDropdown();
   wireFullAppEvents();
-  wireEmtConnectionEvents();
 
   modules.bindApplicantForm?.(store, {
     onApplicantChange: handleApplicantChange
@@ -342,8 +338,6 @@ function initApp() {
   });
 
   renderApp();
-
-  void initializeEmtConnection();
 }
 
 function ensureStoreDefaults() {
@@ -354,13 +348,6 @@ function ensureStoreDefaults() {
   store.applicant.appExamType ??= 'Initial';
   store.applicant.appRatingHeld ??= '';
   store.applicant.appAmelInstrument ??= '';
-  store.applicant.appEmail ??= '';
-  store.applicant.appInstructorEmail ??= '';
-  store.applicant.practicalTestRequestId ??= '';
-  store.applicant.requestNumber ??= '';
-  store.applicant.scheduledStartAt ??= '';
-  store.applicant.scheduledEndAt ??= '';
-  store.applicant.scheduledLocation ??= '';
   store.showAllTasksReferenceMode ??= false;
   store.practicalTestOutcome ??= '';
   store.discontinuanceManuallySelected ??= false;
@@ -479,8 +466,7 @@ async function lookupApplicantByDMS() {
 
   function applyApplicantLookupData(data) {
   const certificateValue =
-    data.appCertificate ||
-    (data.RatingSought?.Value === 'Instrument'
+    data.RatingSought?.Value === 'Instrument'
       ? 'Instrument'
       : ({
           'Private Pilot': 'Private',
@@ -489,10 +475,9 @@ async function lookupApplicantByDMS() {
           'Airline Transport Pilot': 'ATP',
           'Flight Instructor': 'CFI'
         }[data.GradeofCertificateSought?.Value] ||
-        data.GradeofCertificateSought?.Value));
+        data.GradeofCertificateSought?.Value);
 
   const examTypeValue =
-    data.appExamType ||
     ({
       'Original Issuance': 'Initial',
       'Additional Rating': 'Additional'
@@ -507,30 +492,9 @@ async function lookupApplicantByDMS() {
     appRating: data.appRating || data.RatingSought?.Value,
     appExamType: examTypeValue,
     appAircraftType: data.appAircraftType || data.TypeofAircraft,
-    appNNumber:
-      data.appNNumber ||
-      data.AircraftRegistration,
-    appInstructor:
-      data.appInstructor ||
-      data.RecommendingInstructorName,
-    appInstructorEmail:
-      data.appInstructorEmail ||
-      data.RecommendingInstructorEmail,
-    appEmail:
-      data.appEmail ||
-      data.ApplicantEmail,
+    appInstructor: data.appInstructor || data.RecommendingInstructorName,
     appFTN: data.appFTN || data.FTNNumber,
     appDMS: data.appDMS || data.DMSPreapprovalNumber,
-    practicalTestRequestId:
-      data.practicalTestRequestId || '',
-    requestNumber:
-      data.requestNumber || '',
-    scheduledStartAt:
-      data.scheduledStartAt || '',
-    scheduledEndAt:
-      data.scheduledEndAt || '',
-    scheduledLocation:
-      data.scheduledLocation || '',
 
     appRetest:
       data.appRetest ||
@@ -555,416 +519,6 @@ async function lookupApplicantByDMS() {
   });
 
   populateRatingDropdown();
-}
-
-
-function normalizeEmtCertificate(value) {
-  const normalized = String(value || '').trim();
-
-  const map = {
-    'Private': 'Private',
-    'Private Pilot': 'Private',
-    'Instrument': 'Instrument',
-    'Instrument Rating': 'Instrument',
-    'Commercial': 'Commercial',
-    'Commercial Pilot': 'Commercial',
-    'ATP': 'ATP',
-    'Airline Transport Pilot': 'ATP',
-    'CFI': 'CFI',
-    'Flight Instructor': 'CFI'
-  };
-
-  return map[normalized] || normalized;
-}
-
-function normalizeEmtRating(appointment) {
-  const values = [
-    appointment.class_sought,
-    appointment.rating_sought,
-    appointment.category_sought
-  ]
-    .filter(Boolean)
-    .map(value => String(value).trim());
-
-  const joined = values.join(' ').toLowerCase();
-
-  if (
-    joined.includes('airplane single engine land') ||
-    joined.includes('asel')
-  ) {
-    return 'ASEL';
-  }
-
-  if (
-    joined.includes('airplane multiengine land') ||
-    joined.includes('airplane multi-engine land') ||
-    joined.includes('amel')
-  ) {
-    return 'AMEL';
-  }
-
-  if (
-    joined.includes('airplane single engine sea') ||
-    joined.includes('ases')
-  ) {
-    return 'ASES';
-  }
-
-  if (
-    joined.includes('airplane multiengine sea') ||
-    joined.includes('airplane multi-engine sea') ||
-    joined.includes('ames')
-  ) {
-    return 'AMES';
-  }
-
-  if (joined.includes('instrument airplane')) {
-    return 'Instrument Airplane';
-  }
-
-  return (
-    appointment.class_sought ||
-    appointment.rating_sought ||
-    'ASEL'
-  );
-}
-
-function formatEmtAppointmentLabel(appointment) {
-  const start = appointment.scheduled_start_at
-    ? new Date(appointment.scheduled_start_at)
-    : null;
-
-  const dateLabel =
-    start && !Number.isNaN(start.getTime())
-      ? start.toLocaleString([], {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit'
-        })
-      : 'Date not finalized';
-
-  const testLabel = [
-    appointment.certificate_sought,
-    appointment.class_sought ||
-      appointment.rating_sought
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return [
-    appointment.request_number || 'Request',
-    appointment.applicant_name || 'Applicant',
-    dateLabel,
-    testLabel
-  ]
-    .filter(Boolean)
-    .join(' · ');
-}
-
-function appointmentToApplicantData(appointment) {
-  const aircraftType = [
-    appointment.aircraft_make,
-    appointment.aircraft_model
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
-
-  return {
-    appName: appointment.applicant_name,
-    appEmail: appointment.applicant_email,
-    appDate:
-      appointment.scheduled_start_at?.slice(0, 10) ||
-      new Date().toISOString().slice(0, 10),
-    appSchool: appointment.flight_school_name,
-    appCertificate: normalizeEmtCertificate(
-      appointment.certificate_sought
-    ),
-    appRating: normalizeEmtRating(appointment),
-    appExamType:
-      appointment.issuance_type === 'Additional Rating'
-        ? 'Additional'
-        : 'Initial',
-    appAircraftType:
-      aircraftType ||
-      appointment.aircraft_description,
-    appNNumber: appointment.aircraft_registration,
-    appInstructor: appointment.instructor_name,
-    appInstructorEmail: appointment.instructor_email,
-    appFTN: appointment.ftn_number,
-    appDMS: appointment.dms_preapproval_number,
-    appRetest: appointment.is_retest ? 'Yes' : 'No',
-    practicalTestRequestId: appointment.request_id,
-    requestNumber: appointment.request_number,
-    scheduledStartAt: appointment.scheduled_start_at,
-    scheduledEndAt: appointment.scheduled_end_at,
-    scheduledLocation: appointment.scheduled_location
-  };
-}
-
-function setEmtConnectionMessage(message, isError = false) {
-  const element = $('emtAppointmentMessage');
-
-  if (!element) return;
-
-  element.textContent = message || '';
-  element.style.color = isError
-    ? 'var(--danger)'
-    : 'var(--text-muted)';
-}
-
-function showEmtSignedInState(user) {
-  const loginFields = $('emtLoginFields');
-  const appointmentFields = $('emtAppointmentFields');
-  const signOutButton = $('btnEmtSignOut');
-  const status = $('emtAuthStatus');
-
-  if (loginFields) {
-    loginFields.style.display = user ? 'none' : 'grid';
-  }
-
-  if (appointmentFields) {
-    appointmentFields.style.display = user
-      ? 'block'
-      : 'none';
-  }
-
-  if (signOutButton) {
-    signOutButton.style.display = user
-      ? 'inline-flex'
-      : 'none';
-  }
-
-  if (status) {
-    status.textContent = user
-      ? `Signed in as ${user.email || 'examiner'}`
-      : 'Not signed in';
-  }
-}
-
-async function refreshEmtAppointments() {
-  const select = $('emtAppointmentSelect');
-  const button = $('btnLoadEmtAppointments');
-
-  if (!select) return;
-
-  const originalText = button?.innerHTML;
-
-  try {
-    if (button) {
-      button.disabled = true;
-      button.innerHTML =
-        '<i class="fas fa-spinner fa-spin"></i> Loading';
-    }
-
-    setEmtConnectionMessage('Loading appointments...');
-
-    const appointments =
-      await modules.loadEmtAppointments();
-
-    window.emtAppointmentsById = new Map(
-      appointments.map(appointment => [
-        appointment.request_id,
-        appointment
-      ])
-    );
-
-    const currentRequestId =
-      store.applicant?.practicalTestRequestId || '';
-
-    select.innerHTML = `
-      <option value="">Select an appointment...</option>
-      ${appointments
-        .map(appointment => {
-          const selected =
-            appointment.request_id === currentRequestId
-              ? ' selected'
-              : '';
-
-          return `
-            <option
-              value="${appointment.request_id}"
-              ${selected}
-            >
-              ${formatEmtAppointmentLabel(appointment)}
-            </option>
-          `;
-        })
-        .join('')}
-    `;
-
-    setEmtConnectionMessage(
-      appointments.length
-        ? `${appointments.length} appointment${
-            appointments.length === 1 ? '' : 's'
-          } available.`
-        : 'No accepted, scheduled, or confirmed appointments were found.'
-    );
-  } catch (error) {
-    console.error('Unable to load EMT appointments:', error);
-
-    setEmtConnectionMessage(
-      error instanceof Error
-        ? error.message
-        : 'Unable to load appointments.',
-      true
-    );
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.innerHTML = originalText;
-    }
-  }
-}
-
-async function initializeEmtConnection() {
-  try {
-    const user = await modules.getCurrentEmtUser();
-
-    showEmtSignedInState(user);
-
-    if (user) {
-      await refreshEmtAppointments();
-    }
-  } catch (error) {
-    console.error(
-      'Unable to initialize EMT Web App connection:',
-      error
-    );
-
-    showEmtSignedInState(null);
-
-    setEmtConnectionMessage(
-      error instanceof Error
-        ? error.message
-        : 'Unable to check sign-in status.',
-      true
-    );
-  }
-}
-
-function wireEmtConnectionEvents() {
-  $('btnEmtSignIn')?.addEventListener(
-    'click',
-    async () => {
-      const email =
-        $('emtLoginEmail')?.value?.trim() || '';
-      const password =
-        $('emtLoginPassword')?.value || '';
-      const button = $('btnEmtSignIn');
-      const originalText = button?.innerHTML;
-
-      if (!email || !password) {
-        setEmtConnectionMessage(
-          'Enter your examiner email and password.',
-          true
-        );
-        return;
-      }
-
-      try {
-        if (button) {
-          button.disabled = true;
-          button.innerHTML =
-            '<i class="fas fa-spinner fa-spin"></i> Signing In';
-        }
-
-        const user =
-          await modules.signInEmtExaminer(
-            email,
-            password
-          );
-
-        showEmtSignedInState(user);
-
-        if ($('emtLoginPassword')) {
-          $('emtLoginPassword').value = '';
-        }
-
-        await refreshEmtAppointments();
-      } catch (error) {
-        console.error('Examiner sign-in failed:', error);
-
-        setEmtConnectionMessage(
-          error instanceof Error
-            ? error.message
-            : 'Sign-in failed.',
-          true
-        );
-      } finally {
-        if (button) {
-          button.disabled = false;
-          button.innerHTML = originalText;
-        }
-      }
-    }
-  );
-
-  $('btnEmtSignOut')?.addEventListener(
-    'click',
-    async () => {
-      try {
-        await modules.signOutEmtExaminer();
-
-        showEmtSignedInState(null);
-
-        const select = $('emtAppointmentSelect');
-
-        if (select) {
-          select.innerHTML =
-            '<option value="">Select an appointment...</option>';
-        }
-
-        setEmtConnectionMessage('');
-      } catch (error) {
-        console.error('Examiner sign-out failed:', error);
-
-        setEmtConnectionMessage(
-          error instanceof Error
-            ? error.message
-            : 'Sign-out failed.',
-          true
-        );
-      }
-    }
-  );
-
-  $('btnLoadEmtAppointments')?.addEventListener(
-    'click',
-    refreshEmtAppointments
-  );
-
-  $('emtAppointmentSelect')?.addEventListener(
-    'change',
-    event => {
-      const requestId = event.target.value;
-
-      if (!requestId) return;
-
-      const appointment =
-        window.emtAppointmentsById?.get(requestId);
-
-      if (!appointment) {
-        setEmtConnectionMessage(
-          'The selected appointment could not be loaded.',
-          true
-        );
-        return;
-      }
-
-      applyApplicantLookupData(
-        appointmentToApplicantData(appointment)
-      );
-
-      modules.notify();
-
-      setEmtConnectionMessage(
-        `${appointment.request_number || 'Appointment'} loaded into the gradesheet.`
-      );
-    }
-  );
 }
 
 function handleApplicantChange(field, value) {
