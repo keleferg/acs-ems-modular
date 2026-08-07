@@ -64,3 +64,209 @@ export async function loadEmtAppointments() {
 
   return Array.isArray(data) ? data : [];
 }
+
+export async function submitEmtPracticalTest({
+  practicalTestRequestId,
+  evaluationState,
+  result = null,
+  startedAt = null,
+  aircraftUsed = null,
+  feeAmount = null,
+  examinerNotes = null,
+  dmsPreapprovalNumber = null
+}) {
+  if (!practicalTestRequestId) {
+    throw new Error(
+      'Load a DPE EMT appointment before submitting the practical test.'
+    );
+  }
+
+  const { data, error } = await supabase.rpc(
+    'examiner_submit_emt_practical_test',
+    {
+      p_practical_test_request_id:
+        practicalTestRequestId,
+      p_evaluation_state:
+        evaluationState,
+      p_result:
+        result,
+      p_started_at:
+        startedAt,
+      p_aircraft_used:
+        aircraftUsed,
+      p_fee_amount:
+        feeAmount,
+      p_examiner_notes:
+        examinerNotes,
+      p_dms_preapproval_number:
+        dmsPreapprovalNumber
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+function sanitizeReportFilePart(value, fallback = 'report') {
+  const cleaned = String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return cleaned || fallback;
+}
+
+export async function uploadApplicantPracticalTestReport({
+  practicalTestId,
+  requestNumber,
+  pdfBlob,
+  generatedAt = new Date().toISOString(),
+  releaseToApplicant = true
+}) {
+  if (!practicalTestId) {
+    throw new Error(
+      'A practical-test record is required before uploading the report.'
+    );
+  }
+
+  if (!(pdfBlob instanceof Blob) || pdfBlob.size === 0) {
+    throw new Error(
+      'The Applicant Practical Test Report PDF is empty or invalid.'
+    );
+  }
+
+  const bucket = 'practical-test-reports';
+
+  const safeRequestNumber =
+    sanitizeReportFilePart(
+      requestNumber,
+      'practical-test'
+    );
+
+  const generatedDate =
+    new Date(generatedAt);
+
+  const timestamp =
+    Number.isNaN(generatedDate.getTime())
+      ? Date.now()
+      : generatedDate.getTime();
+
+  const fileName =
+    `${safeRequestNumber}-Applicant-Practical-Test-Report.pdf`;
+
+  const storagePath =
+    `${practicalTestId}/${timestamp}-${fileName}`;
+
+  const {
+    error: uploadError
+  } = await supabase.storage
+    .from(bucket)
+    .upload(
+      storagePath,
+      pdfBlob,
+      {
+        contentType: 'application/pdf',
+        cacheControl: '3600',
+        upsert: false
+      }
+    );
+
+  if (uploadError) {
+    throw new Error(
+      `The Applicant Report PDF could not be uploaded: ${uploadError.message}`
+    );
+  }
+
+  try {
+    const supersededAt =
+      new Date().toISOString();
+
+    const {
+      error: supersedeError
+    } = await supabase
+      .from('practical_test_reports')
+      .update({
+        superseded_at: supersededAt
+      })
+      .eq(
+        'practical_test_id',
+        practicalTestId
+      )
+      .eq(
+        'report_type',
+        'applicant_practical_test_report'
+      )
+      .is('superseded_at', null);
+
+    if (supersedeError) {
+      throw new Error(
+        `Prior reports could not be superseded: ${supersedeError.message}`
+      );
+    }
+
+    const {
+      data: reportRow,
+      error: insertError
+    } = await supabase
+      .from('practical_test_reports')
+      .insert({
+        practical_test_id:
+          practicalTestId,
+        report_type:
+          'applicant_practical_test_report',
+        storage_bucket:
+          bucket,
+        storage_path:
+          storagePath,
+        file_name:
+          fileName,
+        generated_at:
+          generatedAt,
+        released_to_applicant_at:
+          releaseToApplicant
+            ? new Date().toISOString()
+            : null
+      })
+      .select(`
+        id,
+        practical_test_id,
+        report_type,
+        storage_bucket,
+        storage_path,
+        file_name,
+        generated_at,
+        released_to_applicant_at,
+        superseded_at
+      `)
+      .single();
+
+    if (insertError) {
+      throw new Error(
+        `The Applicant Report record could not be created: ${insertError.message}`
+      );
+    }
+
+    return reportRow;
+  } catch (error) {
+    /*
+     * Do not leave an orphaned file if database registration fails.
+     */
+    const {
+      error: cleanupError
+    } = await supabase.storage
+      .from(bucket)
+      .remove([storagePath]);
+
+    if (cleanupError) {
+      console.error(
+        'Applicant Report cleanup failed:',
+        cleanupError
+      );
+    }
+
+    throw error;
+  }
+}

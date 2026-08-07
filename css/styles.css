@@ -235,3 +235,260 @@
   cursor: pointer;
   font-weight: 600;
 }
+/* =====================================================
+   TASK GRADE RADIO BUTTONS
+   ===================================================== */
+
+.grade-radio-control {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.grade-select-radio-source {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.grade-radio-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.grade-radio-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.grade-radio-option:hover {
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+}
+
+.grade-radio-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.grade-radio-option.selected {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+  color: #ffffff;
+  box-shadow: 0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--accent-color) 22%,
+      transparent
+    );
+}
+
+.grade-radio-option:has(input:focus-visible) {
+  outline: 3px solid
+    color-mix(
+      in srgb,
+      var(--accent-color) 35%,
+      transparent
+    );
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .grade-bar {
+    align-items: flex-start;
+  }
+
+  .grade-item {
+    align-items: flex-start;
+  }
+
+  .grade-radio-group {
+    flex-wrap: wrap;
+  }
+
+  .grade-radio-option {
+    min-width: 51px;
+    min-height: 36px;
+  }
+}
+
+/* Add one grade-button width between K, R, and S groups */
+.grade-bar .grade-item {
+  margin-right: 46px;
+}
+
+.grade-bar .grade-item:last-of-type {
+  margin-right: 0;
+}
+
+@media (max-width: 760px) {
+  .grade-bar .grade-item {
+    margin-right: 51px;
+  }
+
+  .grade-bar .grade-item:last-of-type {
+    margin-right: 0;
+  }
+}
+
+/* =====================================================
+   SELECTED GRADE COLORS
+   ===================================================== */
+
+.grade-radio-option.selected:has(input[value="1"]) {
+  border-color: #b91c1c;
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.grade-radio-option.selected:has(input[value="2"]) {
+  border-color: #ca8a04;
+  background: #facc15;
+  color: #422006;
+}
+
+.grade-radio-option.selected:has(input[value="3"]) {
+  border-color: #15803d;
+  background: #22c55e;
+  color: #052e16;
+}
+
+.grade-radio-option.selected:has(input[value="4"]) {
+  border-color: #1d4ed8;
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+/* Keep NP neutral */
+.grade-radio-option.selected:has(input[value="NP"]) {
+  border-color: #64748b;
+  background: #64748b;
+  color: #ffffff;
+}
+
+/* =====================================================
+   ORAL / FLIGHT PORTION GRADE RADIOS
+   ===================================================== */
+
+#viewScenario .grade-radio-control,
+#scenario-root .grade-radio-control {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+#viewScenario .grade-radio-group,
+#scenario-root .grade-radio-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+#viewScenario .grade-radio-option,
+#scenario-root .grade-radio-option {
+  min-width: 46px;
+  min-height: 32px;
+}
+
+#viewScenario .grade-item,
+#scenario-root .grade-item {
+  margin-right: 46px;
+}
+
+#viewScenario .grade-item:last-of-type,
+#scenario-root .grade-item:last-of-type {
+  margin-right: 0;
+}
+
+@media (max-width: 760px) {
+  #viewScenario .grade-radio-group,
+  #scenario-root .grade-radio-group {
+    flex-wrap: wrap;
+  }
+
+  #viewScenario .grade-radio-option,
+  #scenario-root .grade-radio-option {
+    min-width: 51px;
+    min-height: 36px;
+  }
+
+  #viewScenario .grade-item,
+  #scenario-root .grade-item {
+    margin-right: 51px;
+  }
+
+  #viewScenario .grade-item:last-of-type,
+  #scenario-root .grade-item:last-of-type {
+    margin-right: 0;
+  }
+}
+
+/* =====================================================
+   ORAL QUESTION GRADE RADIOS
+   ===================================================== */
+
+.scenario-question > summary {
+  align-items: center;
+}
+
+.scenario-question-grade-radios {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.scenario-question-grade-radios .grade-radio-option {
+  min-width: 46px;
+  min-height: 32px;
+}
+
+@media (max-width: 760px) {
+  .scenario-question > summary {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  .scenario-question-grade-radios {
+    flex-wrap: wrap;
+  }
+
+  .scenario-question-grade-radios .grade-radio-option {
+    min-width: 51px;
+    min-height: 36px;
+  }
+}

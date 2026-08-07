@@ -34,14 +34,193 @@ function loadFromLocalStorage() {
 }
 
 function clearLocalStorageSave() {
+  /*
+   * Remove only the EMS evaluation autosave.
+   *
+   * Do not call localStorage.clear(). Supabase stores the examiner
+   * session under separate localStorage keys, and those must remain.
+   */
   localStorage.removeItem(STORAGE_KEY);
 }
 
-const SUBMIT_FLOW_URL =
-  'https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6b4230f895f5468d934935b8be9aeba5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pLQc99dLY0-biKgS_ZPL-3n4P1bxr2Oexe6mDQLuhsI';
+function resetAllEvaluationData() {
+  /*
+   * Preserve the signed-in Supabase examiner session while clearing
+   * every piece of applicant and evaluation data.
+   */
+  clearLocalStorageSave();
 
-const APPLICANT_LOOKUP_FLOW_URL =
-  'https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/653a41bf573e4ea0a2a0977f4dec8f10/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=y1FfozAa2FkMgqY2QlUqXxpHyWhfWk6tpjm1LFX4Vbk';
+  modules.resetStore();
+
+  scenarioRendered = false;
+
+  /*
+   * Clear the request query parameter so the same applicant is not
+   * automatically loaded again after a refresh.
+   */
+  const url = new URL(window.location.href);
+
+  if (url.searchParams.has('request')) {
+    url.searchParams.delete('request');
+
+    window.history.replaceState(
+      {},
+      document.title,
+      `${url.pathname}${url.search}${url.hash}`
+    );
+  }
+
+  /*
+   * Clear the currently selected Supabase appointment, but keep the
+   * examiner signed in and retain the loaded appointment list.
+   */
+  const appointmentSelect = $('emtAppointmentSelect');
+
+  if (appointmentSelect) {
+    appointmentSelect.value = '';
+  }
+
+  setEmtConnectionMessage(
+    'Evaluation reset. Examiner sign-in was preserved.'
+  );
+
+  /*
+   * Reset all applicant and evaluation controls that may not be
+   * completely rewritten by a render pass.
+   */
+  const applicantFieldIds = [
+    'appName',
+    'appDate',
+    'appSchool',
+    'appCertificate',
+    'appRating',
+    'appAircraftClassUsed',
+    'appExamType',
+    'appRatingHeld',
+    'appAmelInstrument',
+    'appAircraftType',
+    'appNNumber',
+    'appInstructor',
+    'appInstructorEmail',
+    'appEmail',
+    'appFTN',
+    'appDMS',
+    'appGroundDuration',
+    'appFlightDuration',
+    'appRetest'
+  ];
+
+  for (const fieldId of applicantFieldIds) {
+    const element = $(fieldId);
+
+    if (!element) continue;
+
+    const defaultValue =
+      modules.defaultApplicant?.[fieldId];
+
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement ||
+      element instanceof HTMLSelectElement
+    ) {
+      element.value =
+        defaultValue === undefined ||
+        defaultValue === null
+          ? ''
+          : String(defaultValue);
+    }
+  }
+
+  /*
+   * Explicitly restore the known applicant defaults.
+   */
+  if ($('appDate')) {
+    $('appDate').value =
+      new Date().toISOString().slice(0, 10);
+  }
+
+  if ($('appCertificate')) {
+    $('appCertificate').value = 'Private';
+  }
+
+  if ($('appRating')) {
+    $('appRating').value = 'ASEL';
+  }
+
+  if ($('appAircraftClassUsed')) {
+    $('appAircraftClassUsed').value = 'ASEL';
+  }
+
+  if ($('appExamType')) {
+    $('appExamType').value = 'Initial';
+  }
+
+  if ($('appRetest')) {
+    $('appRetest').value = 'No';
+  }
+
+  document
+    .querySelectorAll(
+      'input[type="checkbox"], input[type="radio"]'
+    )
+    .forEach(input => {
+      input.checked = false;
+    });
+
+  document
+    .querySelectorAll('.outcome-btn')
+    .forEach(button => {
+      button.classList.remove(
+        'selected-sat',
+        'selected-unsat',
+        'selected-disc'
+      );
+    });
+
+  document
+    .querySelectorAll(
+      '[data-selected="true"], .selected, .active-grade'
+    )
+    .forEach(element => {
+      element.removeAttribute('data-selected');
+      element.classList.remove(
+        'selected',
+        'active-grade'
+      );
+    });
+
+  const outcomeNotes = $('outcomeNotes');
+
+  if (outcomeNotes) {
+    outcomeNotes.value = '';
+  }
+
+  const testingComplete =
+    $('testingCompleteCheckbox');
+
+  if (testingComplete) {
+    testingComplete.checked = false;
+  }
+
+  const modal = $('confirmModal');
+
+  if (modal) {
+    modal.classList.remove('show');
+  }
+
+  ensureStoreDefaults();
+  populateRatingDropdown();
+
+  /*
+   * Force a clean render after all DOM and state values are reset.
+   */
+  modules.notify();
+
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+}
 
 const REQUIRED_BRIEFINGS = [
   {
@@ -327,10 +506,12 @@ function initApp() {
   loadFromLocalStorage();
 
   ensureStoreDefaults();
+  recalculateAllOralAverages();
 
   populateRatingDropdown();
   wireFullAppEvents();
   wireEmtConnectionEvents();
+  startDynamicGradeRadioObserver();
 
   modules.bindApplicantForm?.(store, {
     onApplicantChange: handleApplicantChange
@@ -344,6 +525,256 @@ function initApp() {
   renderApp();
 
   void initializeEmtConnection();
+}
+
+const GRADE_RADIO_VALUES = ['1', '2', '3', '4', 'NP'];
+
+function escapeGradeRadioValue(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+function gradeRadioGroupName(select, index) {
+  const taskCode =
+    select.dataset.taskCode ||
+    select.closest('[data-task-card]')?.dataset.taskCard ||
+    select.closest('[data-task-code]')?.dataset.taskCode ||
+    'task';
+
+  const gradeType =
+    select.dataset.grade ||
+    'grade';
+
+  const safeTaskCode = String(taskCode)
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  const safeGradeType = String(gradeType)
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  return `grade_${safeTaskCode}_${safeGradeType}_${index}`;
+}
+
+function syncGradeRadioGroup(select) {
+  const wrapper = select
+    .closest('.grade-radio-control')
+    ?.querySelector('.grade-radio-group');
+
+  if (!wrapper) return;
+
+  const selectedValue =
+    String(select.value || 'NP');
+
+  wrapper
+    .querySelectorAll('input[type="radio"]')
+    .forEach(radio => {
+      radio.checked =
+        radio.value === selectedValue;
+
+      radio
+        .closest('.grade-radio-option')
+        ?.classList.toggle(
+          'selected',
+          radio.checked
+        );
+    });
+}
+
+function upgradeGradeSelectsToRadios(root = document) {
+  const selects = Array.from(
+    root.querySelectorAll(
+      'select[data-grade]:not([data-radio-upgraded="true"])'
+    )
+  );
+
+  selects.forEach((select, index) => {
+    select.dataset.radioUpgraded = 'true';
+
+    const groupName =
+      gradeRadioGroupName(select, index);
+
+    const currentValue =
+      String(select.value || 'NP');
+
+    const radioGroup =
+      document.createElement('span');
+
+    radioGroup.className = 'grade-radio-group';
+    radioGroup.setAttribute(
+      'role',
+      'radiogroup'
+    );
+
+    const taskCode =
+      select.dataset.taskCode || '';
+
+    const gradeType =
+      select.dataset.grade || '';
+
+    radioGroup.setAttribute(
+      'aria-label',
+      `${gradeType} grade${
+        taskCode ? ` for ${taskCode}` : ''
+      }`
+    );
+
+    radioGroup.innerHTML =
+      GRADE_RADIO_VALUES
+        .map(value => {
+          const escapedValue =
+            escapeGradeRadioValue(value);
+
+          const checked =
+            currentValue === value
+              ? ' checked'
+              : '';
+
+          const selectedClass =
+            currentValue === value
+              ? ' selected'
+              : '';
+
+          return `
+            <label class="grade-radio-option${selectedClass}">
+              <input
+                type="radio"
+                name="${groupName}"
+                value="${escapedValue}"
+                ${checked}
+              >
+              <span>${escapedValue}</span>
+            </label>
+          `;
+        })
+        .join('');
+
+    const control =
+      document.createElement('span');
+
+    control.className =
+      'grade-radio-control';
+
+    select.parentNode.insertBefore(
+      control,
+      select
+    );
+
+    control.appendChild(select);
+    control.appendChild(radioGroup);
+
+    select.classList.add(
+      'grade-select-radio-source'
+    );
+
+    radioGroup
+      .querySelectorAll(
+        'input[type="radio"]'
+      )
+      .forEach(radio => {
+        radio.addEventListener(
+          'change',
+          event => {
+            if (!event.target.checked) {
+              return;
+            }
+
+            select.value =
+              event.target.value;
+
+            syncGradeRadioGroup(select);
+
+            select.dispatchEvent(
+              new Event('change', {
+                bubbles: true,
+              })
+            );
+          }
+        );
+      });
+
+    select.addEventListener(
+      'change',
+      () => {
+        syncGradeRadioGroup(select);
+      }
+    );
+
+    syncGradeRadioGroup(select);
+  });
+}
+
+function startDynamicGradeRadioObserver() {
+  if (window.emsGradeRadioObserver) {
+    return;
+  }
+
+  let upgradeScheduled = false;
+
+  const scheduleUpgrade = () => {
+    if (upgradeScheduled) {
+      return;
+    }
+
+    upgradeScheduled = true;
+
+    window.requestAnimationFrame(() => {
+      upgradeScheduled = false;
+
+      upgradeGradeSelectsToRadios(document);
+
+      document
+        .querySelectorAll('select[data-grade]')
+        .forEach(select => {
+          syncGradeRadioGroup(select);
+        });
+    });
+  };
+
+  const observer = new MutationObserver(mutations => {
+    const containsGradeControl = mutations.some(mutation =>
+      Array.from(mutation.addedNodes).some(node => {
+        if (!(node instanceof Element)) {
+          return false;
+        }
+
+        return (
+          node.matches?.('select[data-grade]') ||
+          node.querySelector?.('select[data-grade]')
+        );
+      })
+    );
+
+    if (containsGradeControl) {
+      scheduleUpgrade();
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  window.emsGradeRadioObserver = observer;
+
+  /*
+   * The Oral / Flight Portion can update grade selects directly when
+   * its task checkbox is changed. Resynchronize the visible radios
+   * after those existing handlers finish.
+   */
+  document.addEventListener('change', event => {
+    if (
+      !event.target.closest?.('#viewScenario') &&
+      !event.target.closest?.('#scenario-root')
+    ) {
+      return;
+    }
+
+    window.setTimeout(scheduleUpgrade, 0);
+  });
+
+  scheduleUpgrade();
 }
 
 function ensureStoreDefaults() {
@@ -380,6 +811,7 @@ function ensureStoreDefaults() {
   store.expandedBriefings ??= {};
   store.eligibilityChecks ??= {};
   store.expandedEligibilitySections ??= {};
+  store.oralQuestionGrades ??= {};
 
 }
 
@@ -417,12 +849,12 @@ function populateRatingDropdown() {
 }
 
 async function lookupApplicantByDMS() {
-  console.log('Lookup button clicked');
+  const searchValue = $('appDMS')?.value?.trim();
 
-  const dms = $('appDMS')?.value?.trim();
-
-  if (!dms) {
-    alert('Enter a DMS Preapproval Number first.');
+  if (!searchValue) {
+    alert(
+      'Enter a DMS Preapproval Number, request number, or request ID first.'
+    );
     return;
   }
 
@@ -432,42 +864,75 @@ async function lookupApplicantByDMS() {
   try {
     if (button) {
       button.disabled = true;
-      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Looking up...';
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Looking up...';
     }
 
-    const response = await fetch(APPLICANT_LOOKUP_FLOW_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ searchValue: dms })
+    let appointments = Array.from(
+      window.emtAppointmentsById?.values?.() || []
+    );
+
+    if (!appointments.length) {
+      appointments = await modules.loadEmtAppointments();
+
+      window.emtAppointmentsById = new Map(
+        appointments.map(appointment => [
+          appointment.request_id,
+          appointment
+        ])
+      );
+    }
+
+    const normalizedSearch =
+      searchValue.toLowerCase();
+
+    const appointment = appointments.find(item => {
+      const values = [
+        item.dms_preapproval_number,
+        item.request_number,
+        item.request_id
+      ]
+        .filter(Boolean)
+        .map(value =>
+          String(value).trim().toLowerCase()
+        );
+
+      return values.includes(normalizedSearch);
     });
 
-    if (!response.ok) {
-      throw new Error(`Lookup failed with status ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data || data.found === false || data.found === 'False') {
-      alert('No applicant found for that DMS Preapproval Number.');
+    if (!appointment) {
+      alert(
+        'No DPE EMT appointment was found for that DMS number, request number, or request ID.'
+      );
       return;
     }
 
-    const applicant =
-      typeof data.applicant === 'string'
-        ? JSON.parse(data.applicant)
-        : data.applicant;
+    applyApplicantLookupData(
+      appointmentToApplicantData(appointment)
+    );
 
-    applyApplicantLookupData(applicant || data);
+    const select = $('emtAppointmentSelect');
 
-    
+    if (select) {
+      select.value = appointment.request_id;
+    }
 
     modules.notify();
 
+    setEmtConnectionMessage(
+      `${appointment.request_number || 'Appointment'} loaded from Supabase.`
+    );
   } catch (error) {
-    console.error(error);
-    alert('Applicant lookup failed. Check the Power Automate run history and browser console.');
+    console.error(
+      'Supabase applicant lookup failed:',
+      error
+    );
+
+    alert(
+      error instanceof Error
+        ? `Applicant lookup failed: ${error.message}`
+        : 'Applicant lookup from Supabase failed.'
+    );
   } finally {
     if (button) {
       button.disabled = false;
@@ -795,6 +1260,46 @@ async function refreshEmtAppointments() {
         .join('')}
     `;
 
+    const requestedRequestId =
+      new URLSearchParams(window.location.search)
+        .get('request')
+        ?.trim() || '';
+
+    if (requestedRequestId) {
+      const requestedAppointment =
+        window.emtAppointmentsById.get(
+          requestedRequestId
+        );
+
+      if (requestedAppointment) {
+        select.value = requestedRequestId;
+
+        applyApplicantLookupData(
+          appointmentToApplicantData(
+            requestedAppointment
+          )
+        );
+
+        modules.notify();
+
+        setEmtConnectionMessage(
+          `${
+            requestedAppointment.request_number ||
+            'Appointment'
+          } loaded from Supabase.`
+        );
+
+        return;
+      }
+
+      setEmtConnectionMessage(
+        'The requested appointment was not found or is not assigned to this examiner.',
+        true
+      );
+
+      return;
+    }
+
     setEmtConnectionMessage(
       appointments.length
         ? `${appointments.length} appointment${
@@ -1099,9 +1604,23 @@ if (aircraftClassGroup) {
 
   applyAcsCodeHighlights();
 
-  if (typeof modules.renderScenarioEngine === 'function' && !scenarioRendered) {
-    modules.renderScenarioEngine('scenario-root');
+  if (
+    typeof modules.renderScenarioEngine === 'function' &&
+    !scenarioRendered
+  ) {
+    modules.renderScenarioEngine(
+      'scenario-root'
+    );
+
     scenarioRendered = true;
+
+    window.requestAnimationFrame(() => {
+      upgradeGradeSelectsToRadios(
+        document
+      );
+
+      syncScenarioGradesFromStore();
+    });
   }
 
   modules.renderSummary?.($('viewSummary'), areas, store);
@@ -1125,6 +1644,19 @@ if (aircraftClassGroup) {
       store.outcomeNotes = event.target.value;
     };
   }
+
+  /*
+   * Preserve the existing grading handlers and data model while
+   * presenting every task grade as radio buttons.
+   */
+  upgradeGradeSelectsToRadios(document);
+
+  /*
+   * The scenario engine remains mounted between renders. Refresh all
+   * visible Oral / Flight grades from the same store used by Detailed
+   * View.
+   */
+  syncScenarioGradesFromStore();
 }
 
 function syncActiveView() {
@@ -1148,6 +1680,31 @@ function syncActiveView() {
 }  
 
 function wireFullAppEvents() {
+  /*
+   * Some existing grading actions update select values directly,
+   * including task and Flight Portion checkboxes. Synchronize the
+   * visible radio groups after those handlers finish.
+   */
+  document.addEventListener('change', event => {
+    if (
+      !event.target.matches(
+        'input[type="checkbox"], select[data-grade]'
+      )
+    ) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      document
+        .querySelectorAll('select[data-grade]')
+        .forEach(select => {
+          syncGradeRadioGroup(select);
+        });
+
+      upgradeGradeSelectsToRadios(document);
+    }, 0);
+  });
+
   document.querySelectorAll('.view-tab').forEach(tab => {
     tab.onclick = () => {
       scenarioRendered = false;
@@ -1221,7 +1778,11 @@ document.addEventListener('click', event => {
 
   $('btnExportJSON')?.addEventListener('click', exportJsonSave);
   $('btnSaveHTML')?.addEventListener('click', generateCheckrideReport);
-  $('btnSharePoint')?.addEventListener('click', submitToSharePoint);
+
+  $('btnSaveEvaluation')?.addEventListener(
+    'click',
+    submitPracticalTestToDatabase
+  );
 
   $('btnReset')?.addEventListener('click', () => {
     $('confirmModal')?.classList.add('show');
@@ -1232,19 +1793,291 @@ document.addEventListener('click', event => {
   });
 
   $('modalConfirm')?.addEventListener('click', () => {
-    $('confirmModal')?.classList.remove('show');
+    resetAllEvaluationData();
+  });
+}
 
-    clearLocalStorageSave();
+function normalizeDatabasePracticalTestResult(value) {
+  const normalized =
+    String(value || '')
+      .trim()
+      .toUpperCase();
 
-    modules.resetStore();
+  if (normalized === 'SATISFACTORY') {
+    return 'pass';
+  }
 
-    store.eligibilityChecks = {};
-    store.expandedEligibilitySections = {};
+  if (normalized === 'UNSATISFACTORY') {
+    return 'fail';
+  }
 
-    ensureStoreDefaults();
-    populateRatingDropdown();
-    modules.notify();
-    });
+  if (
+    normalized === 'DISCONTINUANCE' ||
+    normalized === 'DISCONTINUED'
+  ) {
+    return 'letter_of_discontinuance';
+  }
+
+  if (normalized === 'NO SHOW') {
+    return 'no_show';
+  }
+
+  return null;
+}
+
+function parseEvaluationFeeAmount() {
+  const rawValue =
+    store.applicant?.feeAmount ??
+    store.feeAmount ??
+    null;
+
+  if (
+    rawValue === null ||
+    rawValue === undefined ||
+    rawValue === ''
+  ) {
+    return null;
+  }
+
+  const numericValue =
+    Number(
+      String(rawValue)
+        .replace(/[$,\s]/g, '')
+    );
+
+  return Number.isFinite(numericValue)
+    ? numericValue
+    : null;
+}
+
+function buildEvaluationStateForDatabase() {
+  const applicant = store.applicant || {};
+
+  /*
+   * Save only the applicant and appointment fields needed for the
+   * completed evaluation. Personally identifying account information
+   * remains in the linked practical-test request rather than being
+   * duplicated inside evaluation_state.
+   */
+  const limitedApplicant = {
+    appDate:
+      applicant.appDate || '',
+    appSchool:
+      applicant.appSchool || '',
+    appCertificate:
+      applicant.appCertificate || '',
+    appRating:
+      applicant.appRating || '',
+    appExamType:
+      applicant.appExamType || '',
+    appAircraftType:
+      applicant.appAircraftType || '',
+    appInstructor:
+      applicant.appInstructor || '',
+    scheduledLocation:
+      applicant.scheduledLocation || '',
+    appGroundDuration:
+      applicant.appGroundDuration || '',
+    appFlightDuration:
+      applicant.appFlightDuration || '',
+    appRetest:
+      applicant.appRetest || 'No'
+  };
+
+  /*
+   * Serialize to plain JSON while replacing the full applicant object
+   * with the approved limited field set.
+   */
+  return JSON.parse(
+    JSON.stringify({
+      ...store,
+      applicant: limitedApplicant,
+      databaseMetadata: {
+        schemaVersion: 2,
+        submittedFrom: 'ems-web',
+        submittedAt:
+          new Date().toISOString()
+      }
+    })
+  );
+}
+
+async function submitPracticalTestToDatabase() {
+  const requestId =
+    store.applicant
+      ?.practicalTestRequestId || '';
+
+  if (!requestId) {
+    alert(
+      'Load an accepted or confirmed DPE EMT appointment before submitting the practical test.'
+    );
+    return;
+  }
+
+  const result =
+    normalizeDatabasePracticalTestResult(
+      store.practicalTestOutcome
+    );
+
+  if (!result) {
+    alert(
+      'Select a final Practical Test Outcome before submitting the practical test.'
+    );
+    return;
+  }
+
+  const requestNumber =
+    store.applicant?.requestNumber ||
+    'this practical test';
+
+  const confirmed = window.confirm(
+    `Submit ${requestNumber} to the database and mark the scheduling request Completed?\n\nThis will save the current evaluation as the completed practical test.`
+  );
+
+  if (!confirmed) return;
+
+  const button =
+    $('btnSaveEvaluation');
+
+  const originalHtml =
+    button?.innerHTML || '';
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Submitting Practical Test';
+    }
+
+    const resultData =
+      await modules.submitEmtPracticalTest({
+        practicalTestRequestId:
+          requestId,
+
+        evaluationState:
+          buildEvaluationStateForDatabase(),
+
+        result,
+
+        startedAt:
+          store.applicant?.scheduledStartAt ||
+          null,
+
+        aircraftUsed:
+          [
+            store.applicant?.appAircraftType,
+            store.applicant?.appNNumber
+          ]
+            .filter(Boolean)
+            .join(' · ') ||
+          null,
+
+        feeAmount:
+          parseEvaluationFeeAmount(),
+
+        examinerNotes:
+          store.outcomeNotes ||
+          null,
+
+        dmsPreapprovalNumber:
+          store.applicant?.appDMS ||
+          null
+      });
+
+    const practicalTestId =
+      resultData?.practical_test_id ||
+      null;
+
+    if (!practicalTestId) {
+      throw new Error(
+        'The practical test was saved, but no practical-test ID was returned for the Applicant Report.'
+      );
+    }
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Creating Applicant Report';
+    }
+
+    const applicantReportPdf =
+      await generateApplicantReportPdfBlob();
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Uploading Applicant Report';
+    }
+
+    const reportRow =
+      await modules.uploadApplicantPracticalTestReport({
+        practicalTestId,
+        requestNumber:
+          resultData?.request_number ||
+          requestNumber,
+        pdfBlob:
+          applicantReportPdf,
+        generatedAt:
+          resultData?.completed_at ||
+          new Date().toISOString(),
+        releaseToApplicant:
+          true
+      });
+
+    store.databaseSubmission = {
+      practicalTestId,
+      status: 'completed',
+      submittedAt:
+        resultData?.completed_at ||
+        new Date().toISOString(),
+      applicantReportId:
+        reportRow?.id ||
+        null,
+      applicantReportReleasedAt:
+        reportRow
+          ?.released_to_applicant_at ||
+        null
+    };
+
+    saveToLocalStorage();
+
+    setEmtConnectionMessage(
+      `${requestNumber} was submitted successfully. The scheduling request is Completed and the Applicant Report was released.`
+    );
+
+    alert(
+      `${requestNumber} was submitted successfully.\n\nThe practical test was saved, the scheduling request was changed to Completed, and the Applicant Practical Test Report was released to the applicant.`
+    );
+
+    /*
+     * Refresh the appointment list. Completed requests should disappear
+     * from the accepted/scheduled/confirmed appointment selector.
+     */
+    await refreshEmtAppointments();
+  } catch (error) {
+    console.error(
+      'Practical-test submission failed:',
+      error
+    );
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'The practical test could not be submitted.';
+
+    setEmtConnectionMessage(
+      message,
+      true
+    );
+
+    alert(
+      `Practical-test submission failed: ${message}`
+    );
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.innerHTML =
+        originalHtml;
+    }
+  }
 }
 
 function wireReportActionButtons() {
@@ -2272,15 +3105,29 @@ async function submitToSharePoint() {
   }
 }
 
-function buildPracticalTestReportHtml(reportType = 'applicant') {
-  const isApplicant = reportType === 'applicant';
+function buildPracticalTestReportHtml(
+  reportType = 'applicant'
+) {
+  const isApplicant =
+    reportType === 'applicant';
 
-  const areas = getCurrentAreas();
-  const tasks = getCurrentTasks(areas);
-  const summary = modules.summarizeTasks(tasks);
-  const applicant = store.applicant;
-  const notes = store.examinerNotes ?? {};
-  const applicantName = applicant.appName || '';
+  const areas =
+    getCurrentAreas();
+
+  const tasks =
+    getCurrentTasks(areas);
+
+  const summary =
+    modules.summarizeTasks(tasks);
+
+  const applicant =
+    store.applicant || {};
+
+  const notes =
+    store.examinerNotes || {};
+
+  const applicantName =
+    applicant.appName || '';
 
   const getTaskKeys = task => {
     const keys = [
@@ -2288,18 +3135,32 @@ function buildPracticalTestReportHtml(reportType = 'applicant') {
       task.code,
       task.id,
       `${task.areaId}_${task.id}`,
-      String(task.code || '').replaceAll('.', '_'),
-      String(task.filterCode || '').replaceAll('_', '.')
+      String(task.code || '')
+        .replaceAll('.', '_'),
+      String(task.filterCode || '')
+        .replaceAll('_', '.')
     ];
 
-    return [...new Set(keys.filter(Boolean))];
+    return [
+      ...new Set(
+        keys.filter(Boolean)
+      )
+    ];
   };
 
   const getExaminerNote = task => {
-    const keys = getTaskKeys(task);
+    for (
+      const key of getTaskKeys(task)
+    ) {
+      const note = notes[key];
 
-    for (const key of keys) {
-      if (notes[key]) return notes[key];
+      if (
+        note !== null &&
+        note !== undefined &&
+        String(note).trim()
+      ) {
+        return String(note).trim();
+      }
     }
 
     return '';
@@ -2308,401 +3169,1170 @@ function buildPracticalTestReportHtml(reportType = 'applicant') {
   const aircraftDisplay = [
     applicant.appAircraftType,
     applicant.appNNumber
-  ].filter(Boolean).join(' / ');
+  ]
+    .filter(Boolean)
+    .join(' / ');
 
-  const reportTitle = isApplicant
-    ? 'Applicant Practical Test Report'
-    : 'Designee Practical Test Report';
+  const reportTitle =
+    isApplicant
+      ? 'Applicant Practical Test Report'
+      : 'Designee Practical Test Report';
 
   const getTaskStatus = task => {
-    const row = summary.statuses?.find(item =>
-      item.task?.filterCode === task.filterCode
-    );
+    const row =
+      summary.statuses?.find(item =>
+        item.task?.filterCode ===
+        task.filterCode
+      );
 
-    const k = store.grades?.[`${task.filterCode}.K`] || 'NP';
-    const r = store.grades?.[`${task.filterCode}.R`] || 'NP';
-    const s = store.grades?.[`${task.filterCode}.S`] || 'NP';
+    const k =
+      store.grades?.[
+        `${task.filterCode}.K`
+      ] || 'NP';
 
-    const hasGrade = [k, r, s].some(value => value && value !== 'NP');
+    const r =
+      store.grades?.[
+        `${task.filterCode}.R`
+      ] || 'NP';
 
-    if (row?.status === 'not-required' && !hasGrade) {
+    const s =
+      store.grades?.[
+        `${task.filterCode}.S`
+      ] || 'NP';
+
+    const values = [k, r, s];
+
+    const hasGrade =
+      values.some(value =>
+        value &&
+        value !== 'NP'
+      );
+
+    if (
+      row?.status === 'not-required' &&
+      !hasGrade
+    ) {
       return 'Not Required';
     }
 
-    if (row?.status === 'not-required' && hasGrade) {
-      if ([k, r, s].includes('2') || [k, r, s].includes('1')) {
+    if (
+      row?.status === 'not-required' &&
+      hasGrade
+    ) {
+      if (
+        values.includes('1') ||
+        values.includes('2')
+      ) {
         return 'Unsatisfactory';
       }
 
-      if ([k, r, s].includes('3') || [k, r, s].includes('4')) {
+      if (
+        values.includes('3') ||
+        values.includes('4')
+      ) {
         return 'Satisfactory';
       }
 
       return 'Not Required';
     }
 
-    if (!row) return 'Incomplete';
-    if (row.status === 'fail') return 'Unsatisfactory';
-    if (row.status === 'incomplete') return 'Incomplete';
+    if (!row) {
+      return 'Incomplete';
+    }
+
+    if (row.status === 'fail') {
+      return 'Unsatisfactory';
+    }
+
+    if (
+      row.status === 'incomplete'
+    ) {
+      return 'Incomplete';
+    }
 
     return 'Satisfactory';
   };
 
-  const getStatusClass = status => {
-    if (status === 'Satisfactory') return 'status-sat';
-    if (status === 'Unsatisfactory') return 'status-unsat';
-    if (status === 'Not Required') return 'status-notreq';
-    return 'status-inc';
-  };
+  const getStatusPresentation =
+    status => {
+      if (
+        status === 'Satisfactory'
+      ) {
+        return {
+          symbol: '✓',
+          className: 'task-status-sat',
+          label: 'Satisfactory'
+        };
+      }
+
+      if (
+        status === 'Unsatisfactory'
+      ) {
+        return {
+          symbol: '×',
+          className: 'task-status-unsat',
+          label: 'Unsatisfactory'
+        };
+      }
+
+      return {
+        symbol: '!',
+        className: 'task-status-inc',
+        label:
+          status === 'Not Required'
+            ? 'Not Required'
+            : 'Incomplete'
+      };
+    };
 
   const isAcsHighlighted = task => {
-    const selected = store.selectedAcsCodes || [];
+    const selected =
+      store.selectedAcsCodes || [];
 
     return (
       selected.includes(task.code) ||
-      selected.includes(task.filterCode) ||
-      selected.includes(String(task.filterCode || '').replaceAll('_', '.')) ||
-      selected.includes(String(task.code || '').replaceAll('.', '_'))
+      selected.includes(
+        task.filterCode
+      ) ||
+      selected.includes(
+        String(
+          task.filterCode || ''
+        ).replaceAll('_', '.')
+      ) ||
+      selected.includes(
+        String(
+          task.code || ''
+        ).replaceAll('.', '_')
+      )
     );
   };
 
-  const taskRows = tasks.map(task => {
-    const status = getTaskStatus(task);
-    const note = getExaminerNote(task);
-    const isHighlighted = isAcsHighlighted(task);
+  const taskRows =
+    tasks.map(task => {
+      const status =
+        getTaskStatus(task);
 
-    return `
-      <tr>
-        <td class="task-code-col ${isHighlighted ? 'acs-highlight' : ''}">
-          ${escapeReport(task.code)}
-        </td>
+      const presentation =
+        getStatusPresentation(status);
 
-        <td class="task-title-col ${isHighlighted ? 'acs-highlight' : ''}">
-          ${escapeReport(task.title)}
-        </td>
+      const note =
+        getExaminerNote(task);
 
-        <td class="task-status-col ${getStatusClass(status)}">
-          ${escapeReport(status)}
-        </td>
+      const highlighted =
+        isAcsHighlighted(task);
 
-        <td class="note-col">
-          ${note ? escapeReport(note).replace(/\n/g, '<br>') : ''}
-        </td>
-      </tr>
-    `;
-  }).join('');
+      return `
+        <tr>
+          <td class="task-code-cell ${
+            highlighted
+              ? 'acs-highlight'
+              : ''
+          }">
+            <span
+              class="task-status-icon ${presentation.className}"
+              title="${escapeReport(
+                presentation.label
+              )}"
+              aria-label="${escapeReport(
+                presentation.label
+              )}"
+            >
+              ${presentation.symbol}
+            </span>
 
-  const detailRows = tasks.map(task => {
-    const note = getExaminerNote(task);
-    const isHighlighted = isAcsHighlighted(task);
+            <span class="task-code-text">
+              ${escapeReport(
+                task.code || ''
+              )}
+            </span>
+          </td>
 
-    return `
-      <tr>
-        <td class="${isHighlighted ? 'acs-highlight' : ''}">
-          ${escapeReport(task.code)}
-        </td>
-        <td class="${isHighlighted ? 'acs-highlight' : ''}">
-          ${escapeReport(task.title)}
-        </td>
-        <td>${escapeReport(store.grades?.[`${task.filterCode}.K`] || 'NP')}</td>
-        <td>${escapeReport(store.grades?.[`${task.filterCode}.R`] || 'NP')}</td>
-        <td>${escapeReport(store.grades?.[`${task.filterCode}.S`] || 'NP')}</td>
-        <td>${note ? escapeReport(note).replace(/\n/g, '<br>') : ''}</td>
-      </tr>
-    `;
-  }).join('');
+          <td class="task-title-cell ${
+            highlighted
+              ? 'acs-highlight'
+              : ''
+          }">
+            ${escapeReport(
+              task.title || ''
+            )}
+          </td>
+
+          <td class="examiner-comment-cell">
+            ${
+              note
+                ? escapeReport(note)
+                    .replace(
+                      /\n/g,
+                      '<br>'
+                    )
+                : ''
+            }
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+  const detailRows =
+    tasks.map(task => {
+      const note =
+        getExaminerNote(task);
+
+      return `
+        <tr>
+          <td>
+            ${escapeReport(
+              task.code || ''
+            )}
+          </td>
+
+          <td>
+            ${escapeReport(
+              task.title || ''
+            )}
+          </td>
+
+          <td>
+            ${escapeReport(
+              store.grades?.[
+                `${task.filterCode}.K`
+              ] || 'NP'
+            )}
+          </td>
+
+          <td>
+            ${escapeReport(
+              store.grades?.[
+                `${task.filterCode}.R`
+              ] || 'NP'
+            )}
+          </td>
+
+          <td>
+            ${escapeReport(
+              store.grades?.[
+                `${task.filterCode}.S`
+              ] || 'NP'
+            )}
+          </td>
+
+          <td>
+            ${
+              note
+                ? escapeReport(note)
+                    .replace(
+                      /\n/g,
+                      '<br>'
+                    )
+                : ''
+            }
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+  const overall =
+    String(
+      summary.overall ||
+      store.practicalTestOutcome ||
+      'INCOMPLETE'
+    ).toUpperCase();
+
+  const overallClass =
+    overall === 'SATISFACTORY'
+      ? 'overall-sat'
+      : overall ===
+          'UNSATISFACTORY'
+      ? 'overall-unsat'
+      : 'overall-inc';
+
+  const overallSymbol =
+    overall === 'SATISFACTORY'
+      ? '✓'
+      : overall ===
+          'UNSATISFACTORY'
+      ? '×'
+      : '!';
+
+  const requestNumber =
+    applicant.requestNumber ||
+    store.databaseSubmission
+      ?.requestNumber ||
+    '';
+
+  const generatedAt =
+    new Date().toLocaleString(
+      'en-US',
+      {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }
+    );
+
+  const groundDuration =
+    applicant.appGroundDuration
+      ? `${escapeReport(
+          applicant.appGroundDuration
+        )} hrs`
+      : '—';
+
+  const flightDuration =
+    applicant.appFlightDuration
+      ? `${escapeReport(
+          applicant.appFlightDuration
+        )} hrs`
+      : '—';
 
   return `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>${escapeReport(reportTitle)}</title>
+  <meta charset="utf-8">
+
+  <title>
+    ${escapeReport(reportTitle)}
+  </title>
 
   <style>
     @page {
       size: letter portrait;
-      margin: 0.5in;
+      margin: 0.26in;
     }
 
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
-      font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      color: #111;
-      font-size: 12pt;
-      line-height: 1.3;
+      color: #10233f;
+      background: #ffffff;
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+    }
+
+    body {
+      font-size: 9pt;
+      line-height: 1.15;
+    }
+
+    .print-controls {
+      padding: 12px;
+      background: #eef3f8;
+      border-bottom: 1px solid #ccd6e0;
+    }
+
+    .print-controls button {
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 14px;
+      margin-right: 8px;
+      background: #073b78;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     .report-page {
+      position: relative;
       width: 100%;
+      overflow: visible;
+      padding-bottom: 0;
     }
 
-    h1 {
-      font-size: 20pt;
-      margin: 0 0 12px 0;
-      border-bottom: 2px solid #000;
-      padding-bottom: 4px;
+    .report-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
     }
 
-    h2 {
-      font-size: 14pt;
-      margin: 18px 0 8px 0;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 3px;
+    .report-header {
+      display: flex;
+      align-items: center;
+      min-height: 0.58in;
+      padding: 9px 16px;
+      border-radius: 10px;
+      background:
+        linear-gradient(
+          90deg,
+          #063668,
+          #0b4d91
+        );
+      color: #ffffff;
     }
 
-    .top-report-grid {
+    .header-airplane {
+      flex: 0 0 auto;
+      margin-right: 13px;
+      font-size: 24pt;
+      line-height: 1;
+      transform: rotate(-8deg);
+    }
+
+    .header-title {
+      flex: 1 1 auto;
+      margin: 0;
+      font-size: 22pt;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .header-page {
+      flex: 0 0 auto;
+      font-size: 8pt;
+      font-weight: 700;
+    }
+
+    .section-card {
+      margin-top: 12px;
+      border: 1px solid #9fb2c8;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .section-title {
+      padding: 6px 11px;
+      background:
+        linear-gradient(
+          90deg,
+          #073b78,
+          #0c4e90
+        );
+      color: #ffffff;
+      font-size: 11pt;
+      font-weight: 800;
+    }
+
+    .applicant-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      width: 100%;
-      align-items: start;
-      margin-bottom: 12px;
+      grid-template-columns:
+        1fr 1fr;
+      gap: 5px 34px;
+      padding: 12px 15px 14px;
     }
 
-    table {
-      border-collapse: collapse;
-      width: 100%;
+    .information-row {
+      display: grid;
+      grid-template-columns:
+        104px 1fr;
+      align-items: baseline;
+      min-height: 23px;
+      border-bottom:
+        1px solid #d8e0e8;
     }
 
-    .info-table,
-    .result-table,
-    .task-summary-table,
-    .detail-table {
-      width: 100%;
-      table-layout: fixed;
+    .information-label {
+      padding: 4px 6px 3px 0;
+      font-weight: 800;
+      color: #12233b;
     }
 
-    .info-table th,
-    .result-table th {
-      width: 150px;
-      white-space: nowrap;
+    .information-value {
+      padding: 4px 0 3px;
+      color: #18314f;
     }
 
-    .info-table td,
-    .result-table td {
-      white-space: normal;
+    .overall-result {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0.55in;
+      margin-top: 12px;
+      border: 1.5px solid;
+      border-radius: 8px;
+      text-align: center;
     }
 
-    .task-code-col {
-      width: 85px;
-      white-space: nowrap;
+    .overall-result.overall-sat {
+      border-color: #15803d;
+      background: #edf9f0;
+      color: #12652e;
     }
 
-    .task-status-col {
-      width: 130px;
-      white-space: nowrap;
+    .overall-result.overall-unsat {
+      border-color: #c51f2d;
+      background: #fff0f1;
+      color: #a51120;
     }
 
-    .task-title-col {
-      width: auto;
-      white-space: normal;
+    .overall-result.overall-inc {
+      border-color: #d59a00;
+      background: #fff9e6;
+      color: #916700;
     }
 
-    .note-col {
-      width: 220px;
-      white-space: normal;
+    .overall-result-symbol {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      margin-right: 12px;
+      border-radius: 50%;
+      color: #ffffff;
+      background: currentColor;
+      font-size: 0;
     }
 
-    th,
-    td {
-      border: 1px solid #ccc;
-      padding: 6px;
-      vertical-align: top;
+    .overall-result-symbol::after {
+      content: attr(data-symbol);
+      color: #ffffff;
+      font-size: 21pt;
+      font-weight: 900;
+      line-height: 1;
     }
 
-    th {
-      background: #f0f0f0;
-      font-weight: bold;
+    .overall-result-content {
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
     }
 
-    tr {
+    .overall-result-label {
+      font-size: 8pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.35px;
+    }
+
+    .overall-result-value {
+      font-size: 17pt;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .metric-card {
+      min-height: 0.82in;
+      padding: 8px 5px 7px;
+      border: 1px solid #c6d0dc;
+      border-radius: 7px;
+      text-align: center;
+      background: #fbfcfe;
+    }
+
+    .metric-card.metric-sat {
+      border-color: #2eb85c;
+      background: #f1fbf4;
+    }
+
+    .metric-label {
+      min-height: 27px;
+      font-size: 8pt;
+      line-height: 1.05;
+      font-weight: 800;
+    }
+
+    .metric-value {
+      margin-top: 6px;
+      font-size: 18pt;
+      line-height: 1;
+      font-weight: 900;
+      color: #10233f;
+    }
+
+    .metric-sat .metric-value {
+      color: #15803d;
+    }
+
+    .metric-unsat .metric-value {
+      color: #dc2626;
+    }
+
+    .metric-inc .metric-value {
+      color: #b77900;
+    }
+
+    .metric-duration .metric-value {
+      color: #164e8c;
+      font-size: 15pt;
+    }
+
+    .outcome-notes-card {
+      margin-top: 10px;
+      min-height: 0.64in;
+      padding: 9px 12px;
+      border: 1px solid #aab9c9;
+      border-radius: 8px;
+      background: #fbfcfe;
       break-inside: avoid;
       page-break-inside: avoid;
     }
 
-    .badge {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 4px;
-      font-weight: bold;
+    .outcome-notes-title {
+      margin-bottom: 4px;
+      color: #0b3f78;
+      font-weight: 800;
     }
 
-    .pass {
-      background: green;
-      color: white;
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 5px;
+      border-top: 1px solid #0b4d91;
+      font-size: 7pt;
+      color: #39516d;
     }
 
-    .fail {
-      background: red;
-      color: white;
+    .task-section-title {
+      margin: 8px 0 5px;
+      padding-bottom: 4px;
+      border-bottom: 1.5px solid #0b4d91;
+      color: #0b3f78;
+      font-size: 13pt;
+      font-weight: 900;
     }
 
-    .incomplete {
-      background: orange;
-      color: black;
+    .task-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 6.35pt;
+      line-height: 1.04;
     }
 
-    .status-sat {
-      background: #d4edda;
-      color: #155724;
-      font-weight: bold;
+    .task-summary-table thead {
+      display: table-header-group;
     }
 
-    .status-unsat {
-      background: #f8d7da;
-      color: #721c24;
-      font-weight: bold;
+    .task-summary-table th {
+      padding: 3px 4px;
+      border: 1px solid #365b83;
+      background: #073b78;
+      color: #ffffff;
+      font-size: 6.8pt;
+      text-align: left;
+      font-weight: 800;
     }
 
-    .status-inc {
-      background: #fff3cd;
-      color: #856404;
-      font-weight: bold;
+    .task-summary-table td {
+      padding: 1.35px 3.5px;
+      border: 1px solid #cbd4de;
+      vertical-align: middle;
+      overflow-wrap: anywhere;
     }
 
-    .status-notreq {
-      background: #e5e7eb;
-      color: #374151;
-      font-weight: bold;
+    .task-summary-table tbody tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .task-summary-table tbody tr:nth-child(even) {
+      background: #f6f8fa;
+    }
+
+    .task-code-cell {
+      width: 17%;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .task-title-cell {
+      width: 42%;
+    }
+
+    .examiner-comment-cell {
+      width: 41%;
+      color: #263d56;
+    }
+
+    .task-status-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 13px;
+      height: 13px;
+      margin-right: 4px;
+      border-radius: 50%;
+      color: #ffffff;
+      font-size: 8pt;
+      line-height: 1;
+      font-weight: 900;
+      vertical-align: middle;
+    }
+
+    .task-status-sat {
+      background: #15803d;
+    }
+
+    .task-status-unsat {
+      background: #dc2626;
+    }
+
+    .task-status-inc {
+      background: #e6a700;
+      color: #ffffff;
+    }
+
+    .task-code-text {
+      vertical-align: middle;
     }
 
     .acs-highlight {
-      background: #ffd6e8 !important;
+      background: #ffe2ee !important;
     }
 
-    .outcome-notes {
-      border: 1px solid #ccc;
-      padding: 10px;
-      min-height: 80px;
-      background: #fafafa;
+    .detail-page {
+      font-size: 7pt;
+      break-before: page;
+      page-break-before: always;
+    }
+
+    .detail-table {
       width: 100%;
-      white-space: normal;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 6.5pt;
     }
 
-    .print-button {
-      margin-bottom: 12px;
-    }
-
-    .print-button button {
-      padding: 8px 14px;
-      border: none;
-      border-radius: 6px;
-      background: #2563eb;
+    .detail-table th {
+      background: #073b78;
       color: white;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 11pt;
+    }
+
+    .detail-table th,
+    .detail-table td {
+      border: 1px solid #cbd4de;
+      padding: 2px 3px;
+      vertical-align: top;
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: break-word;
+    }
+
+    /*
+     * Detailed K / R / S column widths
+     *
+     * Task is approximately 60% of its former equal-width size.
+     * K, R, and S are each one quarter of their former equal-width size.
+     * The recovered space is assigned to Title and Examiner Comment.
+     */
+    .detail-task-column {
+      width: 10%;
+    }
+
+    .detail-title-column {
+      width: 42.5%;
+    }
+
+    .detail-grade-column {
+      width: 4.1667%;
+    }
+
+    .detail-comment-column {
+      width: 35%;
+    }
+
+    .detail-table th:nth-child(1),
+    .detail-table td:nth-child(1) {
+      white-space: nowrap;
+    }
+
+    .detail-table th:nth-child(3),
+    .detail-table th:nth-child(4),
+    .detail-table th:nth-child(5),
+    .detail-table td:nth-child(3),
+    .detail-table td:nth-child(4),
+    .detail-table td:nth-child(5) {
+      padding-left: 1px;
+      padding-right: 1px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .detail-table th:nth-child(6),
+    .detail-table td:nth-child(6) {
+      padding-left: 5px;
+      padding-right: 5px;
     }
 
     @media print {
-      .print-button {
+      .print-controls {
         display: none;
       }
 
       body {
-        zoom: 1;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .report-page {
+        min-height: 0;
       }
     }
   </style>
 </head>
 
 <body>
-  <div class="report-page">
+  <div class="print-controls">
+    <button onclick="window.print()">
+      Print / Save PDF
+    </button>
 
-    <div class="print-button">
-      <button onclick="window.print()">Print / Save PDF</button>
-      <button onclick="window.close()" style="margin-left:10px;">Close Report</button>
-    </div>
+    <button onclick="window.close()">
+      Close Report
+    </button>
+  </div>
 
-    <h1>${escapeReport(reportTitle)}</h1>
-
-    <div class="top-report-grid">
-      <div>
-        <h2>Applicant Information</h2>
-
-        <table class="info-table">
-          <tr><th>Name</th><td>${escapeReport(applicantName)}</td></tr>
-          <tr><th>Date</th><td>${escapeReport(formatDateMMDDYYYY(applicant.appDate))}</td></tr>
-          <tr><th>Certificate</th><td>${escapeReport(applicant.appCertificate)}</td></tr>
-          <tr><th>Rating</th><td>${escapeReport(formatRatingLabel(applicant.appRating))}</td></tr>
-          <tr><th>Exam Type</th><td>${escapeReport(applicant.appExamType)}</td></tr>
-          <tr><th>Retest</th><td>${escapeReport(applicant.appRetest || 'No')}</td></tr>
-          <tr><th>Aircraft</th><td>${escapeReport(aircraftDisplay)}</td></tr>
-          <tr><th>Examiner</th><td>${escapeReport(applicant.appExaminer)}</td></tr>
-        </table>
+  <section class="report-page page-one">
+    <header class="report-header">
+      <div class="header-airplane">
+        ✈
       </div>
 
-      <div>
-        <h2>Overall Result</h2>
+      <h1 class="header-title">
+        ${escapeReport(reportTitle)}
+      </h1>
 
-        <p style="margin:0 0 10px 0;">
-          <span class="badge ${
-            summary.overall === 'SATISFACTORY'
-              ? 'pass'
-              : summary.overall === 'UNSATISFACTORY'
-              ? 'fail'
-              : 'incomplete'
-          }">
-            ${escapeReport(summary.overall)}
-          </span>
-        </p>
+      <div class="header-page">
+        ${isApplicant ? '' : 'Page 1 of 2'}
+      </div>
+    </header>
 
-        <table class="result-table">
-          <tr><th>Tasks Passed</th><td>${summary.passedRequiredTasks}</td></tr>
-          <tr><th>Failed</th><td>${summary.failedTasks}</td></tr>
-          <tr><th>Incomplete</th><td>${summary.incompleteRequiredTasks}</td></tr>
-          <tr><th>Ground Duration</th><td>${escapeReport(applicant.appGroundDuration)}</td></tr>
-          <tr><th>Flight Duration</th><td>${escapeReport(applicant.appFlightDuration)}</td></tr>
-        </table>
+    <div class="section-card">
+      <div class="section-title">
+        Applicant Information
+      </div>
+
+      <div class="applicant-grid">
+        <div>
+          <div class="information-row">
+            <div class="information-label">
+              Name:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(applicantName)}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Date:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                formatDateMMDDYYYY(
+                  applicant.appDate
+                )
+              )}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Certificate:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                applicant.appCertificate
+              )}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Rating:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                formatRatingLabel(
+                  applicant.appRating
+                )
+              )}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Exam Type:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                applicant.appExamType
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="information-row">
+            <div class="information-label">
+              Aircraft:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                aircraftDisplay
+              )}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Examiner:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                applicant.appExaminer
+              )}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Retest:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                applicant.appRetest ||
+                'No'
+              )}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Location:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                applicant.scheduledLocation ||
+                ''
+              )}
+            </div>
+          </div>
+
+          <div class="information-row">
+            <div class="information-label">
+              Instructor:
+            </div>
+
+            <div class="information-value">
+              ${escapeReport(
+                applicant.appInstructor ||
+                ''
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <h2>Task Summary</h2>
+    <div class="overall-result ${overallClass}">
+      <span
+        class="overall-result-symbol"
+        data-symbol="${overallSymbol}"
+      ></span>
+
+      <div class="overall-result-content">
+        <span class="overall-result-label">
+          Overall Result
+        </span>
+
+        <span class="overall-result-value">
+          ${escapeReport(overall)}
+        </span>
+      </div>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-card metric-sat">
+        <div class="metric-label">
+          Satisfactory Items
+        </div>
+
+        <div class="metric-value">
+          ${summary.passedRequiredTasks}
+        </div>
+      </div>
+
+      <div class="metric-card metric-unsat">
+        <div class="metric-label">
+          Unsatisfactory Items
+        </div>
+
+        <div class="metric-value">
+          ${summary.failedTasks}
+        </div>
+      </div>
+
+      <div class="metric-card metric-inc">
+        <div class="metric-label">
+          Incomplete
+        </div>
+
+        <div class="metric-value">
+          ${summary.incompleteRequiredTasks}
+        </div>
+      </div>
+
+      <div class="metric-card metric-duration">
+        <div class="metric-label">
+          Ground Duration
+        </div>
+
+        <div class="metric-value">
+          ${groundDuration}
+        </div>
+      </div>
+
+      <div class="metric-card metric-duration">
+        <div class="metric-label">
+          Flight Duration
+        </div>
+
+        <div class="metric-value">
+          ${flightDuration}
+        </div>
+      </div>
+    </div>
+
+    <div class="task-section-title">
+      Task Summary
+    </div>
 
     <table class="task-summary-table">
-      <tr>
-        <th class="task-code-col">Task</th>
-        <th class="task-title-col">Title</th>
-        <th class="task-status-col">Status</th>
-        <th class="note-col">Examiner Note</th>
-      </tr>
+      <thead>
+        <tr>
+          <th class="task-code-cell">
+            Task
+          </th>
 
-      ${taskRows}
+          <th class="task-title-cell">
+            Title
+          </th>
+
+          <th class="examiner-comment-cell">
+            Examiner Comments
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        ${taskRows}
+      </tbody>
     </table>
 
-    <h2>Outcome Notes</h2>
+    <div class="outcome-notes-card">
+      <div class="outcome-notes-title">
+        Outcome Notes:
+      </div>
 
-    <div class="outcome-notes">
-      ${escapeReport(store.outcomeNotes || 'None').replace(/\n/g, '<br>')}
+      <div>
+        ${escapeReport(
+          store.outcomeNotes ||
+          'None'
+        ).replace(/\n/g, '<br>')}
+      </div>
     </div>
 
-    ${
-      !isApplicant
-        ? `
-          <h2>Detailed K / R / S Breakdown</h2>
+    <footer class="page-footer">
+      <span>
+        Request Number:
+        ${escapeReport(requestNumber)}
+      </span>
+
+      <span>
+        ${isApplicant ? '' : 'Page 1 of 2'}
+      </span>
+    </footer>
+  </section>
+
+  ${
+    !isApplicant
+      ? `
+        <section class="report-page detail-page">
+          <header class="report-header">
+            <div class="header-airplane">
+              ✈
+            </div>
+
+            <h1 class="header-title">
+              Designee Detailed K / R / S Report
+            </h1>
+
+            <div class="header-page">
+              Page 2 of 2
+            </div>
+          </header>
+
+          <div class="task-section-title">
+            Detailed K / R / S Breakdown
+          </div>
 
           <table class="detail-table">
-            <tr>
-              <th>Task</th>
-              <th>Title</th>
-              <th>K</th>
-              <th>R</th>
-              <th>S</th>
-              <th>Examiner Note</th>
-            </tr>
+            <colgroup>
+              <col class="detail-task-column">
+              <col class="detail-title-column">
+              <col class="detail-grade-column">
+              <col class="detail-grade-column">
+              <col class="detail-grade-column">
+              <col class="detail-comment-column">
+            </colgroup>
 
-            ${detailRows}
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Title</th>
+                <th>K</th>
+                <th>R</th>
+                <th>S</th>
+                <th>Examiner Comment</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${detailRows}
+            </tbody>
           </table>
-        `
-        : ''
-    }
 
-  </div>
+          <footer class="page-footer">
+            <span>
+              Request Number:
+              ${escapeReport(
+                requestNumber
+              )}
+            </span>
+
+            <span>
+              Generated:
+              ${escapeReport(
+                generatedAt
+              )}
+            </span>
+
+            <span>
+              Page 2 of 2
+            </span>
+          </footer>
+        </section>
+      `
+      : ''
+  }
 </body>
 </html>
 `;
@@ -2722,9 +4352,182 @@ function generatePracticalTestReport(reportType = 'applicant') {
   reportWindow.document.close();
 }
 
+async function generateApplicantReportPdfBlob() {
+  if (typeof window.html2pdf !== 'function') {
+    throw new Error(
+      'The PDF generator did not load. Refresh the EMS app and try again.'
+    );
+  }
+
+  const reportHtml =
+    buildPracticalTestReportHtml('applicant');
+
+  const frame =
+    document.createElement('iframe');
+
+  frame.setAttribute(
+    'aria-hidden',
+    'true'
+  );
+
+  frame.style.position = 'fixed';
+  frame.style.left = '-100000px';
+  frame.style.top = '0';
+  frame.style.width = '816px';
+  frame.style.height = '1056px';
+  frame.style.border = '0';
+  frame.style.opacity = '0';
+  frame.style.pointerEvents = 'none';
+
+  document.body.appendChild(frame);
+
+  try {
+    const frameDocument =
+      frame.contentDocument;
+
+    if (!frameDocument) {
+      throw new Error(
+        'The temporary report document could not be created.'
+      );
+    }
+
+    frameDocument.open();
+    frameDocument.write(reportHtml);
+    frameDocument.close();
+
+    await new Promise(resolve => {
+      const finish = () =>
+        window.setTimeout(resolve, 150);
+
+      if (
+        frame.contentWindow?.document
+          ?.readyState === 'complete'
+      ) {
+        finish();
+      } else {
+        frame.addEventListener(
+          'load',
+          finish,
+          {
+            once: true
+          }
+        );
+      }
+    });
+
+    if (
+      frameDocument.fonts?.ready
+    ) {
+      await frameDocument.fonts.ready;
+    }
+
+    const images =
+      Array.from(
+        frameDocument.images || []
+      );
+
+    await Promise.all(
+      images.map(image => {
+        if (image.complete) {
+          return Promise.resolve();
+        }
+
+        return new Promise(resolve => {
+          image.addEventListener(
+            'load',
+            resolve,
+            {
+              once: true
+            }
+          );
+
+          image.addEventListener(
+            'error',
+            resolve,
+            {
+              once: true
+            }
+          );
+        });
+      })
+    );
+
+    const pdfBlob =
+      await window.html2pdf()
+        .set({
+          margin: 0,
+          filename:
+            'Applicant-Practical-Test-Report.pdf',
+          image: {
+            type: 'jpeg',
+            quality: 0.98
+          },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+          },
+          jsPDF: {
+            unit: 'in',
+            format: 'letter',
+            orientation: 'portrait'
+          },
+          pagebreak: {
+            mode: [
+              'css',
+              'legacy'
+            ]
+          }
+        })
+        .from(frameDocument.body)
+        .outputPdf('blob');
+
+    if (
+      !(pdfBlob instanceof Blob) ||
+      pdfBlob.size === 0
+    ) {
+      throw new Error(
+        'The generated Applicant Report PDF was empty.'
+      );
+    }
+
+    return pdfBlob;
+  } finally {
+    frame.remove();
+  }
+}
+
 async function generateApplicantReportPdfBase64() {
+  const pdfBlob =
+    await generateApplicantReportPdfBlob();
+
+  const bytes =
+    new Uint8Array(
+      await pdfBlob.arrayBuffer()
+    );
+
+  let binary = '';
+
+  for (
+    let index = 0;
+    index < bytes.length;
+    index += 0x8000
+  ) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(
+        index,
+        index + 0x8000
+      )
+    );
+  }
+
   return {
-    reportHtml: buildPracticalTestReportHtml('applicant')
+    pdfBase64: window.btoa(binary),
+    reportHtml:
+      buildPracticalTestReportHtml(
+        'applicant'
+      )
   };
 }
 
@@ -2824,10 +4627,398 @@ window.renderFlightDetailedArea = function(container, area) {
   applyAcsCodeHighlights();
 };
 
-window.setDetailedGradeFromFlight = function(taskCode, gradeType, value) {
-  if (!taskCode || !gradeType || !store) return;
+function resolveScenarioGradeTarget(rawTaskCode) {
+  const parts = rawTaskCode
+    ? String(rawTaskCode).split('.')
+    : [];
 
-  modules.setGrade(taskCode, gradeType, value);
+  const taskCode =
+    parts.length >= 3
+      ? parts.slice(0, 3).join('.')
+      : rawTaskCode || '';
+
+  const gradeType =
+    parts.length >= 4
+      ? String(parts[3]).charAt(0).toUpperCase()
+      : '';
+
+  const tasks = getCurrentTasks(
+    getCurrentAreas()
+  );
+
+  const matchingTask = tasks.find(task =>
+    task.code === taskCode ||
+    task.filterCode === taskCode ||
+    task.code === rawTaskCode ||
+    task.filterCode === rawTaskCode
+  );
+
+  return {
+    matchingTask,
+    filterCode:
+      matchingTask?.filterCode || '',
+    gradeType
+  };
+}
+
+function updateVisibleRadioGroup(
+  radio,
+  selectedValue
+) {
+  const group = radio.closest(
+    '.grade-radio-group'
+  );
+
+  if (!group) return;
+
+  group
+    .querySelectorAll(
+      'input[type="radio"]'
+    )
+    .forEach(input => {
+      const selected =
+        String(input.value) ===
+        String(selectedValue);
+
+      input.checked = selected;
+
+      input
+        .closest('.grade-radio-option')
+        ?.classList.toggle(
+          'selected',
+          selected
+        );
+    });
+}
+
+function getOralQuestionGrade(rawTaskCode) {
+  if (!rawTaskCode || !store) {
+    return 'NP';
+  }
+
+  return (
+    store.oralQuestionGrades?.[
+      rawTaskCode
+    ] || 'NP'
+  );
+}
+
+function getOralGradesForParent(
+  filterCode,
+  gradeType
+) {
+  if (
+    !filterCode ||
+    !gradeType ||
+    !store?.oralQuestionGrades
+  ) {
+    return [];
+  }
+
+  return Object.entries(
+    store.oralQuestionGrades
+  )
+    .map(([rawTaskCode, value]) => {
+      const resolved =
+        resolveScenarioGradeTarget(
+          rawTaskCode
+        );
+
+      return {
+        filterCode:
+          resolved.filterCode,
+        gradeType:
+          resolved.gradeType,
+        value: String(value || 'NP')
+      };
+    })
+    .filter(item =>
+      item.filterCode === filterCode &&
+      item.gradeType === gradeType
+    )
+    .map(item => item.value);
+}
+
+function calculateRoundedOralAverage(
+  filterCode,
+  gradeType
+) {
+  const numericGrades =
+    getOralGradesForParent(
+      filterCode,
+      gradeType
+    )
+      .filter(value =>
+        ['1', '2', '3', '4'].includes(
+          value
+        )
+      )
+      .map(Number);
+
+  if (!numericGrades.length) {
+    return 'NP';
+  }
+
+  const total =
+    numericGrades.reduce(
+      (sum, value) => sum + value,
+      0
+    );
+
+  const average =
+    total / numericGrades.length;
+
+  /*
+   * Math.round uses conventional rounding:
+   * 2.49 -> 2
+   * 2.50 -> 3
+   */
+  const rounded =
+    Math.round(average);
+
+  return String(
+    Math.max(1, Math.min(4, rounded))
+  );
+}
+
+function applyOralAverageToDetailed(
+  filterCode,
+  gradeType
+) {
+  if (
+    !filterCode ||
+    !gradeType ||
+    !store
+  ) {
+    return;
+  }
+
+  const roundedGrade =
+    calculateRoundedOralAverage(
+      filterCode,
+      gradeType
+    );
+
+  store.grades[
+    `${filterCode}.${gradeType}`
+  ] = roundedGrade;
+
+  const hasNumericTaskGrade =
+    ['K', 'R', 'S'].some(type =>
+      ['1', '2', '3', '4'].includes(
+        String(
+          store.grades[
+            `${filterCode}.${type}`
+          ] || 'NP'
+        )
+      )
+    );
+
+  store.checkedElements[filterCode] =
+    hasNumericTaskGrade;
+}
+
+window.getOralQuestionGrade =
+  getOralQuestionGrade;
+
+function recalculateAllOralAverages() {
+  if (!store?.oralQuestionGrades) {
+    return;
+  }
+
+  const parentKeys = new Set();
+
+  Object.keys(
+    store.oralQuestionGrades
+  ).forEach(rawTaskCode => {
+    const {
+      filterCode,
+      gradeType
+    } = resolveScenarioGradeTarget(
+      rawTaskCode
+    );
+
+    if (filterCode && gradeType) {
+      parentKeys.add(
+        `${filterCode}::${gradeType}`
+      );
+    }
+  });
+
+  parentKeys.forEach(parentKey => {
+    const [
+      filterCode,
+      gradeType
+    ] = parentKey.split('::');
+
+    applyOralAverageToDetailed(
+      filterCode,
+      gradeType
+    );
+  });
+}
+
+function syncScenarioGradesFromStore() {
+  if (!store?.grades) return;
+
+  /*
+   * ORAL QUESTION RADIOS
+   *
+   * Each oral question displays its own independent grade. The parent
+   * Detailed View grade is calculated separately from the average.
+   */
+  document
+    .querySelectorAll(
+      '.scenario-question-grade-radios input[type="radio"][data-task-code]'
+    )
+    .forEach(radio => {
+      const rawTaskCode =
+        radio.dataset.taskCode || '';
+
+      const storedGrade =
+        getOralQuestionGrade(
+          rawTaskCode
+        );
+
+      updateVisibleRadioGroup(
+        radio,
+        storedGrade
+      );
+    });
+
+  /*
+   * FLIGHT TASK K/R/S CONTROLS
+   *
+   * These controls use the task filter code directly.
+   */
+  document
+    .querySelectorAll(
+      '#viewScenario select[data-grade][data-task-code]'
+    )
+    .forEach(select => {
+      const taskCode =
+        select.dataset.taskCode;
+
+      const gradeType =
+        select.dataset.grade;
+
+      if (!taskCode || !gradeType) {
+        return;
+      }
+
+      const storedGrade =
+        store.grades[
+          `${taskCode}.${gradeType}`
+        ] || 'NP';
+
+      select.value = storedGrade;
+
+      syncGradeRadioGroup(select);
+    });
+
+  /*
+   * Support Flight Portion radio inputs that may be rendered directly
+   * rather than through a hidden select.
+   */
+  document
+    .querySelectorAll(
+      '#viewScenario input[type="radio"][data-grade][data-task-code]'
+    )
+    .forEach(radio => {
+      const taskCode =
+        radio.dataset.taskCode;
+
+      const gradeType =
+        radio.dataset.grade;
+
+      if (!taskCode || !gradeType) {
+        return;
+      }
+
+      const storedGrade =
+        store.grades[
+          `${taskCode}.${gradeType}`
+        ] || 'NP';
+
+      updateVisibleRadioGroup(
+        radio,
+        storedGrade
+      );
+    });
+
+  /*
+   * Keep Flight Portion task checkboxes aligned with the shared task
+   * state. A task is also considered selected when it has any numeric
+   * K, R, or S grade.
+   */
+  document
+    .querySelectorAll(
+      '#viewScenario [data-task-check]'
+    )
+    .forEach(checkbox => {
+      const taskCode =
+        checkbox.dataset.taskCheck;
+
+      if (!taskCode) return;
+
+      const hasNumericGrade =
+        ['K', 'R', 'S'].some(type =>
+          ['1', '2', '3', '4'].includes(
+            String(
+              store.grades[
+                `${taskCode}.${type}`
+              ] || 'NP'
+            )
+          )
+        );
+
+      checkbox.checked = Boolean(
+        store.checkedElements?.[taskCode] ||
+        hasNumericGrade
+      );
+    });
+}
+
+window.setDetailedGradeFromFlight = function(
+  taskCode,
+  gradeType,
+  value
+) {
+  if (
+    !taskCode ||
+    !gradeType ||
+    !store
+  ) {
+    return;
+  }
+
+  const normalizedValue =
+    value || 'NP';
+
+  store.grades[
+    `${taskCode}.${gradeType}`
+  ] = normalizedValue;
+
+  const hasNumericGrade =
+    ['K', 'R', 'S'].some(type =>
+      ['1', '2', '3', '4'].includes(
+        String(
+          store.grades[
+            `${taskCode}.${type}`
+          ] || 'NP'
+        )
+      )
+    );
+
+  store.checkedElements[taskCode] =
+    hasNumericGrade;
+
+  modules.notify();
+  saveToLocalStorage();
+
+  window.requestAnimationFrame(() => {
+    syncScenarioGradesFromStore();
+  });
 };
 
 window.setDetailedTaskCheckFromFlight = function(taskCode, checked) {
@@ -2852,56 +5043,54 @@ window.setDetailedExaminerNoteFromFlight = function(taskCode, note) {
   saveToLocalStorage();
 };
 
-window.setScenarioGradeFromOral = function(select) {
-  const rawTaskCode = select.dataset.taskCode;
-  const grade = select.value;
+window.setScenarioGradeFromOral = function(input) {
+  const rawTaskCode =
+    input?.dataset?.taskCode || '';
 
-  const parts = rawTaskCode ? rawTaskCode.split('.') : [];
+  const grade =
+    input?.value || 'NP';
 
-  const taskCode =
-    parts.length >= 3
-      ? parts.slice(0, 3).join('.')
-      : rawTaskCode || '';
-
-  const gradeType =
-    parts.length >= 4
-      ? parts[3].charAt(0).toUpperCase()
-      : '';
-
-  const areas = getCurrentAreas();
-  const tasks = getCurrentTasks(areas);
-
-  const matchingTask = tasks.find(task =>
-    task.code === taskCode ||
-    task.filterCode === taskCode ||
-    task.code === rawTaskCode ||
-    task.filterCode === rawTaskCode
+  const {
+    matchingTask,
+    filterCode,
+    gradeType
+  } = resolveScenarioGradeTarget(
+    rawTaskCode
   );
 
-  console.log('Scenario grade selected:', {
-    rawTaskCode,
-    taskCode,
-    gradeType,
-    grade,
-    matchingTask,
-    filterCode: matchingTask?.filterCode
-  });
+  if (
+    !matchingTask ||
+    !filterCode ||
+    !gradeType ||
+    !store
+  ) {
+    return;
+  }
 
-  if (!matchingTask || !grade || !gradeType || !store) return;
+  store.oralQuestionGrades ??= {};
 
-  const filterCode = matchingTask.filterCode;
+  /*
+   * Save this question independently. Do not overwrite other questions
+   * associated with the same parent task.
+   */
+  store.oralQuestionGrades[
+    rawTaskCode
+  ] = grade;
 
-  store.checkedElements[filterCode] = true;
-
-  store.grades[`${filterCode}.${gradeType}`] = grade;
-
-  console.log('Single K/R/S grade after update:', {
+  /*
+   * Recalculate only the matching parent task and K/R/S grade.
+   */
+  applyOralAverageToDetailed(
     filterCode,
-    gradeType,
-    value: store.grades[`${filterCode}.${gradeType}`]
-  });
+    gradeType
+  );
 
   modules.notify();
+  saveToLocalStorage();
+
+  window.requestAnimationFrame(() => {
+    syncScenarioGradesFromStore();
+  });
 };
 
 window.storeGeneratedScenario = function(payload) {

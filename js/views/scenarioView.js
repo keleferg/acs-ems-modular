@@ -461,7 +461,7 @@ function renderTimeRow(section, times) {
 
 function renderGradedItem({ number, title, answer, code }) {
   const selected =
-    window.getScenarioGradeFromDetailedView?.(code) || '';
+    window.getOralQuestionGrade?.(code) || 'NP';
 
   return `
     <details class="scenario-question">
@@ -477,18 +477,48 @@ function renderGradedItem({ number, title, answer, code }) {
           </span>
         ` : ''}
 
-        <select
-          class="scenario-grade-select"
-          data-task-code="${escapeHtml(code)}"
+        <span
+          class="scenario-question-grade-radios grade-radio-group"
+          role="radiogroup"
+          aria-label="Grade for ${escapeHtml(title)}"
           onclick="event.stopPropagation();"
-          onchange="window.setScenarioGradeFromOral?.(this)"
         >
-          <option value="">--</option>
-          <option value="1" ${selected === '1' ? 'selected' : ''}>1</option>
-          <option value="2" ${selected === '2' ? 'selected' : ''}>2</option>
-          <option value="3" ${selected === '3' ? 'selected' : ''}>3</option>
-          <option value="4" ${selected === '4' ? 'selected' : ''}>4</option>
-        </select>
+          ${['1', '2', '3', '4', 'NP']
+            .map(value => {
+              const normalizedSelected =
+                selected || 'NP';
+
+              const checked =
+                normalizedSelected === value;
+
+              const safeName = String(code || 'oral-question')
+                .replace(/[^a-zA-Z0-9_-]/g, '_');
+
+              return `
+                <label class="grade-radio-option${checked ? ' selected' : ''}">
+                  <input
+                    type="radio"
+                    name="oral-grade-${safeName}"
+                    value="${value}"
+                    data-task-code="${escapeHtml(code)}"
+                    ${checked ? 'checked' : ''}
+                    onchange="
+                      this.closest('.grade-radio-group')
+                        ?.querySelectorAll('.grade-radio-option')
+                        .forEach(option =>
+                          option.classList.remove('selected')
+                        );
+                      this.closest('.grade-radio-option')
+                        ?.classList.add('selected');
+                      window.setScenarioGradeFromOral?.(this);
+                    "
+                  >
+                  <span>${value}</span>
+                </label>
+              `;
+            })
+            .join('')}
+        </span>
 
         <span>${escapeHtml(title)}</span>
       </summary>

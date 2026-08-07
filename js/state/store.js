@@ -37,6 +37,14 @@ export const store = {
   examinerNotes: {},
   outcomeNotes: '',
 
+  /*
+   * Individual Oral / Flight Portion question grades.
+   *
+   * Keys are full ACS element codes such as PA.I.A.K1.
+   * Parent task grades remain in store.grades.
+   */
+  oralQuestionGrades: {},
+
   // ACS Code Decoder selections
   selectedAcsCodes: []
 };
@@ -84,19 +92,53 @@ export function toggleTask(taskCode, force) {
 }
 
 export function resetStore() {
-  store.applicant = { ...defaultApplicant };
-  store.activeAreaId = null;
-  store.activeView = 'detailed';
-  store.grades = {};
-  store.checkedElements = {};
-  store.expandedTasks = {};
-  store.eligibility = {};
-  store.checklists = {};
-  store.examinerNotes = {};
-  store.outcomeNotes = '';
+  /*
+   * Completely rebuild the evaluation state in place.
+   *
+   * The store object itself must remain the same object because other
+   * modules hold a reference to it. Deleting and rebuilding its
+   * properties clears both the original fields and any dynamically
+   * added evaluation fields.
+   *
+   * Supabase authentication is not stored in this object and is
+   * therefore preserved.
+   */
+  for (const key of Object.keys(store)) {
+    delete store[key];
+  }
 
-  // reset ACS Code Decoder selections
-  store.selectedAcsCodes = [];
+  Object.assign(store, {
+    applicant: { ...defaultApplicant },
+    activeAreaId: null,
+    activeView: 'detailed',
+
+    grades: {},
+    checkedElements: {},
+    expandedTasks: {},
+
+    eligibility: {},
+    eligibilityChecks: {},
+    expandedEligibilitySections: {},
+
+    checklists: {},
+    requiredBriefings: {},
+    expandedBriefings: {},
+
+    examinerNotes: {},
+    outcomeNotes: '',
+    oralQuestionGrades: {},
+    practicalTestOutcome: '',
+    discontinuanceManuallySelected: false,
+
+    selectedAcsCodes: [],
+    retestSelectedTasks: [],
+
+    scenarioState: {},
+    scenarioAnswers: {},
+    selectedScenario: null,
+
+    testingComplete: false
+  });
 
   notify();
 }
