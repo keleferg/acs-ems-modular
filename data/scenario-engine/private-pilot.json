@@ -74,6 +74,53 @@
       "Weather_Profile": "Night VFR / marginal visibility possible",
       "Difficulty": "Medium-Hard",
       "Active": "Yes"
+    },
+    {
+      "Scenario_ID": "PP-SC006",
+      "Scenario_Number": 6,
+      "Scenario_Name": "Dinner Trip / Night Return — POA Rev 12",
+      "Description": "Private Pilot ASEL practical-test scenario based on POA Revision 12. The applicant plans a passenger flight for dinner, encounters aircraft substitution and airworthiness decisions, completes cross-country planning, weather, performance and airspace evaluation, then manages night-return, human-factors, security and inoperative-equipment scenarios.",
+      "Certificate": "Private Pilot",
+      "Rating": "ASEL",
+      "Base_Airport": "Configurable",
+      "Destination": "Configurable",
+      "Aircraft": "Applicant aircraft",
+      "Day_Night": "Day outbound / Night return",
+      "Weather_Profile": "Actual or simulated VFR weather",
+      "Difficulty": "POA",
+      "Source_POA": "Private Pilot ASEL POA Rev 12",
+      "Source_Revision": "12",
+      "Source_Revision_Date": "2025-04-24",
+      "Flight_Task_Order": [
+        "II_B",
+        "II_C",
+        "II_D",
+        "II_F",
+        "IV_A",
+        "VI_A",
+        "VIII_A",
+        "VIII_D",
+        "VIII_B",
+        "VIII_C",
+        "VIII_E",
+        "VII_A",
+        "VII_B",
+        "VII_C",
+        "V_A",
+        "IX_A",
+        "IX_B",
+        "V_B",
+        "VI_D",
+        "VI_C",
+        "IV_E",
+        "IV_F",
+        "IV_C",
+        "IV_D",
+        "IV_N",
+        "IV_B",
+        "XII_A"
+      ],
+      "Active": "Yes"
     }
   ],
   "Evaluation_Segment_Master": [
@@ -1635,7 +1682,6 @@
       "Notes": "Diversion decision point"
     }
   ],
-  
   "Event_Master": [
     {
       "Event_ID": "EVT-001",
@@ -1734,71 +1780,218 @@
       "Active": "Yes"
     }
   ],
-
   "Scenario_Trigger_Event_Map": [
-  {
-    "Scenario_ID": "PP-SC001",
-    "Phase_ID": "POF-006",
-    "Event_ID": "EVT-001",
-    "Trigger_Order": 10,
-    "Required": "No",
-    "Probability": 50,
-    "Active": "Yes",
-    "Narrative": "While in cruise, the applicant reports that the primary GPS or tablet navigation source has failed."
-  }
-],
-
-"Scenario_Flow_Master": [
-  {
-    "Flow_ID": "PP-SC001-FLOW-001",
-    "Scenario_ID": "PP-SC001",
-    "Phase_ID": "POF-001",
-    "Flow_Order": 10,
-    "Flow_Type": "Narrative",
-    "Title": "Scenario Introduction",
-    "Narrative": "You show up for your planned flight to _____. You are planning on taking your best friend and I to _____ for dinner, and coming back after dinner. Your friend has brought a box of cargo to be dropped off for a friend at the destination.",
-    "Segment_ID": "",
-    "Required": "Yes",
-    "Active": "Yes"
-  },
-  {
-    "Flow_ID": "PP-SC001-FLOW-020",
-    "Scenario_ID": "PP-SC001",
-    "Phase_ID": "POF-001",
-    "Flow_Order": 20,
-    "Flow_Type": "Question_Block",
-    "Title": "Pilot Qualifications",
-    "Narrative": "",
-    "Segment_ID": "ES-001",
-    "Required": "Yes",
-    "Active": "Yes"
-  },
-  {
-    "Flow_ID": "PP-SC001-FLOW-030",
-    "Scenario_ID": "PP-SC001",
-    "Phase_ID": "POF-001",
-    "Flow_Order": 30,
-    "Flow_Type": "Trigger",
-    "Title": "Aircraft Change",
-    "Narrative": "As you are about to head out to the airplane, the aircraft you intended to fly returned with a mechanical problem. You are offered a similar model of aircraft with slightly different avionics.",
-    "Segment_ID": "ES-001",
-    "Required": "Yes",
-    "Active": "Yes"
-  },
-  {
-    "Flow_ID": "PP-SC001-FLOW-040",
-    "Scenario_ID": "PP-SC001",
-    "Phase_ID": "POF-001",
-    "Flow_Order": 40,
-    "Flow_Type": "Question_Block",
-    "Title": "Aircraft Airworthiness",
-    "Narrative": "You decide to accept the new airplane or the airplane has been repaired. You begin checking the aircraft to ensure it is legal to fly.",
-    "Segment_ID": "ES-002",
-    "Required": "Yes",
-    "Active": "Yes"
-  }
-],
-
+    {
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-006",
+      "Event_ID": "EVT-001",
+      "Trigger_Order": 10,
+      "Required": "No",
+      "Probability": 50,
+      "Active": "Yes",
+      "Narrative": "While in cruise, the applicant reports that the primary GPS or tablet navigation source has failed."
+    }
+  ],
+  "Scenario_Flow_Master": [
+    {
+      "Flow_ID": "PP-SC001-FLOW-001",
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 10,
+      "Flow_Type": "Narrative",
+      "Title": "Scenario Introduction",
+      "Narrative": "You show up for your planned flight to _____. You are planning on taking your best friend and I to _____ for dinner, and coming back after dinner. Your friend has brought a box of cargo to be dropped off for a friend at the destination.",
+      "Segment_ID": "",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC001-FLOW-020",
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 20,
+      "Flow_Type": "Question_Block",
+      "Title": "Pilot Qualifications",
+      "Narrative": "",
+      "Segment_ID": "ES-001",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC001-FLOW-030",
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 30,
+      "Flow_Type": "Trigger",
+      "Title": "Aircraft Change",
+      "Narrative": "As you are about to head out to the airplane, the aircraft you intended to fly returned with a mechanical problem. You are offered a similar model of aircraft with slightly different avionics.",
+      "Segment_ID": "ES-001",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC001-FLOW-040",
+      "Scenario_ID": "PP-SC001",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 40,
+      "Flow_Type": "Question_Block",
+      "Title": "Aircraft Airworthiness",
+      "Narrative": "You decide to accept the new airplane or the airplane has been repaired. You begin checking the aircraft to ensure it is legal to fly.",
+      "Segment_ID": "ES-002",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-010",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 10,
+      "Flow_Type": "Narrative",
+      "Title": "Scenario Introduction",
+      "Narrative": "You show up for your planned flight to _____. You are planning on taking your best friend and the examiner to _____ for dinner and returning after dinner. Your friend has brought a box of cargo to be dropped off for a friend at the destination.",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-020",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 20,
+      "Flow_Type": "Question_Block",
+      "Title": "Pilot Qualifications",
+      "Scenario_Trigger": "Dinner Flight With Friends",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-030",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 30,
+      "Flow_Type": "Trigger",
+      "Title": "Aircraft Substitution",
+      "Narrative": "The airplane you intended to fly has returned with a mechanical problem. You are offered a similar model with slightly different avionics.",
+      "Scenario_Trigger": "Aircraft Substitution",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-040",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 40,
+      "Flow_Type": "Question_Block",
+      "Title": "Aircraft Airworthiness",
+      "Scenario_Trigger": "Maintenance Logbook Review",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-050",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 50,
+      "Flow_Type": "Question_Block",
+      "Title": "Cross-Country Planning",
+      "Scenario_Trigger": "Cross-Country Nav Log Review",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-060",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 60,
+      "Flow_Type": "Trigger",
+      "Title": "Runway Closure NOTAM",
+      "Narrative": "A new NOTAM reports that the only usable runway at your destination will be closed before your arrival and is scheduled to reopen at your ETA. Evaluate your delay, diversion and fuel contingencies.",
+      "Scenario_Trigger": "Runway Closure NOTAM",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-070",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 70,
+      "Flow_Type": "Question_Block",
+      "Title": "Weight, Balance and Performance",
+      "Scenario_Trigger": "Weight and Balance Out of Limits",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-080",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-001",
+      "Flow_Order": 80,
+      "Flow_Type": "Trigger",
+      "Title": "Alternator Light in Cruise",
+      "Narrative": "While enroute, the alternator warning illuminates. Determine the system condition, available electrical endurance, and appropriate action.",
+      "Scenario_Trigger": "Alternator Light in Cruise",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-090",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-007",
+      "Flow_Order": 90,
+      "Flow_Type": "Trigger",
+      "Title": "Passenger Ear Discomfort",
+      "Narrative": "During descent, your passenger complains that their ears are plugged and uncomfortable.",
+      "Scenario_Trigger": "Passenger Ear Block and Anxiety",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-100",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-009",
+      "Flow_Order": 100,
+      "Flow_Type": "Trigger",
+      "Title": "Wine at Dinner",
+      "Narrative": "At dinner your friend offers you a glass of wine before the planned night return flight.",
+      "Scenario_Trigger": "Wine at Dinner",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-110",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-009",
+      "Flow_Order": 110,
+      "Flow_Type": "Trigger",
+      "Title": "Ramp Security Concern",
+      "Narrative": "When returning to the airport, another person enters the ramp through a gate that did not close behind you.",
+      "Scenario_Trigger": "Ramp Security Breach",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-120",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-002",
+      "Flow_Order": 120,
+      "Flow_Type": "Question_Block",
+      "Title": "Night Vision and Lighting",
+      "Scenario_Trigger": "Night Vision and Lighting",
+      "Required": "Yes",
+      "Active": "Yes"
+    },
+    {
+      "Flow_ID": "PP-SC006-FLOW-130",
+      "Scenario_ID": "PP-SC006",
+      "Phase_ID": "POF-002",
+      "Flow_Order": 130,
+      "Flow_Type": "Trigger",
+      "Title": "Inoperative Navigation Light",
+      "Narrative": "During preflight for the night return, you discover the left navigation light is inoperative. A spare bulb and screwdriver are available.",
+      "Scenario_Trigger": "Inoperative Navigation Light",
+      "Required": "Yes",
+      "Active": "Yes"
+    }
+  ],
   "Event_Phase_Map": [
     {
       "Event_ID": "EVT-001",

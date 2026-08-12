@@ -29,6 +29,92 @@
     <div class="landing-content">
       <img class="landing-logo" src="https://pfst.cf2.poecdn.net/base/image/316450105db2faf14e1c78b0f4a370a61e74fb183e51063de72fd34cad42f3b1?w=478&h=315" alt="Aviation Training Solutions LLC">
 
+      <div
+        class="landing-auth-panel"
+        id="landingAuthPanel"
+      >
+        <div
+          id="emtLoginFields"
+          class="landing-login-fields"
+        >
+          <div class="landing-login-field">
+            <label for="emtLoginEmail">
+              Examiner Email
+            </label>
+
+            <input
+              type="email"
+              id="emtLoginEmail"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="Examiner email"
+            >
+          </div>
+
+          <div class="landing-login-field">
+            <label for="emtLoginPassword">
+              Password
+            </label>
+
+            <input
+              type="password"
+              id="emtLoginPassword"
+              autocomplete="current-password"
+              placeholder="Password"
+            >
+          </div>
+
+          <button
+            type="button"
+            class="landing-sign-in-btn"
+            id="btnEmtSignIn"
+          >
+            <i class="fas fa-right-to-bracket"></i>
+            Sign In
+          </button>
+        </div>
+
+        <div
+          id="emtLandingAuthMessage"
+          class="landing-auth-message"
+        ></div>
+
+        <div
+          id="emtSignedInLanding"
+          class="landing-signed-in"
+          style="display:none;"
+        >
+          <div
+            id="emtWelcome"
+            class="landing-welcome"
+          ></div>
+
+          <button
+            type="button"
+            class="landing-sign-out-btn"
+            id="btnEmtSignOut"
+          >
+            <i class="fas fa-right-from-bracket"></i>
+            Sign Out
+          </button>
+        </div>
+
+        <div
+          id="emtAuthStatus"
+          style="display:none;"
+        >
+          Checking sign-in status...
+        </div>
+      </div>
+
+
+      <div
+        id="landingProtectedContent"
+        class="landing-protected-content"
+        style="display:none;"
+      >
+
       <div class="landing-badge">
         <i class="fas fa-shield-halved"></i> Evaluation Management System (EMS)
       </div>
@@ -96,7 +182,8 @@
       <div class="landing-version">
         v2.0 — All certificate levels &bull; Airplane Single &amp; Multi-Engine &bull; Land &amp; Sea
       </div>
-    </div>
+
+      </div><!-- /landingProtectedContent -->    </div>
   </div>
 
   <button class="hamburger" id="hamburgerBtn" aria-label="Toggle sidebar">
@@ -162,89 +249,6 @@
           background:var(--bg-secondary);
         "
       >
-        <div style="
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:12px;
-          flex-wrap:wrap;
-          margin-bottom:12px;
-        ">
-          <div>
-            <div style="
-              font-family:var(--font-mono);
-              font-size:0.82rem;
-              font-weight:700;
-            ">
-              <i class="fas fa-cloud"></i>
-              DPE EMT Web App Connection
-            </div>
-
-            <div
-              id="emtAuthStatus"
-              style="
-                margin-top:4px;
-                font-family:var(--font-mono);
-                font-size:0.72rem;
-                color:var(--text-muted);
-              "
-            >
-              Checking sign-in status...
-            </div>
-          </div>
-
-          <button
-            type="button"
-            class="btn"
-            id="btnEmtSignOut"
-            style="display:none;"
-          >
-            <i class="fas fa-right-from-bracket"></i>
-            Sign Out
-          </button>
-        </div>
-
-        <div
-          id="emtLoginFields"
-          style="
-            display:grid;
-            grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));
-            gap:10px;
-          "
-        >
-          <div class="form-group">
-            <label for="emtLoginEmail">Examiner Email</label>
-            <input
-              type="email"
-              id="emtLoginEmail"
-              autocomplete="username"
-              placeholder="Examiner email"
-            >
-          </div>
-
-          <div class="form-group">
-            <label for="emtLoginPassword">Password</label>
-            <input
-              type="password"
-              id="emtLoginPassword"
-              autocomplete="current-password"
-              placeholder="Password"
-            >
-          </div>
-
-          <div class="form-group" style="justify-content:flex-end;">
-            <label>&nbsp;</label>
-            <button
-              type="button"
-              class="btn btn-accent"
-              id="btnEmtSignIn"
-            >
-              <i class="fas fa-right-to-bracket"></i>
-              Sign In
-            </button>
-          </div>
-        </div>
-
         <div
           id="emtAppointmentFields"
           style="display:none;"
@@ -596,6 +600,16 @@
                 <i class="fas fa-file-pdf"></i> Save / Print Designee Test Report
               </button>
 
+            <button
+              id="regenerateStoredReportsBtn"
+              type="button"
+              class="btn btn-secondary"
+              style="margin-left:8px;"
+            >
+              <i class="fas fa-rotate"></i>
+              Regenerate Stored Reports
+            </button>
+
               <button id="emailDesigneeReportBtn" class="btn">
                 <i class="fas fa-envelope"></i> Email Designee Test Report
               </button>
@@ -628,6 +642,6 @@
   <!-- Creates a real PDF Blob from the existing Applicant Report HTML. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=20260807-completed-flow-1"></script>
 </body>
 </html>

@@ -2,13 +2,19 @@ const SCENARIO_DATABASE_PATHS = {
   private: 'data/scenario-engine/private-pilot.json',
   instrument: 'data/scenario-engine/instrument-airplane.json',
   commercial: 'data/scenario-engine/commercial-airplane.json',
-  cfi: 'data/scenario-engine/cfi-mei.json'
+  cfi: 'data/scenario-engine/cfi-mei.json',
+  atp: 'data/scenario-engine/atp-airplane.json'
 };
 
 let loadedScenarioDatabases = {};
 
 const SCENARIO_TIME_KEY = 'acs_ems_scenario_times_v1';
 const FLIGHT_TASK_ORDER_KEY = 'acs_ems_flight_task_order_v1';
+
+let examinerScenarioCatalog = {
+  offerings: [],
+  plans: []
+};
 
 export function renderScenarioEngine(containerId) {
   const el = document.getElementById(containerId);
@@ -18,44 +24,27 @@ export function renderScenarioEngine(containerId) {
     <div class="scenario-engine">
       <h2>Oral / Flight Portion</h2>
       <p>
-        Generate a chronological oral exam. The Flight Portion uses the Detailed View task layout, excludes AOA I, and records Skill grades only.
+        Generate a chronological oral exam from one of your uploaded Plans of Action. The Flight Portion uses the Detailed View task layout, excludes AOA I, and records Skill grades only.
       </p>
 
       <div class="scenario-controls">
         <label>
-          Certificate
-          <select id="scenarioCertificate">
-            <option value="private">Private Pilot</option>
-            <option value="instrument">Instrument Rating Airplane</option>
-            <option value="commercial">Commercial Pilot Airplane</option>
-            <option value="cfi">Flight Instructor Airplane / MEI</option>
+          Practical Test
+          <select id="scenarioPracticalTest">
+            <option value="">
+              Loading offered practical tests...
+            </option>
           </select>
         </label>
 
         <label>
-          Rating
-          <select id="scenarioRating">
-            <option value="ASEL">ASEL</option>
-            <option value="AMEL">AMEL</option>
-            <option value="ASES">ASES</option>
-            <option value="AMES">AMES</option>
-            <option value="CFI-ASEL">CFI-ASEL</option>
-            <option value="CFI-AMEL">CFI-AMEL</option>
-            <option value="MEI">MEI</option>
-            <option value="Both">Both</option>
-            <option value="All">All</option>
-          </select>
-        </label>
-
-        <label>
-          Scenario
-          <select id="scenarioNumber">
-            <option value="random">Random</option>
-            <option value="1">Scenario 1</option>
-            <option value="2">Scenario 2</option>
-            <option value="3">Scenario 3</option>
-            <option value="4">Scenario 4</option>
-            <option value="5">Scenario 5</option>
+          <span id="scenarioCountLabel">
+            Scenario (0)
+          </span>
+          <select id="scenarioPlan">
+            <option value="">
+              Loading scenarios...
+            </option>
           </select>
         </label>
 
@@ -64,18 +53,42 @@ export function renderScenarioEngine(containerId) {
         </button>
       </div>
 
+      <div
+        id="scenarioControlMessage"
+        style="
+          margin-top:8px;
+          color:#64748b;
+          font-size:.9rem;
+        "
+      ></div>
+
       <div id="scenarioOutput" class="scenario-output"></div>
     </div>
   `;
 
   document
     .getElementById('generateScenarioBtn')
-    ?.addEventListener('click', generateScenario);
+    ?.addEventListener(
+      'click',
+      generateScenario
+    );
 
-  const savedScenario = window.getStoredGeneratedScenario?.();
+  document
+    .getElementById('scenarioPracticalTest')
+    ?.addEventListener(
+      'change',
+      updateDatabaseScenarioOptions
+    );
 
-  if (savedScenario?.scenario && savedScenario?.generatedSegments) {
-    const output = document.getElementById('scenarioOutput');
+  const savedScenario =
+    window.getStoredGeneratedScenario?.();
+
+  if (
+    savedScenario?.scenario &&
+    savedScenario?.generatedSegments
+  ) {
+    const output =
+      document.getElementById('scenarioOutput');
 
     renderGeneratedScenario(
       output,
@@ -83,6 +96,655 @@ export function renderScenarioEngine(containerId) {
       savedScenario.generatedSegments
     );
   }
+
+  void initializeDatabaseScenarioControls();
+}
+
+async function initializeDatabaseScenarioControls() {
+  const practicalTestSelect =
+    document.getElementById(
+      'scenarioPracticalTest'
+    );
+
+  const scenarioSelect =
+    document.getElementById(
+      'scenarioPlan'
+    );
+
+  const message =
+    document.getElementById(
+      'scenarioControlMessage'
+    );
+
+  if (!practicalTestSelect || !scenarioSelect) {
+    return;
+  }
+
+  try {
+    const service = await import(
+      '../services/supabaseService.js'
+    );
+
+    const [offerings, plans] =
+      await Promise.all([
+        service.loadEmtPracticalTestOfferings(),
+        service.loadEmtReadyPlanOfActions()
+      ]);
+
+    examinerScenarioCatalog = {
+      offerings:
+        Array.isArray(offerings)
+          ? offerings
+          : [],
+      plans:
+        Array.isArray(plans)
+          ? plans
+          : []
+    };
+
+    if (!examinerScenarioCatalog.offerings.length) {
+      practicalTestSelect.innerHTML = `
+        <option value="">
+          No practical tests are offered
+        </option>
+      `;
+
+      scenarioSelect.innerHTML = `
+        <option value="">
+          No scenarios available
+        </option>
+      `;
+
+      setScenarioCount(0);
+
+      if (message) {
+        message.textContent =
+          'Select practical tests under Examiner Settings → Practical Tests Offered.';
+      }
+
+      return;
+    }
+
+    practicalTestSelect.innerHTML =
+      examinerScenarioCatalog.offerings
+        .map(test => `
+          <option
+            value="${escapeHtml(test.id)}"
+          >
+            ${escapeHtml(
+              test.display_name ||
+              buildPracticalTestLabel(test)
+            )}
+          </option>
+        `)
+        .join('');
+
+    const savedScenario =
+      window.getStoredGeneratedScenario?.()
+        ?.scenario;
+
+    const savedTestId =
+      savedScenario?.Practical_Test_Type_ID ||
+      '';
+
+    const preferredTestId =
+      examinerScenarioCatalog.offerings
+        .some(test =>
+          String(test.id) ===
+          String(savedTestId)
+        )
+        ? savedTestId
+        : findBestMatchingPracticalTestId(
+            examinerScenarioCatalog.offerings
+          );
+
+    if (preferredTestId) {
+      practicalTestSelect.value =
+        preferredTestId;
+    }
+
+    updateDatabaseScenarioOptions();
+
+    if (message) {
+      message.textContent = '';
+    }
+  } catch (error) {
+    console.error(
+      'Unable to load examiner POA scenarios:',
+      error
+    );
+
+    practicalTestSelect.innerHTML = `
+      <option value="">
+        Unable to load practical tests
+      </option>
+    `;
+
+    scenarioSelect.innerHTML = `
+      <option value="">
+        Unable to load scenarios
+      </option>
+    `;
+
+    setScenarioCount(0);
+
+    if (message) {
+      message.textContent =
+        error instanceof Error
+          ? error.message
+          : 'Unable to load Plan of Action scenarios.';
+    }
+  }
+}
+
+function updateDatabaseScenarioOptions() {
+  const practicalTestSelect =
+    document.getElementById(
+      'scenarioPracticalTest'
+    );
+
+  const scenarioSelect =
+    document.getElementById(
+      'scenarioPlan'
+    );
+
+  if (!practicalTestSelect || !scenarioSelect) {
+    return;
+  }
+
+  const testId =
+    practicalTestSelect.value;
+
+  const plans =
+    examinerScenarioCatalog.plans
+      .filter(plan =>
+        String(
+          plan.practical_test_type_id
+        ) === String(testId)
+      );
+
+  setScenarioCount(plans.length);
+
+  if (!plans.length) {
+    scenarioSelect.innerHTML = `
+      <option value="">
+        No Scenario Ready POAs
+      </option>
+    `;
+
+    scenarioSelect.disabled = true;
+    return;
+  }
+
+  scenarioSelect.disabled = false;
+
+  scenarioSelect.innerHTML =
+    plans
+      .map((plan, index) => `
+        <option
+          value="${escapeHtml(plan.id)}"
+        >
+          ${escapeHtml(
+            plan.scenario_name ||
+            plan.title ||
+            `Scenario ${index + 1}`
+          )}
+        </option>
+      `)
+      .join('');
+
+  const savedPlanId =
+    window.getStoredGeneratedScenario?.()
+      ?.scenario
+      ?.Plan_Of_Action_ID;
+
+  if (
+    savedPlanId &&
+    plans.some(plan =>
+      String(plan.id) ===
+      String(savedPlanId)
+    )
+  ) {
+    scenarioSelect.value =
+      savedPlanId;
+  }
+}
+
+function setScenarioCount(count) {
+  const label =
+    document.getElementById(
+      'scenarioCountLabel'
+    );
+
+  if (label) {
+    label.textContent =
+      `Scenario (${Number(count) || 0})`;
+  }
+}
+
+function buildPracticalTestLabel(test) {
+  return [
+    test?.certificate_name,
+    test?.issuance_name,
+    test?.rating_name ||
+      test?.class_name
+  ]
+    .filter(Boolean)
+    .join(' — ');
+}
+
+function normalizeScenarioCertificate(value) {
+  const text = String(value || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    text.includes('private')
+  ) {
+    return 'private';
+  }
+
+  if (
+    text.includes('commercial')
+  ) {
+    return 'commercial';
+  }
+
+  if (
+    text.includes('airline transport') ||
+    text === 'atp'
+  ) {
+    return 'atp';
+  }
+
+  if (
+    text.includes('flight instructor') ||
+    text === 'cfi'
+  ) {
+    return 'cfi';
+  }
+
+  if (
+    text.includes('instrument')
+  ) {
+    return 'instrument';
+  }
+
+  return text;
+}
+
+function normalizeScenarioRating(value) {
+  const text = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, ' ');
+
+  if (
+    text.includes(
+      'airplane single engine land'
+    ) ||
+    text.includes(
+      'single engine land'
+    ) ||
+    text === 'asel'
+  ) {
+    return 'asel';
+  }
+
+  if (
+    text.includes(
+      'airplane multiengine land'
+    ) ||
+    text.includes(
+      'airplane multi engine land'
+    ) ||
+    text.includes(
+      'multiengine land'
+    ) ||
+    text.includes(
+      'multi engine land'
+    ) ||
+    text === 'amel'
+  ) {
+    return 'amel';
+  }
+
+  if (
+    text.includes(
+      'airplane single engine sea'
+    ) ||
+    text.includes(
+      'single engine sea'
+    ) ||
+    text === 'ases'
+  ) {
+    return 'ases';
+  }
+
+  if (
+    text.includes(
+      'airplane multiengine sea'
+    ) ||
+    text.includes(
+      'airplane multi engine sea'
+    ) ||
+    text.includes(
+      'multiengine sea'
+    ) ||
+    text.includes(
+      'multi engine sea'
+    ) ||
+    text === 'ames'
+  ) {
+    return 'ames';
+  }
+
+  if (
+    text.includes('instrument airplane')
+  ) {
+    return 'instrument airplane';
+  }
+
+  if (
+    text.includes('cfii')
+  ) {
+    return 'cfii';
+  }
+
+  if (
+    text.includes('mei')
+  ) {
+    return 'mei';
+  }
+
+  return text;
+}
+
+function normalizeScenarioIssuance(value) {
+  const text = String(value || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    text.includes('additional')
+  ) {
+    return 'additional';
+  }
+
+  if (
+    text.includes('original') ||
+    text.includes('initial')
+  ) {
+    return 'original';
+  }
+
+  if (
+    text.includes('renewal')
+  ) {
+    return 'renewal';
+  }
+
+  if (
+    text.includes('reinstatement')
+  ) {
+    return 'reinstatement';
+  }
+
+  return text;
+}
+
+function getCurrentScenarioTestContext() {
+  const certificate =
+    document.getElementById(
+      'appCertificate'
+    )?.value || '';
+
+  const rating =
+    document.getElementById(
+      'appRating'
+    )?.value || '';
+
+  const examType =
+    document.getElementById(
+      'appExamType'
+    )?.value || '';
+
+  return {
+    certificate:
+      normalizeScenarioCertificate(
+        certificate
+      ),
+    rating:
+      normalizeScenarioRating(
+        rating
+      ),
+    issuance:
+      normalizeScenarioIssuance(
+        examType
+      )
+  };
+}
+
+function findBestMatchingPracticalTestId(
+  offerings
+) {
+  const context =
+    getCurrentScenarioTestContext();
+
+  let best = null;
+  let bestScore = -1;
+
+  for (const test of offerings || []) {
+    let score = 0;
+
+    const certificate =
+      normalizeScenarioCertificate(
+        test.certificate_name
+      );
+
+    const ratingCandidates = [
+      test.rating_name,
+      test.class_name,
+      test.category_name,
+      test.display_name
+    ]
+      .filter(Boolean)
+      .map(normalizeScenarioRating);
+
+    const issuance =
+      normalizeScenarioIssuance(
+        test.issuance_name
+      );
+
+    if (
+      context.certificate &&
+      certificate === context.certificate
+    ) {
+      score += 10;
+    }
+
+    if (
+      context.rating &&
+      ratingCandidates.includes(
+        context.rating
+      )
+    ) {
+      score += 12;
+    }
+
+    if (
+      context.issuance &&
+      issuance === context.issuance
+    ) {
+      score += 4;
+    }
+
+    if (score > bestScore) {
+      best = test;
+      bestScore = score;
+    }
+  }
+
+  if (bestScore <= 0) {
+    return offerings?.[0]?.id || '';
+  }
+
+  return best?.id || '';
+}
+
+function adaptDatabasePlanToScenario(plan) {
+  const data =
+    plan?.scenario_data &&
+    typeof plan.scenario_data === 'object'
+      ? plan.scenario_data
+      : {};
+
+  const oralSections =
+    Array.isArray(data.oral_sections)
+      ? [...data.oral_sections].sort(
+          (a, b) =>
+            Number(a?.sequence || 999) -
+            Number(b?.sequence || 999)
+        )
+      : [];
+
+  const flightTasks =
+    Array.isArray(data.flight_tasks)
+      ? [...data.flight_tasks].sort(
+          (a, b) =>
+            Number(a?.sequence || 999) -
+            Number(b?.sequence || 999)
+        )
+      : [];
+
+  const scenario = {
+    Scenario_ID:
+      `DB-POA-${plan.id}`,
+
+    Scenario_Name:
+      data.scenario_name ||
+      plan.scenario_name ||
+      plan.title ||
+      'Plan of Action',
+
+    Scenario_Brief:
+      data.scenario_brief || '',
+
+    Source_Revision:
+      data.source_revision || '',
+
+    Practical_Test_Type_ID:
+      plan.practical_test_type_id,
+
+    Plan_Of_Action_ID:
+      plan.id,
+
+    Database_POA:
+      true,
+
+    Flight_Task_Order:
+      flightTasks
+        .map(task =>
+          String(
+            task?.task_code || ''
+          ).trim()
+        )
+        .filter(Boolean)
+  };
+
+  const generatedSegments =
+    oralSections.map(
+      (section, sectionIndex) => {
+        const questions =
+          Array.isArray(section?.questions)
+            ? [...section.questions].sort(
+                (a, b) =>
+                  Number(
+                    a?.sequence || 999
+                  ) -
+                  Number(
+                    b?.sequence || 999
+                  )
+              )
+            : [];
+
+        return {
+          phase: {
+            Phase_ID:
+              `DB-PHASE-${sectionIndex + 1}`,
+            Phase_Name:
+              section?.heading ||
+              `Oral Section ${sectionIndex + 1}`
+          },
+
+          flows: [
+            {
+              flow: {
+                Flow_Type:
+                  'Question_Block',
+                Title: '',
+                Narrative:
+                  section?.narrative || ''
+              },
+
+              items: questions.map(
+                (question, questionIndex) => {
+                  const answerParts = [];
+
+                  const answerNotes =
+                    String(
+                      question?.answer_notes ||
+                      ''
+                    ).trim();
+
+                  const references =
+                    String(
+                      question?.references ||
+                      ''
+                    ).trim();
+
+                  if (answerNotes) {
+                    answerParts.push(
+                      answerNotes
+                    );
+                  }
+
+                  if (references) {
+                    answerParts.push(
+                      `Reference: ${references}`
+                    );
+                  }
+
+                  return {
+                    Question_ID:
+                      `DB-${plan.id}-${sectionIndex + 1}-${questionIndex + 1}`,
+
+                    Question:
+                      question?.question || '',
+
+                    Answer:
+                      answerParts.join(
+                        ' — '
+                      ),
+
+                    ACS_Code:
+                      question?.acs_code || '',
+
+                    Applicable_Rating:
+                      'ALL'
+                  };
+                }
+              )
+            }
+          ]
+        };
+      }
+    );
+
+  return {
+    scenario,
+    generatedSegments
+  };
 }
 
 async function loadScenarioDatabase(type) {
@@ -90,64 +752,135 @@ async function loadScenarioDatabase(type) {
     return loadedScenarioDatabases[type];
   }
 
-  const path = SCENARIO_DATABASE_PATHS[type];
-  const response = await fetch(path);
+  const fallbackPaths = {
+    private: '/data/scenario-engine/private-pilot.json',
+    instrument: '/data/scenario-engine/instrument-airplane.json',
+    commercial: '/data/scenario-engine/commercial-airplane.json',
+    cfi: '/data/scenario-engine/cfi-mei.json',
+    atp: '/data/scenario-engine/atp-airplane.json'
+  };
+
+  const normalizedType = String(type || '').trim().toLowerCase();
+
+  const databasePath =
+    SCENARIO_DATABASE_PATHS?.[normalizedType] ||
+    fallbackPaths[normalizedType];
+
+  if (!databasePath) {
+    throw new Error(
+      `No scenario database is configured for certificate type: ${normalizedType || '(blank)'}`
+    );
+  }
+
+  const response = await fetch(databasePath);
 
   if (!response.ok) {
-    throw new Error(`Unable to load scenario database: ${path}`);
+    throw new Error(
+      `Unable to load scenario database: ${databasePath} (HTTP ${response.status})`
+    );
   }
 
   const data = await response.json();
-  loadedScenarioDatabases[type] = data;
+
+  loadedScenarioDatabases[normalizedType] = data;
+
   return data;
 }
 
 async function generateScenario() {
-  const cert = document.getElementById('scenarioCertificate')?.value || 'private';
-  const rating = document.getElementById('scenarioRating')?.value || 'ASEL';
-  const scenarioNumber = document.getElementById('scenarioNumber')?.value || 'random';
-  const output = document.getElementById('scenarioOutput');
+  const practicalTestId =
+    document.getElementById(
+      'scenarioPracticalTest'
+    )?.value || '';
+
+  const planId =
+    document.getElementById(
+      'scenarioPlan'
+    )?.value || '';
+
+  const output =
+    document.getElementById(
+      'scenarioOutput'
+    );
 
   if (!output) return;
 
-  output.innerHTML = `<p>Loading scenario database...</p>`;
+  if (!practicalTestId) {
+    output.innerHTML = `
+      <div class="scenario-card">
+        <h4>No Practical Test Selected</h4>
+        <p>
+          Select one of your offered practical tests.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  if (!planId) {
+    output.innerHTML = `
+      <div class="scenario-card">
+        <h4>No Scenario Available</h4>
+        <p>
+          Upload and parse a Plan of Action for this practical test in the Examiner Portal.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  output.innerHTML =
+    `<p>Loading Plan of Action scenario...</p>`;
 
   try {
-    const db = await loadScenarioDatabase(cert);
-    const scenarios = db.Scenario_Master || [];
+    const plan =
+      examinerScenarioCatalog.plans.find(
+        item =>
+          String(item.id) ===
+          String(planId) &&
+          String(
+            item.practical_test_type_id
+          ) ===
+          String(practicalTestId)
+      );
 
-    let scenario;
-
-    if (scenarioNumber === 'random') {
-      const applicableScenarios = scenarios.filter(s => isApplicable(s, rating));
-      scenario = randomItem(applicableScenarios.length ? applicableScenarios : scenarios);
-    } else {
-      scenario =
-        scenarios.find(s => String(s.Scenario_Number) === String(scenarioNumber)) ||
-        scenarios.find(s => String(s.Scenario_ID || '').endsWith(`00${scenarioNumber}`)) ||
-        scenarios[Number(scenarioNumber) - 1];
+    if (!plan) {
+      throw new Error(
+        'The selected Plan of Action scenario could not be found.'
+      );
     }
 
-    if (!scenario) {
-      output.innerHTML = `<p>No scenario found.</p>`;
-      return;
-    }
-
-    const generated = buildGeneratedScenario(db, scenario, rating);
+    const {
+      scenario,
+      generatedSegments
+    } =
+      adaptDatabasePlanToScenario(
+        plan
+      );
 
     window.storeGeneratedScenario?.({
       scenario,
-      generatedSegments: generated
+      generatedSegments
     });
 
-    renderGeneratedScenario(output, scenario, generated);
+    renderGeneratedScenario(
+      output,
+      scenario,
+      generatedSegments
+    );
   } catch (error) {
     console.error(error);
 
     output.innerHTML = `
       <div class="scenario-card">
         <h4>Scenario Load Error</h4>
-        <p>${escapeHtml(error.message)}</p>
+        <p>
+          ${escapeHtml(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load the selected scenario.'
+          )}
+        </p>
       </div>
     `;
   }
@@ -177,9 +910,11 @@ function buildGeneratedScenario(db, scenario, rating) {
     const phaseFlows = flowItems
       .filter(f => f.Phase_ID === phase.Phase_ID)
       .map(flow => {
-        const items = flow.Segment_ID
-          ? getItemsForSegment(db, flow.Segment_ID, rating)
-          : [];
+        const items = getItemsForFlow(
+          db,
+          flow,
+          rating
+        );
 
         return {
           flow,
@@ -194,24 +929,52 @@ function buildGeneratedScenario(db, scenario, rating) {
   });
 }
 
-function getItemsForSegment(db, segmentId, rating) {
+function getItemsForFlow(db, flow, rating) {
   const banks = [
     db.Question_Bank,
+    db.POA_Question_Bank,
     db.Teaching_Exercise_Bank,
     db.Instructor_Decision_Bank,
     db.Endorsement_Scenario_Bank,
     db.MEI_Exercise_Bank
   ].filter(Boolean);
 
-  return banks
+  const items = banks
     .flat()
-    .filter(item =>
-      (
-        item.Segment_ID === segmentId ||
-        item.Primary_Segment_ID === segmentId
-      ) &&
-      isApplicable(item, rating)
+    .filter(item => isApplicable(item, rating));
+
+  const questionIds = Array.isArray(flow?.Question_IDs)
+    ? flow.Question_IDs
+    : [];
+
+  if (questionIds.length) {
+    const wanted = new Set(questionIds.map(String));
+
+    return items.filter(item =>
+      wanted.has(String(item.Question_ID || ''))
     );
+  }
+
+  const trigger = String(
+    flow?.Scenario_Trigger || ''
+  ).trim();
+
+  if (trigger) {
+    return items.filter(item =>
+      String(item.Scenario_Trigger || '').trim() === trigger
+    );
+  }
+
+  const segmentId = flow?.Segment_ID;
+
+  if (!segmentId) {
+    return [];
+  }
+
+  return items.filter(item =>
+    item.Segment_ID === segmentId ||
+    item.Primary_Segment_ID === segmentId
+  );
 }
 
 function renderGeneratedScenario(output, scenario, generatedSegments) {
@@ -595,19 +1358,155 @@ function refreshDurations(times) {
   window.updateApplicantDurationFromScenario?.('flight', flightDecimal);
 }
 
+function normalizeFlightCodeText(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/\.$/, '')
+    .toUpperCase();
+}
+
+function expandScenarioFlightCode(rawCode) {
+  const code =
+    normalizeFlightCodeText(
+      rawCode
+    );
+
+  if (!code) {
+    return [];
+  }
+
+  const results = [code];
+
+  const combinedMatch =
+    code.match(
+      /^([A-Z]+)\.([IVX]+)\.([A-Z])\/([A-Z])$/
+    );
+
+  if (combinedMatch) {
+    results.push(
+      `${combinedMatch[1]}.${combinedMatch[2]}.${combinedMatch[3]}`,
+      `${combinedMatch[1]}.${combinedMatch[2]}.${combinedMatch[4]}`
+    );
+  }
+
+  const parentMatch =
+    code.match(
+      /^([A-Z]+)\.([IVX]+)\.([A-Z])(?:\.|$)/
+    );
+
+  if (parentMatch) {
+    results.push(
+      `${parentMatch[1]}.${parentMatch[2]}.${parentMatch[3]}`
+    );
+  }
+
+  return [
+    ...new Set(results)
+  ];
+}
+
+function resolveScenarioFlightTasks(
+  scenarioOrder,
+  allTasks
+) {
+  const tasksByCode = new Map(
+    (allTasks || []).map(task => [
+      normalizeFlightCodeText(
+        task.filterCode
+      ),
+      task
+    ])
+  );
+
+  const resolved = [];
+  const seen = new Set();
+
+  for (
+    const rawCode of scenarioOrder || []
+  ) {
+    const candidates =
+      expandScenarioFlightCode(
+        rawCode
+      );
+
+    for (const candidate of candidates) {
+      const task =
+        tasksByCode.get(candidate);
+
+      if (!task) {
+        continue;
+      }
+
+      const filterCode =
+        String(task.filterCode);
+
+      if (seen.has(filterCode)) {
+        continue;
+      }
+
+      seen.add(filterCode);
+      resolved.push(task);
+
+      if (
+        !candidate.includes('/')
+      ) {
+        break;
+      }
+    }
+  }
+
+  return resolved;
+}
+
 function renderFlightPortionDetailed() {
   const container = document.getElementById('flightDetailedContainer');
   if (!container) return;
 
   const areas = window.getFlightPortionAreas?.() || [];
-  const tasks = areas.flatMap(area => area.tasks || []);
+  const allTasks = areas.flatMap(area => area.tasks || []);
+
+  const storedScenario =
+    window.getStoredGeneratedScenario?.()?.scenario || null;
+
+  const scenarioOrder = Array.isArray(
+    storedScenario?.Flight_Task_Order
+  )
+    ? storedScenario.Flight_Task_Order
+    : [];
+
+  const resolvedScenarioTasks =
+    scenarioOrder.length
+      ? resolveScenarioFlightTasks(
+          scenarioOrder,
+          allTasks
+        )
+      : [];
+
+  const resolvedScenarioCodes =
+    resolvedScenarioTasks.map(
+      task => String(task.filterCode)
+    );
+
+  const tasks = scenarioOrder.length
+    ? [
+        ...resolvedScenarioTasks,
+        ...allTasks.filter(task =>
+          !resolvedScenarioCodes.includes(
+            String(task.filterCode)
+          )
+        )
+      ]
+    : allTasks;
 
   if (!tasks.length) {
     container.innerHTML = '<p>No flight portion tasks are available.</p>';
     return;
   }
 
-  const orderedTasks = applySavedFlightTaskOrder(tasks);
+  const orderedTasks = scenarioOrder.length
+    ? tasks
+    : applySavedFlightTaskOrder(tasks);
 
   container.innerHTML = `
     <div id="flightTaskSortableList"></div>
@@ -848,12 +1747,26 @@ function isApplicable(item, rating) {
 }
 
 function getItemPrompt(item) {
-  return (
+  const prompt = String(
     item.Question ||
     item.Prompt ||
     item.Scenario ||
     ''
-  );
+  ).trim();
+
+  const trigger = String(
+    item.Scenario_Trigger || ''
+  ).trim();
+
+  if (!prompt || !trigger) {
+    return prompt;
+  }
+
+  const suffix = ` (${trigger})`;
+
+  return prompt.endsWith(suffix)
+    ? prompt.slice(0, -suffix.length).trim()
+    : prompt;
 }
 
 function getItemTaskCode(item) {

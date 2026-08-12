@@ -30,6 +30,19 @@ export const store = {
   activeAreaId: null,
   activeView: 'detailed',
   grades: {},
+
+  /*
+   * Reason codes for Detailed View / Flight K-R-S grades.
+   * Keys match store.grades keys, such as PA.II.B.K.
+   */
+  gradeReasons: {},
+
+  /*
+   * Reason codes for individual Oral Portion questions.
+   * Keys match store.oralQuestionGrades keys, such as PA.I.A.K1.
+   */
+  oralGradeReasons: {},
+
   checkedElements: {},
   expandedTasks: {},
   eligibility: {},
@@ -76,7 +89,20 @@ export function setActiveView(view) {
 }
 
 export function setGrade(taskCode, gradeType, value) {
-  store.grades[`${taskCode}.${gradeType}`] = value;
+  const gradeKey = `${taskCode}.${gradeType}`;
+
+  store.grades[gradeKey] = value;
+  store.gradeReasons ??= {};
+
+  /*
+   * Reason codes apply only to grades 1 and 2.
+   * Clear any stale reason selections when the grade changes to
+   * 3, 4, or NP.
+   */
+  if (!['1', '2'].includes(String(value))) {
+    delete store.gradeReasons[gradeKey];
+  }
+
   notify();
 }
 
@@ -113,6 +139,8 @@ export function resetStore() {
     activeView: 'detailed',
 
     grades: {},
+    gradeReasons: {},
+    oralGradeReasons: {},
     checkedElements: {},
     expandedTasks: {},
 

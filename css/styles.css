@@ -398,6 +398,98 @@
   color: #ffffff;
 }
 
+
+/* =====================================================
+   GRADE 1 / 2 REASON CODES
+   ===================================================== */
+
+/*
+ * Keep K / R / S grades on one uninterrupted line.
+ * Reason-code controls get their own full-width row underneath.
+ */
+.grade-bar {
+  flex-wrap: wrap;
+}
+
+.grade-bar > .grade-item,
+.grade-bar > .grade-avg {
+  flex: 0 0 auto;
+}
+
+.grade-reason-row {
+  display: flex;
+  flex: 0 0 100%;
+  width: 100%;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.grade-reason-host-task {
+  width: auto;
+  min-width: 260px;
+  max-width: 360px;
+  margin-top: 0;
+}
+
+.grade-reason-grade-label {
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+
+
+.grade-reason-host {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.grade-reason-host-oral {
+  padding: 0 12px 10px 12px;
+}
+
+.grade-reason-select {
+  width: min(360px, 100%);
+  min-height: 34px;
+  padding: 6px 32px 6px 10px;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.grade-reason-select:focus {
+  outline: 2px solid
+    color-mix(
+      in srgb,
+      #f59e0b 35%,
+      transparent
+    );
+  outline-offset: 2px;
+}
+
+.grade-reason-select option {
+  background: #ffffff;
+  color: #1f2937;
+}
+
+@media (max-width: 760px) {
+  .grade-reason-select {
+    width: 100%;
+    max-width: none;
+  }
+}
+
 /* =====================================================
    ORAL / FLIGHT PORTION GRADE RADIOS
    ===================================================== */
@@ -490,5 +582,253 @@
   .scenario-question-grade-radios .grade-radio-option {
     min-width: 51px;
     min-height: 36px;
+  }
+}
+
+
+/* =====================================================
+   IPAD GRADE ROW LAYOUT FIX
+   ===================================================== */
+
+/*
+ * Goal:
+ * - K, R, and S stay on one horizontal line
+ * - any Reason Code controls appear on the next line
+ * - works cleanly on iPad landscape
+ */
+.grade-bar {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  column-gap: 14px !important;
+  row-gap: 8px !important;
+  align-items: start !important;
+}
+
+.grade-bar > .grade-item,
+.grade-bar > .grade-avg {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.grade-bar > .grade-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.grade-bar > .grade-item .grade-radio-group,
+.grade-bar > .grade-item .grade-buttons {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+}
+
+.grade-bar > .grade-item .grade-radio-option,
+.grade-bar > .grade-item button,
+.grade-bar > .grade-item .grade-btn,
+.grade-bar > .grade-item .grade-button {
+  flex: 0 0 auto !important;
+  min-width: 34px !important;
+}
+
+.grade-bar > .grade-item .grade-label,
+.grade-bar > .grade-item .element-label {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+
+.grade-reason-row {
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin-top: 4px !important;
+}
+
+.grade-reason-host,
+.grade-reason-host-task,
+.grade-reason-host-oral {
+  width: min(360px, 100%) !important;
+  margin-top: 0 !important;
+}
+
+.grade-reason-grade-label {
+  margin-bottom: 4px !important;
+}
+
+@media (max-width: 820px) {
+  .grade-bar {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grade-reason-row {
+    grid-column: auto !important;
+  }
+}
+
+
+/* =====================================================
+   LANDING AUTHENTICATION
+   ===================================================== */
+
+.landing-auth-panel {
+  width: min(620px, calc(100vw - 48px));
+  margin: 18px auto 22px;
+}
+
+.landing-login-fields {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.landing-login-field {
+  min-width: 0;
+  text-align: left;
+}
+
+.landing-login-field label {
+  display: block;
+  margin: 0 0 6px;
+
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  color: rgba(255,255,255,.72);
+}
+
+.landing-login-field input {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+
+  padding: 10px 12px;
+
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 8px;
+
+  background: rgba(255,255,255,.08);
+  color: #fff;
+
+  font-size: 0.9rem;
+}
+
+.landing-login-field input::placeholder {
+  color: rgba(255,255,255,.44);
+}
+
+.landing-login-field input:focus {
+  outline: none;
+
+  border-color: #38bdf8;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(56,189,248,.14);
+}
+
+.landing-sign-in-btn,
+.landing-sign-out-btn {
+  min-height: 44px;
+
+  border: 0;
+  border-radius: 8px;
+
+  padding: 10px 18px;
+
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.landing-sign-in-btn {
+  background: #ef3f35;
+  color: #fff;
+}
+
+.landing-sign-in-btn:hover {
+  filter: brightness(1.08);
+}
+
+.landing-sign-in-btn:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+.landing-auth-message {
+  min-height: 18px;
+
+  margin-top: 8px;
+
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+
+  color: rgba(255,255,255,.72);
+}
+
+.landing-signed-in {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  margin: 6px 0 2px;
+}
+
+.landing-welcome {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+
+  color: #fff;
+}
+
+.landing-sign-out-btn {
+  min-height: 34px;
+  padding: 7px 12px;
+
+  border: 1px solid rgba(255,255,255,.22);
+
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.82);
+
+  font-size: 0.68rem;
+}
+
+.landing-protected-content {
+  animation: landing-auth-fade .18s ease-out;
+}
+
+@keyframes landing-auth-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 850px) {
+  .landing-login-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .landing-sign-in-btn {
+    grid-column: 1 / -1;
   }
 }

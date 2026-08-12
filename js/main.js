@@ -529,6 +529,735 @@ function initApp() {
 
 const GRADE_RADIO_VALUES = ['1', '2', '3', '4', 'NP'];
 
+const GRADE_REASON_CODES = [
+  'Application of Knowledge',
+  'Application of Procedures',
+  'Technical Knowledge',
+  'Aircraft Flight Path Management',
+  'Problem Solving / Decision Making',
+  'Situational Awareness',
+  'Workload Management'
+];
+
+function gradeRequiresReason(value) {
+  return ['1', '2'].includes(
+    String(value || '')
+  );
+}
+
+function ensureGradeReasonStores() {
+  store.gradeReasons ??= {};
+  store.oralGradeReasons ??= {};
+}
+
+function normalizeReasonArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [...new Set(
+    value
+      .map(item => String(item || '').trim())
+      .filter(item =>
+        GRADE_REASON_CODES.includes(item)
+      )
+  )];
+}
+
+function cleanStaleGradeReasons() {
+  ensureGradeReasonStores();
+
+  Object.keys(store.gradeReasons)
+    .forEach(gradeKey => {
+      if (
+        !gradeRequiresReason(
+          store.grades?.[gradeKey]
+        )
+      ) {
+        delete store.gradeReasons[gradeKey];
+      } else {
+        const reasons =
+          normalizeReasonArray(
+            store.gradeReasons[gradeKey]
+          );
+
+        store.gradeReasons[gradeKey] =
+          reasons.length
+            ? [reasons[0]]
+            : [];
+      }
+    });
+
+  Object.keys(store.oralGradeReasons)
+    .forEach(rawTaskCode => {
+      if (
+        !gradeRequiresReason(
+          store.oralQuestionGrades?.[
+            rawTaskCode
+          ]
+        )
+      ) {
+        delete store.oralGradeReasons[
+          rawTaskCode
+        ];
+      } else {
+        const reasons =
+          normalizeReasonArray(
+            store.oralGradeReasons[
+              rawTaskCode
+            ]
+          );
+
+        store.oralGradeReasons[
+          rawTaskCode
+        ] =
+          reasons.length
+            ? [reasons[0]]
+            : [];
+      }
+    });
+}
+
+function getTaskReasonKeyFromSelect(select) {
+  const taskCode =
+    select?.dataset?.taskCode || '';
+
+  const gradeType =
+    select?.dataset?.grade || '';
+
+  if (!taskCode || !gradeType) {
+    return '';
+  }
+
+  return `${taskCode}.${gradeType}`;
+}
+
+function getTaskReasonKeyFromRadio(radio) {
+  const taskCode =
+    radio?.dataset?.taskCode || '';
+
+  const gradeType =
+    radio?.dataset?.grade || '';
+
+  if (!taskCode || !gradeType) {
+    return '';
+  }
+
+  return `${taskCode}.${gradeType}`;
+}
+
+function getOralDerivedReasonsForTaskGrade(
+  taskGradeKey
+) {
+  ensureGradeReasonStores();
+
+  const match =
+    String(taskGradeKey || '')
+      .match(/^(.*)\.(K|R|S)$/);
+
+  if (!match) {
+    return [];
+  }
+
+  const [
+    ,
+    targetFilterCode,
+    targetGradeType
+  ] = match;
+
+  const reasons = new Set();
+
+  Object.entries(
+    store.oralQuestionGrades || {}
+  ).forEach(([rawTaskCode, grade]) => {
+    if (!gradeRequiresReason(grade)) {
+      return;
+    }
+
+    const resolved =
+      resolveScenarioGradeTarget(
+        rawTaskCode
+      );
+
+    if (
+      resolved.filterCode !==
+        targetFilterCode ||
+      resolved.gradeType !==
+        targetGradeType
+    ) {
+      return;
+    }
+
+    normalizeReasonArray(
+      store.oralGradeReasons?.[
+        rawTaskCode
+      ]
+    ).forEach(reason =>
+      reasons.add(reason)
+    );
+  });
+
+  return Array.from(reasons);
+}
+
+function hasOralContributorsForTaskGrade(
+  taskGradeKey
+) {
+  const match =
+    String(taskGradeKey || '')
+      .match(/^(.*)\.(K|R|S)$/);
+
+  if (!match) {
+    return false;
+  }
+
+  const [
+    ,
+    targetFilterCode,
+    targetGradeType
+  ] = match;
+
+  return Object.keys(
+    store.oralQuestionGrades || {}
+  ).some(rawTaskCode => {
+    const resolved =
+      resolveScenarioGradeTarget(
+        rawTaskCode
+      );
+
+    return (
+      resolved.filterCode ===
+        targetFilterCode &&
+      resolved.gradeType ===
+        targetGradeType
+    );
+  });
+}
+
+function createGradeReasonDropdown({
+  scope,
+  key,
+  grade
+}) {
+  if (!gradeRequiresReason(grade)) {
+    return null;
+  }
+
+  ensureGradeReasonStores();
+
+  const map =
+    scope === 'oral'
+      ? store.oralGradeReasons
+      : store.gradeReasons;
+
+  const existing =
+    normalizeReasonArray(
+      map[key]
+    );
+
+  const inheritedReasons =
+    scope === 'task'
+      ? getOralDerivedReasonsForTaskGrade(
+          key
+        )
+      : [];
+
+  /*
+   * Preserve compatibility with any autosave created by the previous
+   * multi-select implementation, but use only one selected reason
+   * going forward.
+   */
+  const selectedReason =
+    existing[0] ||
+    inheritedReasons[0] ||
+    '';
+
+  const select =
+    document.createElement('select');
+
+  select.className =
+    'grade-reason-select';
+
+  select.dataset.reasonScope = scope;
+  select.dataset.reasonKey = key;
+
+  const placeholder =
+    document.createElement('option');
+
+  placeholder.value = '';
+  placeholder.textContent =
+    'Select Reason Code';
+
+  select.appendChild(
+    placeholder
+  );
+
+  GRADE_REASON_CODES.forEach(reason => {
+    const option =
+      document.createElement('option');
+
+    option.value = reason;
+    option.textContent = reason;
+
+    if (
+      reason === selectedReason
+    ) {
+      option.selected = true;
+    }
+
+    select.appendChild(option);
+  });
+
+  select.addEventListener(
+    'change',
+    () => {
+      ensureGradeReasonStores();
+
+      const selected =
+        String(
+          select.value || ''
+        ).trim();
+
+      if (selected) {
+        map[key] = [selected];
+      } else {
+        delete map[key];
+      }
+
+      saveToLocalStorage();
+
+      window.requestAnimationFrame(
+        syncAllGradeReasonControls
+      );
+    }
+  );
+
+  return select;
+}
+
+function syncTaskSelectReasonControl(
+  select
+) {
+  const gradeKey =
+    getTaskReasonKeyFromSelect(
+      select
+    );
+
+  if (!gradeKey) {
+    return;
+  }
+
+  const grade =
+    String(
+      select.value ||
+      store.grades?.[gradeKey] ||
+      'NP'
+    );
+
+  const gradeBar =
+    select.closest('.grade-bar');
+
+  if (!gradeBar) {
+    return;
+  }
+
+  /*
+   * Use one dedicated reason-code row beneath the K / R / S controls.
+   * This preserves the entire grade line without allowing a reason
+   * dropdown to push R or S onto another line.
+   */
+  let reasonRow =
+    gradeBar.querySelector(
+      ':scope > .grade-reason-row'
+    );
+
+  if (!reasonRow) {
+    reasonRow =
+      document.createElement('div');
+
+    reasonRow.className =
+      'grade-reason-row';
+
+    gradeBar.appendChild(
+      reasonRow
+    );
+  }
+
+  let host =
+    reasonRow.querySelector(
+      `[data-task-reason-key="${CSS.escape(
+        gradeKey
+      )}"]`
+    );
+
+  if (!gradeRequiresReason(grade)) {
+    host?.remove();
+
+    if (
+      !reasonRow.children.length
+    ) {
+      reasonRow.remove();
+    }
+
+    return;
+  }
+
+  if (!host) {
+    host =
+      document.createElement('div');
+
+    host.className =
+      'grade-reason-host grade-reason-host-task';
+
+    host.dataset.taskReasonKey =
+      gradeKey;
+
+    reasonRow.appendChild(
+      host
+    );
+  }
+
+  host.innerHTML = '';
+
+  const gradeType =
+    select.dataset.grade || '';
+
+  const label =
+    document.createElement('div');
+
+  label.className =
+    'grade-reason-grade-label';
+
+  label.textContent =
+    gradeType
+      ? `${gradeType} Reason Code`
+      : 'Reason Code';
+
+  host.appendChild(label);
+
+  const dropdown =
+    createGradeReasonDropdown({
+      scope: 'task',
+      key: gradeKey,
+      grade
+    });
+
+  if (dropdown) {
+    host.appendChild(dropdown);
+  }
+}
+
+function syncDirectTaskRadioReasonControl(
+  radio
+) {
+  const gradeKey =
+    getTaskReasonKeyFromRadio(
+      radio
+    );
+
+  if (!gradeKey) {
+    return;
+  }
+
+  const grade =
+    String(
+      store.grades?.[gradeKey] ||
+      'NP'
+    );
+
+  const group =
+    radio.closest(
+      '.grade-radio-group'
+    );
+
+  if (!group) {
+    return;
+  }
+
+  const gradeBar =
+    group.closest('.grade-bar');
+
+  /*
+   * Prefer the same dedicated row used by Detailed View.
+   * Fall back to the group's parent for any special Flight layout
+   * that does not use .grade-bar.
+   */
+  const layoutParent =
+    gradeBar ||
+    group.parentElement;
+
+  if (!layoutParent) {
+    return;
+  }
+
+  let reasonRow =
+    layoutParent.querySelector(
+      ':scope > .grade-reason-row'
+    );
+
+  if (!reasonRow) {
+    reasonRow =
+      document.createElement('div');
+
+    reasonRow.className =
+      'grade-reason-row';
+
+    layoutParent.appendChild(
+      reasonRow
+    );
+  }
+
+  let host =
+    reasonRow.querySelector(
+      `[data-task-reason-key="${CSS.escape(
+        gradeKey
+      )}"]`
+    );
+
+  if (!gradeRequiresReason(grade)) {
+    host?.remove();
+
+    if (
+      !reasonRow.children.length
+    ) {
+      reasonRow.remove();
+    }
+
+    return;
+  }
+
+  if (!host) {
+    host =
+      document.createElement('div');
+
+    host.className =
+      'grade-reason-host grade-reason-host-task';
+
+    host.dataset.taskReasonKey =
+      gradeKey;
+
+    reasonRow.appendChild(
+      host
+    );
+  }
+
+  host.innerHTML = '';
+
+  const gradeType =
+    radio.dataset.grade || '';
+
+  const label =
+    document.createElement('div');
+
+  label.className =
+    'grade-reason-grade-label';
+
+  label.textContent =
+    gradeType
+      ? `${gradeType} Reason Code`
+      : 'Reason Code';
+
+  host.appendChild(label);
+
+  const dropdown =
+    createGradeReasonDropdown({
+      scope: 'task',
+      key: gradeKey,
+      grade
+    });
+
+  if (dropdown) {
+    host.appendChild(dropdown);
+  }
+}
+
+function syncOralReasonControl(group) {
+  const radio =
+    group.querySelector(
+      'input[type="radio"][data-task-code]'
+    );
+
+  const rawTaskCode =
+    radio?.dataset?.taskCode || '';
+
+  if (!rawTaskCode) {
+    return;
+  }
+
+  const grade =
+    String(
+      store.oralQuestionGrades?.[
+        rawTaskCode
+      ] ||
+      'NP'
+    );
+
+  const question =
+    group.closest(
+      '.scenario-question'
+    );
+
+  const summary =
+    question?.querySelector(
+      ':scope > summary'
+    );
+
+  if (!question || !summary) {
+    return;
+  }
+
+  let host =
+    question.querySelector(
+      ':scope > .grade-reason-host'
+    );
+
+  if (!gradeRequiresReason(grade)) {
+    host?.remove();
+    return;
+  }
+
+  if (!host) {
+    host =
+      document.createElement('div');
+
+    host.className =
+      'grade-reason-host grade-reason-host-oral';
+
+    summary.insertAdjacentElement(
+      'afterend',
+      host
+    );
+  }
+
+  host.innerHTML = '';
+
+  const dropdown =
+    createGradeReasonDropdown({
+      scope: 'oral',
+      key: rawTaskCode,
+      grade
+    });
+
+  if (dropdown) {
+    host.appendChild(dropdown);
+  }
+}
+
+function syncAllGradeReasonControls() {
+  cleanStaleGradeReasons();
+
+  document
+    .querySelectorAll(
+      'select[data-grade]'
+    )
+    .forEach(
+      syncTaskSelectReasonControl
+    );
+
+  /*
+   * Individual Oral Portion question radios do not use the hidden
+   * select system.
+   */
+  document
+    .querySelectorAll(
+      '.scenario-question-grade-radios'
+    )
+    .forEach(
+      syncOralReasonControl
+    );
+
+  /*
+   * Support any Flight Portion grade radios rendered directly rather
+   * than from an upgraded select.
+   */
+  document
+    .querySelectorAll(
+      '#viewScenario input[type="radio"][data-grade][data-task-code]'
+    )
+    .forEach(radio => {
+      if (
+        radio.closest(
+          '.scenario-question-grade-radios'
+        )
+      ) {
+        return;
+      }
+
+      syncDirectTaskRadioReasonControl(
+        radio
+      );
+    });
+}
+
+function collectMissingGradeReasons() {
+  cleanStaleGradeReasons();
+
+  const missing = [];
+
+  /*
+   * Validate every independently graded Oral Portion question.
+   */
+  Object.entries(
+    store.oralQuestionGrades || {}
+  ).forEach(([rawTaskCode, grade]) => {
+    if (!gradeRequiresReason(grade)) {
+      return;
+    }
+
+    const reasons =
+      normalizeReasonArray(
+        store.oralGradeReasons?.[
+          rawTaskCode
+        ]
+      );
+
+    if (!reasons.length) {
+      missing.push(
+        `Oral question ${rawTaskCode} — Grade ${grade}`
+      );
+    }
+  });
+
+  /*
+   * Validate task K/R/S grades.
+   *
+   * A Detailed View task grade derived from Oral questions is covered
+   * by the reason codes attached to those individual Oral grades, so
+   * it is not double-counted here.
+   */
+  Object.entries(
+    store.grades || {}
+  ).forEach(([gradeKey, grade]) => {
+    if (!gradeRequiresReason(grade)) {
+      return;
+    }
+
+    if (
+      hasOralContributorsForTaskGrade(
+        gradeKey
+      )
+    ) {
+      return;
+    }
+
+    const reasons =
+      normalizeReasonArray(
+        store.gradeReasons?.[
+          gradeKey
+        ]
+      );
+
+    if (!reasons.length) {
+      missing.push(
+        `${gradeKey} — Grade ${grade}`
+      );
+    }
+  });
+
+  return missing;
+}
+
+
 function escapeGradeRadioValue(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -703,6 +1432,14 @@ function upgradeGradeSelectsToRadios(root = document) {
 
     syncGradeRadioGroup(select);
   });
+
+  /*
+   * Keep reason-code controls synchronized whenever grade controls
+   * are upgraded or refreshed.
+   */
+  window.requestAnimationFrame(
+    syncAllGradeReasonControls
+  );
 }
 
 function startDynamicGradeRadioObserver() {
@@ -1170,45 +1907,176 @@ function appointmentToApplicantData(appointment) {
 }
 
 function setEmtConnectionMessage(message, isError = false) {
-  const element = $('emtAppointmentMessage');
+  const appointmentMessage =
+    $('emtAppointmentMessage');
 
-  if (!element) return;
+  const landingMessage =
+    $('emtLandingAuthMessage');
 
-  element.textContent = message || '';
-  element.style.color = isError
-    ? 'var(--danger)'
-    : 'var(--text-muted)';
+  const text =
+    message || '';
+
+  const color =
+    isError
+      ? 'var(--danger)'
+      : 'var(--text-muted)';
+
+  if (appointmentMessage) {
+    appointmentMessage.textContent =
+      text;
+
+    appointmentMessage.style.color =
+      color;
+  }
+
+  if (landingMessage) {
+    landingMessage.textContent =
+      text;
+
+    landingMessage.style.color =
+      isError
+        ? '#ff8a80'
+        : 'rgba(255,255,255,.72)';
+  }
 }
 
+function getEmtExaminerDisplayName(user) {
+  if (!user) {
+    return '';
+  }
+
+  const metadata =
+    user.user_metadata || {};
+
+  const candidates = [
+    metadata.preferred_name,
+    metadata.first_name,
+    metadata.given_name,
+    metadata.full_name,
+    metadata.name
+  ];
+
+  for (const candidate of candidates) {
+    const value =
+      String(candidate || '')
+        .trim();
+
+    if (value) {
+      /*
+       * For a full name, use the first name for the landing greeting.
+       */
+      return value.split(/\s+/)[0];
+    }
+  }
+
+  const email =
+    String(user.email || '')
+      .trim();
+
+  if (email) {
+    const prefix =
+      email.split('@')[0];
+
+    return prefix
+      .split(/[._-]+/)[0]
+      .replace(
+        /^./,
+        character =>
+          character.toUpperCase()
+      );
+  }
+
+  return 'Examiner';
+}
+
+
 function showEmtSignedInState(user) {
-  const loginFields = $('emtLoginFields');
-  const appointmentFields = $('emtAppointmentFields');
-  const signOutButton = $('btnEmtSignOut');
-  const status = $('emtAuthStatus');
+  const loginFields =
+    $('emtLoginFields');
+
+  const appointmentFields =
+    $('emtAppointmentFields');
+
+  const signOutButton =
+    $('btnEmtSignOut');
+
+  const status =
+    $('emtAuthStatus');
+
+  const signedInLanding =
+    $('emtSignedInLanding');
+
+  const welcome =
+    $('emtWelcome');
+
+  const protectedContent =
+    $('landingProtectedContent');
+
+  const isSignedIn =
+    Boolean(user);
 
   if (loginFields) {
-    loginFields.style.display = user ? 'none' : 'grid';
+    loginFields.style.display =
+      isSignedIn
+        ? 'none'
+        : 'grid';
+  }
+
+  if (signedInLanding) {
+    signedInLanding.style.display =
+      isSignedIn
+        ? 'flex'
+        : 'none';
   }
 
   if (appointmentFields) {
-    appointmentFields.style.display = user
-      ? 'block'
-      : 'none';
+    appointmentFields.style.display =
+      isSignedIn
+        ? 'block'
+        : 'none';
   }
 
   if (signOutButton) {
-    signOutButton.style.display = user
-      ? 'inline-flex'
-      : 'none';
+    signOutButton.style.display =
+      isSignedIn
+        ? 'inline-flex'
+        : 'none';
+  }
+
+  if (protectedContent) {
+    protectedContent.style.display =
+      isSignedIn
+        ? 'block'
+        : 'none';
+  }
+
+  if (welcome) {
+    welcome.textContent =
+      isSignedIn
+        ? `Welcome ${getEmtExaminerDisplayName(user)}`
+        : '';
   }
 
   if (status) {
-    status.textContent = user
-      ? `Signed in as ${user.email || 'examiner'}`
-      : 'Not signed in';
+    status.textContent =
+      isSignedIn
+        ? `Signed in as ${user.email || 'examiner'}`
+        : 'Not signed in';
+  }
+
+  /*
+   * Do not leave stale authentication messages visible.
+   */
+  if (isSignedIn) {
+    const landingMessage =
+      $('emtLandingAuthMessage');
+
+    if (landingMessage) {
+      landingMessage.textContent =
+        '';
+    }
   }
 }
-
 async function refreshEmtAppointments() {
   const select = $('emtAppointmentSelect');
   const button = $('btnLoadEmtAppointments');
@@ -1351,6 +2219,19 @@ async function initializeEmtConnection() {
 }
 
 function wireEmtConnectionEvents() {
+  $('emtLoginPassword')?.addEventListener(
+    'keydown',
+    event => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+
+      $('btnEmtSignIn')?.click();
+    }
+  );
+
   $('btnEmtSignIn')?.addEventListener(
     'click',
     async () => {
@@ -1414,6 +2295,10 @@ function wireEmtConnectionEvents() {
         await modules.signOutEmtExaminer();
 
         showEmtSignedInState(null);
+
+        document.body.classList.add(
+          'show-landing'
+        );
 
         const select = $('emtAppointmentSelect');
 
@@ -1657,6 +2542,7 @@ if (aircraftClassGroup) {
    * View.
    */
   syncScenarioGradesFromStore();
+  syncAllGradeReasonControls();
 }
 
 function syncActiveView() {
@@ -1893,7 +2779,7 @@ function buildEvaluationStateForDatabase() {
       ...store,
       applicant: limitedApplicant,
       databaseMetadata: {
-        schemaVersion: 2,
+        schemaVersion: 3,
         submittedFrom: 'ems-web',
         submittedAt:
           new Date().toISOString()
@@ -1914,6 +2800,31 @@ async function submitPracticalTestToDatabase() {
     return;
   }
 
+  const missingGradeReasons =
+    collectMissingGradeReasons();
+
+  if (missingGradeReasons.length) {
+    const preview =
+      missingGradeReasons
+        .slice(0, 8)
+        .map(item => `• ${item}`)
+        .join('\n');
+
+    const additional =
+      missingGradeReasons.length > 8
+        ? `\n• ...and ${
+            missingGradeReasons.length - 8
+          } more`
+        : '';
+
+    alert(
+      `Reason Code Required\n\nEvery grade of 1 or 2 must have a reason code selected.\n\n${preview}${additional}`
+    );
+
+    syncAllGradeReasonControls();
+    return;
+  }
+
   const result =
     normalizeDatabasePracticalTestResult(
       store.practicalTestOutcome
@@ -1931,7 +2842,7 @@ async function submitPracticalTestToDatabase() {
     'this practical test';
 
   const confirmed = window.confirm(
-    `Submit ${requestNumber} to the database and mark the scheduling request Completed?\n\nThis will save the current evaluation as the completed practical test.`
+    `Submit ${requestNumber} to the database and complete the practical test?\n\nThis will save the evaluation and grading data, create both Practical Test Reports, release the Applicant Report, and then mark the request Completed.`
   );
 
   if (!confirmed) return;
@@ -1990,9 +2901,17 @@ async function submitPracticalTestToDatabase() {
 
     if (!practicalTestId) {
       throw new Error(
-        'The practical test was saved, but no practical-test ID was returned for the Applicant Report.'
+        'The practical test was finalized, but no practical-test ID was returned.'
       );
     }
+
+    const generatedAt =
+      resultData?.saved_at ||
+      new Date().toISOString();
+
+    const finalRequestNumber =
+      resultData?.request_number ||
+      requestNumber;
 
     if (button) {
       button.innerHTML =
@@ -2007,44 +2926,91 @@ async function submitPracticalTestToDatabase() {
         '<i class="fas fa-spinner fa-spin"></i> Uploading Applicant Report';
     }
 
-    const reportRow =
+    const applicantReportRow =
       await modules.uploadApplicantPracticalTestReport({
         practicalTestId,
         requestNumber:
-          resultData?.request_number ||
-          requestNumber,
+          finalRequestNumber,
         pdfBlob:
           applicantReportPdf,
-        generatedAt:
-          resultData?.completed_at ||
-          new Date().toISOString(),
+        generatedAt,
         releaseToApplicant:
           true
       });
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Creating Designee Report';
+    }
+
+    const designeeReportPdf =
+      await generateDesigneeReportPdfBlob();
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Uploading Designee Report';
+    }
+
+    const designeeReportRow =
+      await modules.uploadDesigneePracticalTestReport({
+        practicalTestId,
+        requestNumber:
+          finalRequestNumber,
+        pdfBlob:
+          designeeReportPdf,
+        generatedAt
+      });
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Completing Practical Test';
+    }
+
+    const completionData =
+      await modules.finalizeEmtPracticalTest(
+        practicalTestId
+      );
+
+    if (
+      completionData?.request_status !==
+        'completed' ||
+      completionData?.evaluation_status !==
+        'completed'
+    ) {
+      throw new Error(
+        'The reports were saved, but the practical test did not return a Completed status.'
+      );
+    }
 
     store.databaseSubmission = {
       practicalTestId,
       status: 'completed',
       submittedAt:
-        resultData?.completed_at ||
-        new Date().toISOString(),
+        completionData?.completed_at ||
+        generatedAt,
       applicantReportId:
-        reportRow?.id ||
+        applicantReportRow?.id ||
         null,
       applicantReportReleasedAt:
-        reportRow
+        applicantReportRow
           ?.released_to_applicant_at ||
+        null,
+      designeeReportId:
+        designeeReportRow?.id ||
+        null,
+      completedAt:
+        completionData?.completed_at ||
         null
     };
 
     saveToLocalStorage();
 
     setEmtConnectionMessage(
-      `${requestNumber} was submitted successfully. The scheduling request is Completed and the Applicant Report was released.`
+      `${requestNumber} was submitted successfully. Grading data and both reports were saved, the Applicant Report was released, and the scheduling request is Completed.`
     );
 
     alert(
-      `${requestNumber} was submitted successfully.\n\nThe practical test was saved, the scheduling request was changed to Completed, and the Applicant Practical Test Report was released to the applicant.`
+      `${requestNumber} was submitted successfully.\n\nThe evaluation and grading data were saved, both Practical Test Reports were stored, the Applicant Report was released to the applicant, and the scheduling request was changed to Completed.`
     );
 
     /*
@@ -2080,11 +3046,138 @@ async function submitPracticalTestToDatabase() {
   }
 }
 
+
+async function regenerateStoredPracticalTestReports() {
+  const practicalTestId =
+    store.databaseSubmission
+      ?.practicalTestId ||
+    store.practicalTestId ||
+    null;
+
+  const requestNumber =
+    store.applicant
+      ?.requestNumber ||
+    '';
+
+  if (!practicalTestId) {
+    alert(
+      'A submitted practical test must be loaded before stored reports can be regenerated.'
+    );
+    return;
+  }
+
+  if (!requestNumber) {
+    alert(
+      'The practical-test request number is unavailable.'
+    );
+    return;
+  }
+
+  const button =
+    document.getElementById(
+      'regenerateStoredReportsBtn'
+    );
+
+  const originalHtml =
+    button?.innerHTML || '';
+
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Creating Applicant Report';
+    }
+
+    /*
+     * Generate using the CURRENT working report builders.
+     */
+    const applicantPdf =
+      await generateApplicantReportPdfBlob();
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Uploading Applicant Report';
+    }
+
+    const generatedAt =
+      new Date().toISOString();
+
+    await modules
+      .uploadApplicantPracticalTestReport({
+        practicalTestId,
+        requestNumber,
+        pdfBlob:
+          applicantPdf,
+        generatedAt,
+        releaseToApplicant:
+          true
+      });
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Creating Designee Report';
+    }
+
+    const designeePdf =
+      await generateDesigneeReportPdfBlob();
+
+    if (button) {
+      button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Uploading Designee Report';
+    }
+
+    await modules
+      .uploadDesigneePracticalTestReport({
+        practicalTestId,
+        requestNumber,
+        pdfBlob:
+          designeePdf,
+        generatedAt
+      });
+
+    store.databaseSubmission ??= {};
+
+    store.databaseSubmission
+      .reportsRegeneratedAt =
+      generatedAt;
+
+    saveToLocalStorage();
+
+    alert(
+      `${requestNumber} reports were regenerated successfully.\n\nThe prior stored Applicant and Designee reports were superseded, and the web portals will now use the new PDFs.`
+    );
+  } catch (error) {
+    console.error(
+      'Stored report regeneration failed:',
+      error
+    );
+
+    alert(
+      `Stored report regeneration failed: ${
+        error instanceof Error
+          ? error.message
+          : 'Unknown error'
+      }`
+    );
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.innerHTML =
+        originalHtml;
+    }
+  }
+}
+
 function wireReportActionButtons() {
   const printApplicantBtn = $('printApplicantReportBtn');
   const emailApplicantBtn = $('emailApplicantReportBtn');
   const printDesigneeBtn = $('printDesigneeReportBtn');
   const emailDesigneeBtn = $('emailDesigneeReportBtn');
+  const regenerateStoredReportsBtn =
+    $('regenerateStoredReportsBtn');
 
   if (printApplicantBtn && !printApplicantBtn.dataset.wired) {
     printApplicantBtn.dataset.wired = 'true';
@@ -2105,6 +3198,22 @@ function wireReportActionButtons() {
     printDesigneeBtn.addEventListener('click', () => {
       generatePracticalTestReport('designee');
     });
+  }
+
+  if (
+    regenerateStoredReportsBtn &&
+    !regenerateStoredReportsBtn.dataset.wired
+  ) {
+    regenerateStoredReportsBtn.dataset.wired =
+      'true';
+
+    regenerateStoredReportsBtn
+      .addEventListener(
+        'click',
+        () => {
+          void regenerateStoredPracticalTestReports();
+        }
+      );
   }
 
   if (emailDesigneeBtn && !emailDesigneeBtn.dataset.wired) {
@@ -2209,8 +3318,18 @@ function handleTaskCheck(taskCode, checked, options = {}) {
   store.checkedElements[taskCode] = checked;
 
   if (options.setAllGradesToThree) {
+  ensureGradeReasonStores();
+
   ['K', 'R', 'S'].forEach(type => {
-    store.grades[`${taskCode}.${type}`] = checked ? '3' : 'NP';
+    const gradeKey =
+      `${taskCode}.${type}`;
+
+    store.grades[gradeKey] =
+      checked ? '3' : 'NP';
+
+    delete store.gradeReasons[
+      gradeKey
+    ];
   });
 }
 
@@ -4338,8 +5457,382 @@ function buildPracticalTestReportHtml(
 `;
 }
 
+
+function buildDesigneePracticalTestReportHtml() {
+  /*
+   * The Applicant Practical Test Report is the visual master.
+   *
+   * Build that known-good report first, then add K / R / S columns
+   * directly into the normal Task Summary table.
+   *
+   * There is intentionally NO separate Detailed K/R/S page.
+   */
+  const applicantHtml =
+    buildPracticalTestReportHtml(
+      'applicant'
+    );
+
+  const parser =
+    new DOMParser();
+
+  const documentCopy =
+    parser.parseFromString(
+      applicantHtml,
+      'text/html'
+    );
+
+  /*
+   * Change only the report identity.
+   */
+  documentCopy.title =
+    'Designee Practical Test Report';
+
+  const title =
+    documentCopy.querySelector(
+      '.header-title'
+    );
+
+  if (title) {
+    title.textContent =
+      'Designee Practical Test Report';
+  }
+
+  /*
+   * Locate the same Task Summary table used by the good Applicant
+   * report.
+   */
+  let taskTable =
+    documentCopy.querySelector(
+      '.task-summary table'
+    );
+
+  if (!taskTable) {
+    taskTable =
+      Array.from(
+        documentCopy.querySelectorAll(
+          'table'
+        )
+      ).find(table => {
+        const headerText =
+          String(
+            table.querySelector(
+              'thead'
+            )?.textContent || ''
+          );
+
+        return (
+          headerText.includes('Task') &&
+          headerText.includes('Title') &&
+          headerText.includes(
+            'Examiner Comments'
+          )
+        );
+      }) || null;
+  }
+
+  if (!taskTable) {
+    throw new Error(
+      'The Applicant Task Summary table could not be found.'
+    );
+  }
+
+  taskTable.classList.add(
+    'designee-task-table'
+  );
+
+  const headerRow =
+    taskTable.querySelector(
+      'thead tr'
+    );
+
+  if (!headerRow) {
+    throw new Error(
+      'The Task Summary header could not be found.'
+    );
+  }
+
+  /*
+   * Applicant table is:
+   *
+   * Task | Title | Examiner Comments
+   *
+   * Insert K/R/S immediately before Examiner Comments.
+   */
+  const commentHeader =
+    headerRow.lastElementChild;
+
+  if (!commentHeader) {
+    throw new Error(
+      'The Examiner Comments column could not be found.'
+    );
+  }
+
+  ['K', 'R', 'S'].forEach(
+    gradeType => {
+      const th =
+        documentCopy.createElement(
+          'th'
+        );
+
+      th.textContent =
+        gradeType;
+
+      th.className =
+        'designee-grade-header';
+
+      headerRow.insertBefore(
+        th,
+        commentHeader
+      );
+    }
+  );
+
+  /*
+   * Current ACS task list so the printed task code can be connected
+   * back to store.grades.
+   */
+  const tasks =
+    getCurrentTasks(
+      getCurrentAreas()
+    );
+
+  const normalizeCode = value =>
+    String(value || '')
+      .trim()
+      .replaceAll('_', '.');
+
+  const getTaskForPrintedCode =
+    printedCode => {
+      const normalizedPrinted =
+        normalizeCode(
+          printedCode
+        );
+
+      return tasks.find(task => {
+        const taskCode =
+          normalizeCode(
+            task.code
+          );
+
+        const filterCode =
+          normalizeCode(
+            task.filterCode
+          );
+
+        return (
+          taskCode ===
+            normalizedPrinted ||
+          filterCode ===
+            normalizedPrinted
+        );
+      }) || null;
+    };
+
+  const getGrade = (
+    task,
+    printedCode,
+    gradeType
+  ) => {
+    const candidates = [
+      task?.filterCode,
+      task?.code,
+      printedCode,
+      String(
+        printedCode || ''
+      ).replaceAll(
+        '.',
+        '_'
+      ),
+      String(
+        printedCode || ''
+      ).replaceAll(
+        '_',
+        '.'
+      )
+    ]
+      .filter(Boolean);
+
+    for (
+      const code of [
+        ...new Set(candidates)
+      ]
+    ) {
+      const value =
+        store.grades?.[
+          `${code}.${gradeType}`
+        ];
+
+      if (
+        value !== undefined &&
+        value !== null &&
+        String(value).trim()
+      ) {
+        return String(value);
+      }
+    }
+
+    return 'NP';
+  };
+
+  taskTable
+    .querySelectorAll(
+      'tbody tr'
+    )
+    .forEach(row => {
+      const codeElement =
+        row.querySelector(
+          '.task-code-text'
+        );
+
+      /*
+       * Fallback in case the Applicant report row does not contain the
+       * task-code span for some future certificate type.
+       */
+      const firstCell =
+        row.querySelector('td');
+
+      const printedCode =
+        String(
+          codeElement?.textContent ||
+          firstCell?.textContent ||
+          ''
+        )
+          .replace(
+            /^[✓×!]\s*/,
+            ''
+          )
+          .trim();
+
+      const task =
+        getTaskForPrintedCode(
+          printedCode
+        );
+
+      const commentCell =
+        row.lastElementChild;
+
+      if (!commentCell) {
+        return;
+      }
+
+      ['K', 'R', 'S'].forEach(
+        gradeType => {
+          const td =
+            documentCopy.createElement(
+              'td'
+            );
+
+          td.className =
+            'designee-grade-cell';
+
+          td.textContent =
+            getGrade(
+              task,
+              printedCode,
+              gradeType
+            );
+
+          row.insertBefore(
+            td,
+            commentCell
+          );
+        }
+      );
+    });
+
+  /*
+   * Keep the same visual language as the Applicant report but assign
+   * sensible widths to the six-column Designee task table.
+   */
+  const style =
+    documentCopy.createElement(
+      'style'
+    );
+
+  style.textContent = `
+    .designee-task-table {
+      width: 100% !important;
+      table-layout: fixed !important;
+      border-collapse: collapse !important;
+    }
+
+    .designee-task-table th:nth-child(1),
+    .designee-task-table td:nth-child(1) {
+      width: 14% !important;
+    }
+
+    .designee-task-table th:nth-child(2),
+    .designee-task-table td:nth-child(2) {
+      width: 34% !important;
+    }
+
+    .designee-task-table th:nth-child(3),
+    .designee-task-table td:nth-child(3),
+    .designee-task-table th:nth-child(4),
+    .designee-task-table td:nth-child(4),
+    .designee-task-table th:nth-child(5),
+    .designee-task-table td:nth-child(5) {
+      width: 5% !important;
+      min-width: 5% !important;
+      max-width: 5% !important;
+
+      padding-left: 2px !important;
+      padding-right: 2px !important;
+
+      text-align: center !important;
+      vertical-align: middle !important;
+      white-space: nowrap !important;
+
+      font-weight: 700 !important;
+    }
+
+    .designee-task-table th:nth-child(6),
+    .designee-task-table td:nth-child(6) {
+      width: 37% !important;
+    }
+
+    .designee-grade-header {
+      text-align: center !important;
+    }
+
+    /*
+     * Allow the same Applicant-report table to flow naturally onto
+     * additional pages.
+     */
+    .designee-task-table tr {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .designee-task-table thead {
+      display: table-header-group;
+    }
+
+    @media print {
+      .designee-task-table thead {
+        display: table-header-group;
+      }
+    }
+  `;
+
+  documentCopy.head.appendChild(
+    style
+  );
+
+  return (
+    '<!DOCTYPE html>\n' +
+    documentCopy.documentElement
+      .outerHTML
+  );
+}
+
 function generatePracticalTestReport(reportType = 'applicant') {
-  const html = buildPracticalTestReportHtml(reportType);
+  const html =
+    reportType === 'designee'
+      ? buildDesigneePracticalTestReportHtml()
+      : buildPracticalTestReportHtml(
+          'applicant'
+        );
   const reportWindow = window.open('', '_blank');
 
   if (!reportWindow) {
@@ -4452,6 +5945,106 @@ async function generateApplicantReportPdfBlob() {
       })
     );
 
+    /*
+     * IMPORTANT:
+     * The EMT browser report is the approved visual source.
+     *
+     * Capture ONLY the actual report page, not the iframe body.
+     * The body contains browser-only layout/controls that are not part
+     * of the printable report and were corrupting the archived PDFs.
+     */
+    frameDocument
+      .querySelector(
+        '.print-controls'
+      )
+      ?.remove();
+
+    const reportPage =
+      frameDocument.querySelector(
+        '.report-page'
+      );
+
+    if (!reportPage) {
+      throw new Error(
+        'The printable report page could not be found.'
+      );
+    }
+
+    /*
+     * html2pdf uses screen CSS, so explicitly apply the layout that the
+     * browser uses when printing the good EMT report.
+     */
+    const storedPdfStyle =
+      frameDocument.createElement(
+        'style'
+      );
+
+    storedPdfStyle.textContent = `
+      html,
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 816px !important;
+        min-width: 816px !important;
+        max-width: 816px !important;
+        background: #ffffff !important;
+        overflow: visible !important;
+      }
+
+      .print-controls {
+        display: none !important;
+      }
+
+      .report-page {
+        display: block !important;
+        position: static !important;
+        float: none !important;
+
+        width: 816px !important;
+        min-width: 816px !important;
+        max-width: 816px !important;
+
+        min-height: 0 !important;
+
+        margin: 0 !important;
+        box-sizing: border-box !important;
+
+        break-before: auto !important;
+        page-break-before: auto !important;
+
+        break-after: auto !important;
+        page-break-after: auto !important;
+      }
+
+      table {
+        max-width: 100% !important;
+      }
+
+      thead {
+        display: table-header-group !important;
+      }
+
+      tr {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    `;
+
+    frameDocument.head.appendChild(
+      storedPdfStyle
+    );
+
+    /*
+     * Force the browser to calculate the final printable dimensions
+     * before html2canvas captures the page.
+     */
+    void reportPage.offsetHeight;
+
     const pdfBlob =
       await window.html2pdf()
         .set({
@@ -4480,8 +6073,12 @@ async function generateApplicantReportPdfBlob() {
             ]
           }
         })
-        .from(frameDocument.body)
-        .outputPdf('blob');
+        .from(
+          reportPage
+        )
+        .outputPdf(
+          'blob'
+        );
 
     if (
       !(pdfBlob instanceof Blob) ||
@@ -4489,6 +6086,313 @@ async function generateApplicantReportPdfBlob() {
     ) {
       throw new Error(
         'The generated Applicant Report PDF was empty.'
+      );
+    }
+
+    return pdfBlob;
+  } finally {
+    frame.remove();
+  }
+}
+
+
+async function generateDesigneeReportPdfBlob() {
+  if (
+    typeof window.html2pdf !==
+    'function'
+  ) {
+    throw new Error(
+      'The PDF generator did not load. Refresh the EMS app and try again.'
+    );
+  }
+
+  /*
+   * Use the exact same PDF-generation architecture as the working
+   * Applicant Practical Test Report.
+   */
+  const reportHtml =
+    buildDesigneePracticalTestReportHtml();
+
+  const frame =
+    document.createElement(
+      'iframe'
+    );
+
+  frame.setAttribute(
+    'aria-hidden',
+    'true'
+  );
+
+  frame.style.position =
+    'fixed';
+
+  frame.style.left =
+    '-100000px';
+
+  frame.style.top =
+    '0';
+
+  frame.style.width =
+    '816px';
+
+  frame.style.height =
+    '1056px';
+
+  frame.style.border =
+    '0';
+
+  frame.style.opacity =
+    '0';
+
+  frame.style.pointerEvents =
+    'none';
+
+  document.body.appendChild(
+    frame
+  );
+
+  try {
+    const frameDocument =
+      frame.contentDocument;
+
+    if (!frameDocument) {
+      throw new Error(
+        'The temporary Designee Report document could not be created.'
+      );
+    }
+
+    frameDocument.open();
+    frameDocument.write(
+      reportHtml
+    );
+    frameDocument.close();
+
+    await new Promise(resolve => {
+      const finish = () =>
+        window.setTimeout(
+          resolve,
+          150
+        );
+
+      if (
+        frame.contentWindow
+          ?.document
+          ?.readyState ===
+        'complete'
+      ) {
+        finish();
+      } else {
+        frame.addEventListener(
+          'load',
+          finish,
+          {
+            once: true
+          }
+        );
+      }
+    });
+
+    if (
+      frameDocument.fonts
+        ?.ready
+    ) {
+      await frameDocument
+        .fonts
+        .ready;
+    }
+
+    const images =
+      Array.from(
+        frameDocument.images ||
+        []
+      );
+
+    await Promise.all(
+      images.map(image => {
+        if (image.complete) {
+          return Promise.resolve();
+        }
+
+        return new Promise(
+          resolve => {
+            image.addEventListener(
+              'load',
+              resolve,
+              {
+                once: true
+              }
+            );
+
+            image.addEventListener(
+              'error',
+              resolve,
+              {
+                once: true
+              }
+            );
+          }
+        );
+      })
+    );
+
+    /*
+     * Same as Applicant PDF generation: remove interactive browser
+     * controls before the PDF is captured.
+     */
+    frameDocument
+      .querySelector(
+        '.print-controls'
+      )
+      ?.remove();
+
+    /*
+     * IMPORTANT:
+     * The EMT browser report is the approved visual source.
+     *
+     * Capture ONLY the actual report page, not the iframe body.
+     * The body contains browser-only layout/controls that are not part
+     * of the printable report and were corrupting the archived PDFs.
+     */
+    frameDocument
+      .querySelector(
+        '.print-controls'
+      )
+      ?.remove();
+
+    const reportPage =
+      frameDocument.querySelector(
+        '.report-page'
+      );
+
+    if (!reportPage) {
+      throw new Error(
+        'The printable report page could not be found.'
+      );
+    }
+
+    /*
+     * html2pdf uses screen CSS, so explicitly apply the layout that the
+     * browser uses when printing the good EMT report.
+     */
+    const storedPdfStyle =
+      frameDocument.createElement(
+        'style'
+      );
+
+    storedPdfStyle.textContent = `
+      html,
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 816px !important;
+        min-width: 816px !important;
+        max-width: 816px !important;
+        background: #ffffff !important;
+        overflow: visible !important;
+      }
+
+      .print-controls {
+        display: none !important;
+      }
+
+      .report-page {
+        display: block !important;
+        position: static !important;
+        float: none !important;
+
+        width: 816px !important;
+        min-width: 816px !important;
+        max-width: 816px !important;
+
+        min-height: 0 !important;
+
+        margin: 0 !important;
+        box-sizing: border-box !important;
+
+        break-before: auto !important;
+        page-break-before: auto !important;
+
+        break-after: auto !important;
+        page-break-after: auto !important;
+      }
+
+      table {
+        max-width: 100% !important;
+      }
+
+      thead {
+        display: table-header-group !important;
+      }
+
+      tr {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    `;
+
+    frameDocument.head.appendChild(
+      storedPdfStyle
+    );
+
+    /*
+     * Force the browser to calculate the final printable dimensions
+     * before html2canvas captures the page.
+     */
+    void reportPage.offsetHeight;
+
+    const pdfBlob =
+      await window.html2pdf()
+        .set({
+          margin: 0,
+
+          filename:
+            'Designee-Practical-Test-Report.pdf',
+
+          image: {
+            type: 'jpeg',
+            quality: 0.98
+          },
+
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor:
+              '#ffffff'
+          },
+
+          jsPDF: {
+            unit: 'in',
+            format: 'letter',
+            orientation:
+              'portrait'
+          },
+
+          pagebreak: {
+            mode: [
+              'css',
+              'legacy'
+            ]
+          }
+        })
+        .from(
+          reportPage
+        )
+        .outputPdf(
+          'blob'
+        );
+
+    if (
+      !(pdfBlob instanceof Blob) ||
+      pdfBlob.size === 0
+    ) {
+      throw new Error(
+        'The generated Designee Report PDF was empty.'
       );
     }
 
@@ -5026,11 +6930,20 @@ window.setDetailedTaskCheckFromFlight = function(taskCode, checked) {
 
   store.checkedElements[taskCode] = checked;
 
+  ensureGradeReasonStores();
+
+  const gradeKey =
+    `${taskCode}.S`;
+
   if (checked) {
-    store.grades[`${taskCode}.S`] = '3';
+    store.grades[gradeKey] = '3';
   } else {
-    store.grades[`${taskCode}.S`] = 'NP';
+    store.grades[gradeKey] = 'NP';
   }
+
+  delete store.gradeReasons[
+    gradeKey
+  ];
 
   modules.notify();
   saveToLocalStorage();
@@ -5076,6 +6989,14 @@ window.setScenarioGradeFromOral = function(input) {
   store.oralQuestionGrades[
     rawTaskCode
   ] = grade;
+
+  ensureGradeReasonStores();
+
+  if (!gradeRequiresReason(grade)) {
+    delete store.oralGradeReasons[
+      rawTaskCode
+    ];
+  }
 
   /*
    * Recalculate only the matching parent task and K/R/S grade.
