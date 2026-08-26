@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Data & Statistics</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <main class="stats-page">
+    <header class="stats-header">
+      <h1>Data & Statistics</h1>
+      <button onclick="window.location.href='./index.html'">
+        Back to Home
+      </button>
+    </header>
+
+    <section class="stats-grid">
+      <div class="stats-card">
+        <h3>Overall Outcomes</h3>
+        <canvas id="outcomeChart"></canvas>
+      </div>
+
+      <div class="stats-card">
+        <h3>K / R / S Grade Distribution</h3>
+        <canvas id="krsChart"></canvas>
+      </div>
+
+      <div class="stats-card">
+        <h3>Certificate Type</h3>
+        <canvas id="certificateChart"></canvas>
+      </div>
+
+      <div class="stats-card">
+        <h3>Most Common Unsatisfactory Areas</h3>
+        <canvas id="unsatChart"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/statistics.js"></script>
+</body>
+</html>
