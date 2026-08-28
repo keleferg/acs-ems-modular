@@ -1,19 +1,16 @@
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 
 let modules = {};
 let store = null;
 let scenarioRendered = false;
 
-const STORAGE_KEY = 'acs_ems_autosave_v1';
+const STORAGE_KEY = "acs_ems_autosave_v1";
 
 function saveToLocalStorage() {
   try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(store)
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch (err) {
-    console.error('Autosave failed:', err);
+    console.error("Autosave failed:", err);
   }
 }
 
@@ -29,7 +26,7 @@ function loadFromLocalStorage() {
       Object.assign(store, parsed);
     }
   } catch (err) {
-    console.error('Restore failed:', err);
+    console.error("Restore failed:", err);
   }
 }
 
@@ -60,13 +57,13 @@ function resetAllEvaluationData() {
    */
   const url = new URL(window.location.href);
 
-  if (url.searchParams.has('request')) {
-    url.searchParams.delete('request');
+  if (url.searchParams.has("request")) {
+    url.searchParams.delete("request");
 
     window.history.replaceState(
       {},
       document.title,
-      `${url.pathname}${url.search}${url.hash}`
+      `${url.pathname}${url.search}${url.hash}`,
     );
   }
 
@@ -74,40 +71,38 @@ function resetAllEvaluationData() {
    * Clear the currently selected Supabase appointment, but keep the
    * examiner signed in and retain the loaded appointment list.
    */
-  const appointmentSelect = $('emtAppointmentSelect');
+  const appointmentSelect = $("emtAppointmentSelect");
 
   if (appointmentSelect) {
-    appointmentSelect.value = '';
+    appointmentSelect.value = "";
   }
 
-  setEmtConnectionMessage(
-    'Evaluation reset. Examiner sign-in was preserved.'
-  );
+  setEmtConnectionMessage("Evaluation reset. Examiner sign-in was preserved.");
 
   /*
    * Reset all applicant and evaluation controls that may not be
    * completely rewritten by a render pass.
    */
   const applicantFieldIds = [
-    'appName',
-    'appDate',
-    'appSchool',
-    'appCertificate',
-    'appRating',
-    'appAircraftClassUsed',
-    'appExamType',
-    'appRatingHeld',
-    'appAmelInstrument',
-    'appAircraftType',
-    'appNNumber',
-    'appInstructor',
-    'appInstructorEmail',
-    'appEmail',
-    'appFTN',
-    'appDMS',
-    'appGroundDuration',
-    'appFlightDuration',
-    'appRetest'
+    "appName",
+    "appDate",
+    "appSchool",
+    "appCertificate",
+    "appRating",
+    "appAircraftClassUsed",
+    "appExamType",
+    "appRatingHeld",
+    "appAmelInstrument",
+    "appAircraftType",
+    "appNNumber",
+    "appInstructor",
+    "appInstructorEmail",
+    "appEmail",
+    "appFTN",
+    "appDMS",
+    "appGroundDuration",
+    "appFlightDuration",
+    "appRetest",
   ];
 
   for (const fieldId of applicantFieldIds) {
@@ -115,8 +110,7 @@ function resetAllEvaluationData() {
 
     if (!element) continue;
 
-    const defaultValue =
-      modules.defaultApplicant?.[fieldId];
+    const defaultValue = modules.defaultApplicant?.[fieldId];
 
     if (
       element instanceof HTMLInputElement ||
@@ -124,9 +118,8 @@ function resetAllEvaluationData() {
       element instanceof HTMLSelectElement
     ) {
       element.value =
-        defaultValue === undefined ||
-        defaultValue === null
-          ? ''
+        defaultValue === undefined || defaultValue === null
+          ? ""
           : String(defaultValue);
     }
   }
@@ -134,78 +127,63 @@ function resetAllEvaluationData() {
   /*
    * Explicitly restore the known applicant defaults.
    */
-  if ($('appDate')) {
-    $('appDate').value =
-      new Date().toISOString().slice(0, 10);
+  if ($("appDate")) {
+    $("appDate").value = new Date().toISOString().slice(0, 10);
   }
 
-  if ($('appCertificate')) {
-    $('appCertificate').value = 'Private';
+  if ($("appCertificate")) {
+    $("appCertificate").value = "Private";
   }
 
-  if ($('appRating')) {
-    $('appRating').value = 'ASEL';
+  if ($("appRating")) {
+    $("appRating").value = "ASEL";
   }
 
-  if ($('appAircraftClassUsed')) {
-    $('appAircraftClassUsed').value = 'ASEL';
+  if ($("appAircraftClassUsed")) {
+    $("appAircraftClassUsed").value = "ASEL";
   }
 
-  if ($('appExamType')) {
-    $('appExamType').value = 'Initial';
+  if ($("appExamType")) {
+    $("appExamType").value = "Initial";
   }
 
-  if ($('appRetest')) {
-    $('appRetest').value = 'No';
+  if ($("appRetest")) {
+    $("appRetest").value = "No";
   }
 
   document
-    .querySelectorAll(
-      'input[type="checkbox"], input[type="radio"]'
-    )
-    .forEach(input => {
+    .querySelectorAll('input[type="checkbox"], input[type="radio"]')
+    .forEach((input) => {
       input.checked = false;
     });
 
-  document
-    .querySelectorAll('.outcome-btn')
-    .forEach(button => {
-      button.classList.remove(
-        'selected-sat',
-        'selected-unsat',
-        'selected-disc'
-      );
-    });
+  document.querySelectorAll(".outcome-btn").forEach((button) => {
+    button.classList.remove("selected-sat", "selected-unsat", "selected-disc");
+  });
 
   document
-    .querySelectorAll(
-      '[data-selected="true"], .selected, .active-grade'
-    )
-    .forEach(element => {
-      element.removeAttribute('data-selected');
-      element.classList.remove(
-        'selected',
-        'active-grade'
-      );
+    .querySelectorAll('[data-selected="true"], .selected, .active-grade')
+    .forEach((element) => {
+      element.removeAttribute("data-selected");
+      element.classList.remove("selected", "active-grade");
     });
 
-  const outcomeNotes = $('outcomeNotes');
+  const outcomeNotes = $("outcomeNotes");
 
   if (outcomeNotes) {
-    outcomeNotes.value = '';
+    outcomeNotes.value = "";
   }
 
-  const testingComplete =
-    $('testingCompleteCheckbox');
+  const testingComplete = $("testingCompleteCheckbox");
 
   if (testingComplete) {
     testingComplete.checked = false;
   }
 
-  const modal = $('confirmModal');
+  const modal = $("confirmModal");
 
   if (modal) {
-    modal.classList.remove('show');
+    modal.classList.remove("show");
   }
 
   ensureStoreDefaults();
@@ -218,223 +196,271 @@ function resetAllEvaluationData() {
 
   window.scrollTo({
     top: 0,
-    behavior: 'smooth'
+    behavior: "smooth",
   });
 }
 
 const REQUIRED_BRIEFINGS = [
   {
-    id: 'establishEligibility',
-    title: 'Establish Eligibility',
+    id: "establishEligibility",
+    title: "Establish Eligibility",
     items: [
-      { text: 'Welcome and make introductions', indent: 0 },
-      { text: 'Facilities overview', indent: 1 },
-      { text: 'Privacy, exits', indent: 1 },
-      { text: 'Restrooms', indent: 1 },
-      { text: 'Water, snacks', indent: 1 },
+      { text: "Welcome and make introductions", indent: 0 },
+      { text: "Facilities overview", indent: 1 },
+      { text: "Privacy, exits", indent: 1 },
+      { text: "Restrooms", indent: 1 },
+      { text: "Water, snacks", indent: 1 },
 
-      { text: 'Telephones off', indent: 0 },
+      { text: "Telephones off", indent: 0 },
 
-      { text: 'Confirm type of practical test and if a retest', indent: 0 },
+      { text: "Confirm type of practical test and if a retest", indent: 0 },
 
-      { text: 'Qualify the applicant', indent: 0 },
-      { text: 'Application (8710-1)', indent: 1 },
-      { text: 'Photo/signature Identification (note type on 8710-1 and return)', indent: 1 },
-      { text: 'Airman Certificate', indent: 1 },
-      { text: 'Medical (note date and limitations)', indent: 1 },
-      { text: 'Foreign License and Letter of Verification of Authenticity, if applicable', indent: 1 },
-      { text: 'Knowledge test results and review endorsement, if needed', indent: 1 },
-      { text: 'Pilot logbook and/or training records', indent: 1 },
-      { text: 'Verify flight times and endorsements', indent: 1 },
+      { text: "Qualify the applicant", indent: 0 },
+      { text: "Application (8710-1)", indent: 1 },
+      {
+        text: "Photo/signature Identification (note type on 8710-1 and return)",
+        indent: 1,
+      },
+      { text: "Airman Certificate", indent: 1 },
+      { text: "Medical (note date and limitations)", indent: 1 },
+      {
+        text: "Foreign License and Letter of Verification of Authenticity, if applicable",
+        indent: 1,
+      },
+      {
+        text: "Knowledge test results and review endorsement, if needed",
+        indent: 1,
+      },
+      { text: "Pilot logbook and/or training records", indent: 1 },
+      { text: "Verify flight times and endorsements", indent: 1 },
 
-      { text: 'Discuss Pilots Bill of Rights', indent: 0 },
-      { text: 'Applicant signs IACRA 8710', indent: 0 },
+      { text: "Discuss Pilots Bill of Rights", indent: 0 },
+      { text: "Applicant signs IACRA 8710", indent: 0 },
 
-      { text: 'Qualify the aircraft', indent: 0 },
-      { text: 'Review maintenance records per Order 8900.2', indent: 1 },
-      { text: 'Instrument or ATP current NavData', indent: 1 },
-      { text: 'Inoperative equipment', indent: 1 }
-    ]
+      { text: "Qualify the aircraft", indent: 0 },
+      { text: "Review maintenance records per Order 8900.2", indent: 1 },
+      { text: "Instrument or ATP current NavData", indent: 1 },
+      { text: "Inoperative equipment", indent: 1 },
+    ],
   },
 
   {
-    id: 'pretestBriefing',
-    title: 'Pretest Briefing',
+    id: "pretestBriefing",
+    title: "Pretest Briefing",
     items: [
-      { text: 'Current navigational charts and/or current NavData on Electronic Flight Bag', indent: 0 },
+      {
+        text: "Current navigational charts and/or current NavData on Electronic Flight Bag",
+        indent: 0,
+      },
 
-      { text: 'Advise applicant that:', indent: 0 },
-      { text: 'The test will be done in accordance with the FAA ACS(s) and FAA Order 8900.2', indent: 1 },
-      { text: 'Plan of Action will be used', indent: 1 },
-      { text: 'Will be taking notes during test for debriefing', indent: 1 },
-      { text: 'Perfection is not the standard', indent: 1 },
-      { text: 'Oral questioning will continue throughout all portions of the test', indent: 1 },
+      { text: "Advise applicant that:", indent: 0 },
+      {
+        text: "The test will be done in accordance with the FAA ACS(s) and FAA Order 8900.2",
+        indent: 1,
+      },
+      { text: "Plan of Action will be used", indent: 1 },
+      { text: "Will be taking notes during test for debriefing", indent: 1 },
+      { text: "Perfection is not the standard", indent: 1 },
+      {
+        text: "Oral questioning will continue throughout all portions of the test",
+        indent: 1,
+      },
 
-      { text: 'Discuss three possible outcomes', indent: 0 },
-      { text: 'Temporary certificate', indent: 1 },
-      { text: 'Letter of discontinuance', indent: 1 },
-      { text: 'Conditions leading to letter of discontinuance', indent: 2 },
-      { text: 'Notice of disapproval', indent: 1 },
-      { text: 'Conditions leading to disapproval', indent: 2 },
+      { text: "Discuss three possible outcomes", indent: 0 },
+      { text: "Temporary certificate", indent: 1 },
+      { text: "Letter of discontinuance", indent: 1 },
+      { text: "Conditions leading to letter of discontinuance", indent: 2 },
+      { text: "Notice of disapproval", indent: 1 },
+      { text: "Conditions leading to disapproval", indent: 2 },
 
-      { text: 'Any questions before we begin the test?', indent: 0 },
-      { text: 'Collect Examiner Fee', indent: 0 },
-      { text: 'Announce: “The test has begun”', indent: 1 }
-    ]
+      { text: "Any questions before we begin the test?", indent: 0 },
+      { text: "Collect Examiner Fee", indent: 0 },
+      { text: "Announce: “The test has begun”", indent: 1 },
+    ],
   },
 
   {
-    id: 'preflightBriefing',
-    title: 'Preflight Briefing',
+    id: "preflightBriefing",
+    title: "Preflight Briefing",
     items: [
-      { text: 'Brief flight profile / overall scenario', indent: 0 },
+      { text: "Brief flight profile / overall scenario", indent: 0 },
 
-      { text: 'Applicant remains PIC under 14 CFR §61.47 during entire flight', indent: 0 },
-      { text: 'Exercise PIC authority at all times', indent: 1 },
-      { text: 'Focus on normal operations', indent: 1 },
+      {
+        text: "Applicant remains PIC under 14 CFR §61.47 during entire flight",
+        indent: 0,
+      },
+      { text: "Exercise PIC authority at all times", indent: 1 },
+      { text: "Focus on normal operations", indent: 1 },
 
-      { text: 'Discuss actual instrument conditions, if applicable', indent: 0 },
+      {
+        text: "Discuss actual instrument conditions, if applicable",
+        indent: 0,
+      },
 
-      { text: 'Simulated emergencies', indent: 0 },
-      { text: 'DPE action / announcement', indent: 1 },
-      { text: 'Engine failure — takeoff and landing', indent: 1 },
-      { text: 'Other simulated emergencies', indent: 1 },
-      { text: 'Feathering, if applicable', indent: 2 },
+      { text: "Simulated emergencies", indent: 0 },
+      { text: "DPE action / announcement", indent: 1 },
+      { text: "Engine failure — takeoff and landing", indent: 1 },
+      { text: "Other simulated emergencies", indent: 1 },
+      { text: "Feathering, if applicable", indent: 2 },
 
-      { text: 'Actual emergencies', indent: 0 },
-      { text: 'Actual engine failure', indent: 1 },
-      { text: 'Other actual emergencies', indent: 1 },
+      { text: "Actual emergencies", indent: 0 },
+      { text: "Actual engine failure", indent: 1 },
+      { text: "Other actual emergencies", indent: 1 },
 
-      { text: 'Transfer of controls — brief how it will be done', indent: 0 },
+      { text: "Transfer of controls — brief how it will be done", indent: 0 },
 
-      { text: 'Collision avoidance — air and ground', indent: 0 },
-      { text: 'Looking for reported and unreported traffic', indent: 1 },
-      { text: 'Clearing prior to maneuvering', indent: 1 },
-      { text: 'Primary responsibility', indent: 1 },
+      { text: "Collision avoidance — air and ground", indent: 0 },
+      { text: "Looking for reported and unreported traffic", indent: 1 },
+      { text: "Clearing prior to maneuvering", indent: 1 },
+      { text: "Primary responsibility", indent: 1 },
 
-      { text: 'Preflight duties', indent: 0 },
-      { text: 'Weight and balance', indent: 1 },
-      { text: 'Performance', indent: 1 },
-      { text: 'First flight of day', indent: 1 },
-      { text: 'VFR / IFR requirements', indent: 1 },
-      { text: 'Aircraft systems', indent: 1 },
-      { text: 'MEL / KOEL / inoperative equipment', indent: 1 },
+      { text: "Preflight duties", indent: 0 },
+      { text: "Weight and balance", indent: 1 },
+      { text: "Performance", indent: 1 },
+      { text: "First flight of day", indent: 1 },
+      { text: "VFR / IFR requirements", indent: 1 },
+      { text: "Aircraft systems", indent: 1 },
+      { text: "MEL / KOEL / inoperative equipment", indent: 1 },
 
-      { text: 'Oral questions will continue throughout the test', indent: 0 },
-      { text: 'Testing with POA will continue IAW ACS(s)', indent: 1 },
+      { text: "Oral questions will continue throughout the test", indent: 0 },
+      { text: "Testing with POA will continue IAW ACS(s)", indent: 1 },
 
-      { text: 'Will continue to take notes', indent: 0 },
-      { text: 'Continue / discontinue if task is unsatisfactory', indent: 1 },
-      { text: 'Any questions?', indent: 1 },
-      { text: 'Are you ready for the flight evaluation?', indent: 1 },
+      { text: "Will continue to take notes", indent: 0 },
+      { text: "Continue / discontinue if task is unsatisfactory", indent: 1 },
+      { text: "Any questions?", indent: 1 },
+      { text: "Are you ready for the flight evaluation?", indent: 1 },
 
-      { text: 'Return aircraft documents to the aircraft', indent: 0 },
-      { text: 'Observe entire preflight preparation and preflight inspection', indent: 0 }
-    ]
+      { text: "Return aircraft documents to the aircraft", indent: 0 },
+      {
+        text: "Observe entire preflight preparation and preflight inspection",
+        indent: 0,
+      },
+    ],
   },
 
   {
-    id: 'postFlightBriefing',
-    title: 'Post Flight Briefing',
+    id: "postFlightBriefing",
+    title: "Post Flight Briefing",
     items: [
-      { text: 'Ensure applicant is debriefed in private', indent: 0 },
-      { text: 'Encourage recommending instructor to be present', indent: 1 },
-      { text: 'Reaffirm the outcome of the test', indent: 1 },
-      { text: 'Use notes taken to debrief performance', indent: 1 },
-      { text: 'Highlight areas that were above standard', indent: 2 }
+      { text: "Ensure applicant is debriefed in private", indent: 0 },
+      { text: "Encourage recommending instructor to be present", indent: 1 },
+      { text: "Reaffirm the outcome of the test", indent: 1 },
+      { text: "Use notes taken to debrief performance", indent: 1 },
+      { text: "Highlight areas that were above standard", indent: 2 },
     ],
     groups: [
       {
-        id: 'satisfactory',
-        title: 'Satisfactory Outcome',
-        outcome: 'SATISFACTORY',
+        id: "satisfactory",
+        title: "Satisfactory Outcome",
+        outcome: "SATISFACTORY",
         items: [
-          { text: 'Complete paperwork', indent: 0 },
-          { text: 'Have airman sign temporary certificate', indent: 0 },
-          { text: 'Advise temporary certificate is valid for 120 days', indent: 0 },
-          { text: 'Explain what to do if certificate is not received', indent: 0 },
-          { text: 'Offer to sign airman’s logbook', indent: 0 }
-        ]
+          { text: "Complete paperwork", indent: 0 },
+          { text: "Have airman sign temporary certificate", indent: 0 },
+          {
+            text: "Advise temporary certificate is valid for 120 days",
+            indent: 0,
+          },
+          {
+            text: "Explain what to do if certificate is not received",
+            indent: 0,
+          },
+          { text: "Offer to sign airman’s logbook", indent: 0 },
+        ],
       },
       {
-        id: 'unsatisfactory',
-        title: 'Unsatisfactory Outcome',
-        outcome: 'UNSATISFACTORY',
+        id: "unsatisfactory",
+        title: "Unsatisfactory Outcome",
+        outcome: "UNSATISFACTORY",
         items: [
-          { text: 'Allow applicant time alone while paperwork is completed', indent: 0 },
-          { text: 'Use ACS to explain reasons for disapproval', indent: 0 },
-          { text: 'Advise timeframe to retest and keep Notice of Disapproval', indent: 0 },
-          { text: 'Return knowledge test, if applicable', indent: 0 },
-          { text: 'Offer to sign airman’s logbook, not required', indent: 0 }
-        ]
+          {
+            text: "Allow applicant time alone while paperwork is completed",
+            indent: 0,
+          },
+          { text: "Use ACS to explain reasons for disapproval", indent: 0 },
+          {
+            text: "Advise timeframe to retest and keep Notice of Disapproval",
+            indent: 0,
+          },
+          { text: "Return knowledge test, if applicable", indent: 0 },
+          { text: "Offer to sign airman’s logbook, not required", indent: 0 },
+        ],
       },
       {
-        id: 'discontinuance',
-        title: 'Letter of Discontinuance',
-        outcome: 'DISCONTINUANCE',
+        id: "discontinuance",
+        title: "Letter of Discontinuance",
+        outcome: "DISCONTINUANCE",
         items: [
-          { text: 'Review items that need to be completed', indent: 0 },
-          { text: 'Return knowledge test, if applicable', indent: 0 },
-          { text: 'Advise timeframe to retest and keep Letter of Discontinuance', indent: 0 },
-          { text: 'Offer to sign airman’s logbook', indent: 0 }
-        ]
-      }
-    ]
-  }
+          { text: "Review items that need to be completed", indent: 0 },
+          { text: "Return knowledge test, if applicable", indent: 0 },
+          {
+            text: "Advise timeframe to retest and keep Letter of Discontinuance",
+            indent: 0,
+          },
+          { text: "Offer to sign airman’s logbook", indent: 0 },
+        ],
+      },
+    ],
+  },
 ];
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener("DOMContentLoaded", async () => {
   wireEmergencyStartup();
 
   try {
     await loadModules();
     initApp();
   } catch (error) {
-    console.error('EMS failed to fully load:', error);
-    alert('The app shell loaded, but one or more JavaScript modules failed. Open Console for details.');
+    console.error("EMS failed to fully load:", error);
+    alert(
+      "The app shell loaded, but one or more JavaScript modules failed. Open Console for details.",
+    );
   }
 });
 
 function wireEmergencyStartup() {
-  $('ctaBegin')?.addEventListener('click', () => {
-    $('landingPage')?.classList.add('fade-out');
-    document.body.classList.remove('show-landing');
+  $("ctaBegin")?.addEventListener("click", () => {
+    $("landingPage")?.classList.add("fade-out");
+    document.body.classList.remove("show-landing");
 
     setTimeout(() => {
-      $('landingPage')?.classList.add('hidden');
+      $("landingPage")?.classList.add("hidden");
     }, 300);
   });
 
   // NEW BUTTON
-  $('viewStatsBtn')?.addEventListener('click', () => {
-    window.location.href = './statistics.html';
+  $("viewStatsBtn")?.addEventListener("click", () => {
+    window.location.href = "./statistics.html";
   });
 
-  $('btnMainMenu')?.addEventListener('click', () => {
-    $('landingPage')?.classList.remove('hidden', 'fade-out');
-    document.body.classList.add('show-landing');
+  $("btnMainMenu")?.addEventListener("click", () => {
+    $("landingPage")?.classList.remove("hidden", "fade-out");
+    document.body.classList.add("show-landing");
   });
 
-  $('hamburgerBtn')?.addEventListener('click', () => {
-    $('sidebar')?.classList.toggle('open');
-    $('sidebarOverlay')?.classList.toggle('show');
+  $("hamburgerBtn")?.addEventListener("click", () => {
+    $("sidebar")?.classList.toggle("open");
+    $("sidebarOverlay")?.classList.toggle("show");
   });
 
-  $('sidebarOverlay')?.addEventListener('click', () => {
-    $('sidebar')?.classList.remove('open');
-    $('sidebarOverlay')?.classList.remove('show');
+  $("sidebarOverlay")?.addEventListener("click", () => {
+    $("sidebar")?.classList.remove("open");
+    $("sidebarOverlay")?.classList.remove("show");
   });
 
-  document.querySelectorAll('.view-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
+  document.querySelectorAll(".view-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document
+        .querySelectorAll(".view-tab")
+        .forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
 
-      document.querySelectorAll('.view-content').forEach(view => view.classList.remove('active'));
+      document
+        .querySelectorAll(".view-content")
+        .forEach((view) => view.classList.remove("active"));
 
       const viewName = tab.dataset.view;
       const viewId = `view${viewName[0].toUpperCase()}${viewName.slice(1)}`;
-      $(viewId)?.classList.add('active');
+      $(viewId)?.classList.add("active");
     });
   });
 }
@@ -454,22 +480,24 @@ async function loadModules() {
     outcomeModule,
     checklistModule,
     exportModule,
-    supabaseModule
+    supabaseModule,
+    ppcModule,
   ] = await Promise.all([
-    import('./data/index.js'),
-    import('./state/store.js'),
-    import('./config/config.js'),
-    import('./logic/filtering.js'),
-    import('./logic/grading.js'),
-    import('./views/headerView.js'),
-    import('./views/sidebarView.js'),
-    import('./views/detailedView.js'),
-    import('./views/summaryView.js'),
-    import('./views/debriefView.js'),
-    import('./views/outcomeView.js'),
-    import('./views/checklistView.js'),
-    import('./services/exportService.js'),
-    import('./services/supabaseService.js')
+    import("./data/index.js"),
+    import("./state/store.js"),
+    import("./config/config.js"),
+    import("./logic/filtering.js"),
+    import("./logic/grading.js"),
+    import("./views/headerView.js"),
+    import("./views/sidebarView.js"),
+    import("./views/detailedView.js"),
+    import("./views/summaryView.js"),
+    import("./views/debriefView.js"),
+    import("./views/outcomeView.js"),
+    import("./views/checklistView.js"),
+    import("./services/exportService.js"),
+    import("./services/supabaseService.js"),
+    import("./views/ppcView.js"),
   ]);
 
   modules = {
@@ -486,18 +514,21 @@ async function loadModules() {
     ...outcomeModule,
     ...checklistModule,
     ...exportModule,
-    ...supabaseModule
+    ...supabaseModule,
+    ...ppcModule,
   };
 
   store = modules.store;
-  
 
   try {
-    const scenarioModule = await import('./views/scenarioView.js');
+    const scenarioModule = await import("./views/scenarioView.js");
     modules.renderScenarioEngine = scenarioModule.renderScenarioEngine;
     modules.setScenarioDetailedRenderer?.(modules.renderDetailed);
   } catch (error) {
-    console.warn('Scenario engine did not load. App will continue without it.', error);
+    console.warn(
+      "Scenario engine did not load. App will continue without it.",
+      error,
+    );
   }
 }
 
@@ -515,7 +546,7 @@ function initApp() {
   startDynamicGradeRadioObserver();
 
   modules.bindApplicantForm?.(store, {
-    onApplicantChange: handleApplicantChange
+    onApplicantChange: handleApplicantChange,
   });
 
   modules.subscribe?.(() => {
@@ -528,22 +559,20 @@ function initApp() {
   void initializeEmtConnection();
 }
 
-const GRADE_RADIO_VALUES = ['1', '2', '3', '4', 'NP'];
+const GRADE_RADIO_VALUES = ["1", "2", "3", "4", "NP"];
 
 const GRADE_REASON_CODES = [
-  'Application of Knowledge',
-  'Application of Procedures',
-  'Technical Knowledge',
-  'Aircraft Flight Path Management',
-  'Problem Solving / Decision Making',
-  'Situational Awareness',
-  'Workload Management'
+  "Application of Knowledge",
+  "Application of Procedures",
+  "Technical Knowledge",
+  "Aircraft Flight Path Management",
+  "Problem Solving / Decision Making",
+  "Situational Awareness",
+  "Workload Management",
 ];
 
 function gradeRequiresReason(value) {
-  return ['1', '2'].includes(
-    String(value || '')
-  );
+  return ["1", "2"].includes(String(value || ""));
 }
 
 function ensureGradeReasonStores() {
@@ -556,307 +585,196 @@ function normalizeReasonArray(value) {
     return [];
   }
 
-  return [...new Set(
-    value
-      .map(item => String(item || '').trim())
-      .filter(item =>
-        GRADE_REASON_CODES.includes(item)
-      )
-  )];
+  return [
+    ...new Set(
+      value
+        .map((item) => String(item || "").trim())
+        .filter((item) => GRADE_REASON_CODES.includes(item)),
+    ),
+  ];
 }
 
 function cleanStaleGradeReasons() {
   ensureGradeReasonStores();
 
-  Object.keys(store.gradeReasons)
-    .forEach(gradeKey => {
-      if (
-        !gradeRequiresReason(
-          store.grades?.[gradeKey]
-        )
-      ) {
-        delete store.gradeReasons[gradeKey];
-      } else {
-        const reasons =
-          normalizeReasonArray(
-            store.gradeReasons[gradeKey]
-          );
+  Object.keys(store.gradeReasons).forEach((gradeKey) => {
+    if (!gradeRequiresReason(store.grades?.[gradeKey])) {
+      delete store.gradeReasons[gradeKey];
+    } else {
+      const reasons = normalizeReasonArray(store.gradeReasons[gradeKey]);
 
-        store.gradeReasons[gradeKey] =
-          reasons.length
-            ? [reasons[0]]
-            : [];
-      }
-    });
+      store.gradeReasons[gradeKey] = reasons.length ? [reasons[0]] : [];
+    }
+  });
 
-  Object.keys(store.oralGradeReasons)
-    .forEach(rawTaskCode => {
-      if (
-        !gradeRequiresReason(
-          store.oralQuestionGrades?.[
-            rawTaskCode
-          ]
-        )
-      ) {
-        delete store.oralGradeReasons[
-          rawTaskCode
-        ];
-      } else {
-        const reasons =
-          normalizeReasonArray(
-            store.oralGradeReasons[
-              rawTaskCode
-            ]
-          );
+  Object.keys(store.oralGradeReasons).forEach((rawTaskCode) => {
+    if (!gradeRequiresReason(store.oralQuestionGrades?.[rawTaskCode])) {
+      delete store.oralGradeReasons[rawTaskCode];
+    } else {
+      const reasons = normalizeReasonArray(store.oralGradeReasons[rawTaskCode]);
 
-        store.oralGradeReasons[
-          rawTaskCode
-        ] =
-          reasons.length
-            ? [reasons[0]]
-            : [];
-      }
-    });
+      store.oralGradeReasons[rawTaskCode] = reasons.length ? [reasons[0]] : [];
+    }
+  });
 }
 
 function getTaskReasonKeyFromSelect(select) {
-  const taskCode =
-    select?.dataset?.taskCode || '';
+  const taskCode = select?.dataset?.taskCode || "";
 
-  const gradeType =
-    select?.dataset?.grade || '';
+  const gradeType = select?.dataset?.grade || "";
 
   if (!taskCode || !gradeType) {
-    return '';
+    return "";
   }
 
   return `${taskCode}.${gradeType}`;
 }
 
 function getTaskReasonKeyFromRadio(radio) {
-  const taskCode =
-    radio?.dataset?.taskCode || '';
+  const taskCode = radio?.dataset?.taskCode || "";
 
-  const gradeType =
-    radio?.dataset?.grade || '';
+  const gradeType = radio?.dataset?.grade || "";
 
   if (!taskCode || !gradeType) {
-    return '';
+    return "";
   }
 
   return `${taskCode}.${gradeType}`;
 }
 
-function getOralDerivedReasonsForTaskGrade(
-  taskGradeKey
-) {
+function getOralDerivedReasonsForTaskGrade(taskGradeKey) {
   ensureGradeReasonStores();
 
-  const match =
-    String(taskGradeKey || '')
-      .match(/^(.*)\.(K|R|S)$/);
+  const match = String(taskGradeKey || "").match(/^(.*)\.(K|R|S)$/);
 
   if (!match) {
     return [];
   }
 
-  const [
-    ,
-    targetFilterCode,
-    targetGradeType
-  ] = match;
+  const [, targetFilterCode, targetGradeType] = match;
 
   const reasons = new Set();
 
-  Object.entries(
-    store.oralQuestionGrades || {}
-  ).forEach(([rawTaskCode, grade]) => {
-    if (!gradeRequiresReason(grade)) {
-      return;
-    }
+  Object.entries(store.oralQuestionGrades || {}).forEach(
+    ([rawTaskCode, grade]) => {
+      if (!gradeRequiresReason(grade)) {
+        return;
+      }
 
-    const resolved =
-      resolveScenarioGradeTarget(
-        rawTaskCode
+      const resolved = resolveScenarioGradeTarget(rawTaskCode);
+
+      if (
+        resolved.filterCode !== targetFilterCode ||
+        resolved.gradeType !== targetGradeType
+      ) {
+        return;
+      }
+
+      normalizeReasonArray(store.oralGradeReasons?.[rawTaskCode]).forEach(
+        (reason) => reasons.add(reason),
       );
-
-    if (
-      resolved.filterCode !==
-        targetFilterCode ||
-      resolved.gradeType !==
-        targetGradeType
-    ) {
-      return;
-    }
-
-    normalizeReasonArray(
-      store.oralGradeReasons?.[
-        rawTaskCode
-      ]
-    ).forEach(reason =>
-      reasons.add(reason)
-    );
-  });
+    },
+  );
 
   return Array.from(reasons);
 }
 
-function hasOralContributorsForTaskGrade(
-  taskGradeKey
-) {
-  const match =
-    String(taskGradeKey || '')
-      .match(/^(.*)\.(K|R|S)$/);
+function hasOralContributorsForTaskGrade(taskGradeKey) {
+  const match = String(taskGradeKey || "").match(/^(.*)\.(K|R|S)$/);
 
   if (!match) {
     return false;
   }
 
-  const [
-    ,
-    targetFilterCode,
-    targetGradeType
-  ] = match;
+  const [, targetFilterCode, targetGradeType] = match;
 
-  return Object.keys(
-    store.oralQuestionGrades || {}
-  ).some(rawTaskCode => {
-    const resolved =
-      resolveScenarioGradeTarget(
-        rawTaskCode
-      );
+  return Object.keys(store.oralQuestionGrades || {}).some((rawTaskCode) => {
+    const resolved = resolveScenarioGradeTarget(rawTaskCode);
 
     return (
-      resolved.filterCode ===
-        targetFilterCode &&
-      resolved.gradeType ===
-        targetGradeType
+      resolved.filterCode === targetFilterCode &&
+      resolved.gradeType === targetGradeType
     );
   });
 }
 
-function createGradeReasonDropdown({
-  scope,
-  key,
-  grade
-}) {
+function createGradeReasonDropdown({ scope, key, grade }) {
   if (!gradeRequiresReason(grade)) {
     return null;
   }
 
   ensureGradeReasonStores();
 
-  const map =
-    scope === 'oral'
-      ? store.oralGradeReasons
-      : store.gradeReasons;
+  const map = scope === "oral" ? store.oralGradeReasons : store.gradeReasons;
 
-  const existing =
-    normalizeReasonArray(
-      map[key]
-    );
+  const existing = normalizeReasonArray(map[key]);
 
   const inheritedReasons =
-    scope === 'task'
-      ? getOralDerivedReasonsForTaskGrade(
-          key
-        )
-      : [];
+    scope === "task" ? getOralDerivedReasonsForTaskGrade(key) : [];
 
   /*
    * Preserve compatibility with any autosave created by the previous
    * multi-select implementation, but use only one selected reason
    * going forward.
    */
-  const selectedReason =
-    existing[0] ||
-    inheritedReasons[0] ||
-    '';
+  const selectedReason = existing[0] || inheritedReasons[0] || "";
 
-  const select =
-    document.createElement('select');
+  const select = document.createElement("select");
 
-  select.className =
-    'grade-reason-select';
+  select.className = "grade-reason-select";
 
   select.dataset.reasonScope = scope;
   select.dataset.reasonKey = key;
 
-  const placeholder =
-    document.createElement('option');
+  const placeholder = document.createElement("option");
 
-  placeholder.value = '';
-  placeholder.textContent =
-    'Select Reason Code';
+  placeholder.value = "";
+  placeholder.textContent = "Select Reason Code";
 
-  select.appendChild(
-    placeholder
-  );
+  select.appendChild(placeholder);
 
-  GRADE_REASON_CODES.forEach(reason => {
-    const option =
-      document.createElement('option');
+  GRADE_REASON_CODES.forEach((reason) => {
+    const option = document.createElement("option");
 
     option.value = reason;
     option.textContent = reason;
 
-    if (
-      reason === selectedReason
-    ) {
+    if (reason === selectedReason) {
       option.selected = true;
     }
 
     select.appendChild(option);
   });
 
-  select.addEventListener(
-    'change',
-    () => {
-      ensureGradeReasonStores();
+  select.addEventListener("change", () => {
+    ensureGradeReasonStores();
 
-      const selected =
-        String(
-          select.value || ''
-        ).trim();
+    const selected = String(select.value || "").trim();
 
-      if (selected) {
-        map[key] = [selected];
-      } else {
-        delete map[key];
-      }
-
-      saveToLocalStorage();
-
-      window.requestAnimationFrame(
-        syncAllGradeReasonControls
-      );
+    if (selected) {
+      map[key] = [selected];
+    } else {
+      delete map[key];
     }
-  );
+
+    saveToLocalStorage();
+
+    window.requestAnimationFrame(syncAllGradeReasonControls);
+  });
 
   return select;
 }
 
-function syncTaskSelectReasonControl(
-  select
-) {
-  const gradeKey =
-    getTaskReasonKeyFromSelect(
-      select
-    );
+function syncTaskSelectReasonControl(select) {
+  const gradeKey = getTaskReasonKeyFromSelect(select);
 
   if (!gradeKey) {
     return;
   }
 
-  const grade =
-    String(
-      select.value ||
-      store.grades?.[gradeKey] ||
-      'NP'
-    );
+  const grade = String(select.value || store.grades?.[gradeKey] || "NP");
 
-  const gradeBar =
-    select.closest('.grade-bar');
+  const gradeBar = select.closest(".grade-bar");
 
   if (!gradeBar) {
     return;
@@ -867,36 +785,24 @@ function syncTaskSelectReasonControl(
    * This preserves the entire grade line without allowing a reason
    * dropdown to push R or S onto another line.
    */
-  let reasonRow =
-    gradeBar.querySelector(
-      ':scope > .grade-reason-row'
-    );
+  let reasonRow = gradeBar.querySelector(":scope > .grade-reason-row");
 
   if (!reasonRow) {
-    reasonRow =
-      document.createElement('div');
+    reasonRow = document.createElement("div");
 
-    reasonRow.className =
-      'grade-reason-row';
+    reasonRow.className = "grade-reason-row";
 
-    gradeBar.appendChild(
-      reasonRow
-    );
+    gradeBar.appendChild(reasonRow);
   }
 
-  let host =
-    reasonRow.querySelector(
-      `[data-task-reason-key="${CSS.escape(
-        gradeKey
-      )}"]`
-    );
+  let host = reasonRow.querySelector(
+    `[data-task-reason-key="${CSS.escape(gradeKey)}"]`,
+  );
 
   if (!gradeRequiresReason(grade)) {
     host?.remove();
 
-    if (
-      !reasonRow.children.length
-    ) {
+    if (!reasonRow.children.length) {
       reasonRow.remove();
     }
 
@@ -904,123 +810,84 @@ function syncTaskSelectReasonControl(
   }
 
   if (!host) {
-    host =
-      document.createElement('div');
+    host = document.createElement("div");
 
-    host.className =
-      'grade-reason-host grade-reason-host-task';
+    host.className = "grade-reason-host grade-reason-host-task";
 
-    host.dataset.taskReasonKey =
-      gradeKey;
+    host.dataset.taskReasonKey = gradeKey;
 
-    reasonRow.appendChild(
-      host
-    );
+    reasonRow.appendChild(host);
   }
 
-  host.innerHTML = '';
+  host.innerHTML = "";
 
-  const gradeType =
-    select.dataset.grade || '';
+  const gradeType = select.dataset.grade || "";
 
-  const label =
-    document.createElement('div');
+  const label = document.createElement("div");
 
-  label.className =
-    'grade-reason-grade-label';
+  label.className = "grade-reason-grade-label";
 
-  label.textContent =
-    gradeType
-      ? `${gradeType} Reason Code`
-      : 'Reason Code';
+  label.textContent = gradeType ? `${gradeType} Reason Code` : "Reason Code";
 
   host.appendChild(label);
 
-  const dropdown =
-    createGradeReasonDropdown({
-      scope: 'task',
-      key: gradeKey,
-      grade
-    });
+  const dropdown = createGradeReasonDropdown({
+    scope: "task",
+    key: gradeKey,
+    grade,
+  });
 
   if (dropdown) {
     host.appendChild(dropdown);
   }
 }
 
-function syncDirectTaskRadioReasonControl(
-  radio
-) {
-  const gradeKey =
-    getTaskReasonKeyFromRadio(
-      radio
-    );
+function syncDirectTaskRadioReasonControl(radio) {
+  const gradeKey = getTaskReasonKeyFromRadio(radio);
 
   if (!gradeKey) {
     return;
   }
 
-  const grade =
-    String(
-      store.grades?.[gradeKey] ||
-      'NP'
-    );
+  const grade = String(store.grades?.[gradeKey] || "NP");
 
-  const group =
-    radio.closest(
-      '.grade-radio-group'
-    );
+  const group = radio.closest(".grade-radio-group");
 
   if (!group) {
     return;
   }
 
-  const gradeBar =
-    group.closest('.grade-bar');
+  const gradeBar = group.closest(".grade-bar");
 
   /*
    * Prefer the same dedicated row used by Detailed View.
    * Fall back to the group's parent for any special Flight layout
    * that does not use .grade-bar.
    */
-  const layoutParent =
-    gradeBar ||
-    group.parentElement;
+  const layoutParent = gradeBar || group.parentElement;
 
   if (!layoutParent) {
     return;
   }
 
-  let reasonRow =
-    layoutParent.querySelector(
-      ':scope > .grade-reason-row'
-    );
+  let reasonRow = layoutParent.querySelector(":scope > .grade-reason-row");
 
   if (!reasonRow) {
-    reasonRow =
-      document.createElement('div');
+    reasonRow = document.createElement("div");
 
-    reasonRow.className =
-      'grade-reason-row';
+    reasonRow.className = "grade-reason-row";
 
-    layoutParent.appendChild(
-      reasonRow
-    );
+    layoutParent.appendChild(reasonRow);
   }
 
-  let host =
-    reasonRow.querySelector(
-      `[data-task-reason-key="${CSS.escape(
-        gradeKey
-      )}"]`
-    );
+  let host = reasonRow.querySelector(
+    `[data-task-reason-key="${CSS.escape(gradeKey)}"]`,
+  );
 
   if (!gradeRequiresReason(grade)) {
     host?.remove();
 
-    if (
-      !reasonRow.children.length
-    ) {
+    if (!reasonRow.children.length) {
       reasonRow.remove();
     }
 
@@ -1028,44 +895,32 @@ function syncDirectTaskRadioReasonControl(
   }
 
   if (!host) {
-    host =
-      document.createElement('div');
+    host = document.createElement("div");
 
-    host.className =
-      'grade-reason-host grade-reason-host-task';
+    host.className = "grade-reason-host grade-reason-host-task";
 
-    host.dataset.taskReasonKey =
-      gradeKey;
+    host.dataset.taskReasonKey = gradeKey;
 
-    reasonRow.appendChild(
-      host
-    );
+    reasonRow.appendChild(host);
   }
 
-  host.innerHTML = '';
+  host.innerHTML = "";
 
-  const gradeType =
-    radio.dataset.grade || '';
+  const gradeType = radio.dataset.grade || "";
 
-  const label =
-    document.createElement('div');
+  const label = document.createElement("div");
 
-  label.className =
-    'grade-reason-grade-label';
+  label.className = "grade-reason-grade-label";
 
-  label.textContent =
-    gradeType
-      ? `${gradeType} Reason Code`
-      : 'Reason Code';
+  label.textContent = gradeType ? `${gradeType} Reason Code` : "Reason Code";
 
   host.appendChild(label);
 
-  const dropdown =
-    createGradeReasonDropdown({
-      scope: 'task',
-      key: gradeKey,
-      grade
-    });
+  const dropdown = createGradeReasonDropdown({
+    scope: "task",
+    key: gradeKey,
+    grade,
+  });
 
   if (dropdown) {
     host.appendChild(dropdown);
@@ -1073,44 +928,25 @@ function syncDirectTaskRadioReasonControl(
 }
 
 function syncOralReasonControl(group) {
-  const radio =
-    group.querySelector(
-      'input[type="radio"][data-task-code]'
-    );
+  const radio = group.querySelector('input[type="radio"][data-task-code]');
 
-  const rawTaskCode =
-    radio?.dataset?.taskCode || '';
+  const rawTaskCode = radio?.dataset?.taskCode || "";
 
   if (!rawTaskCode) {
     return;
   }
 
-  const grade =
-    String(
-      store.oralQuestionGrades?.[
-        rawTaskCode
-      ] ||
-      'NP'
-    );
+  const grade = String(store.oralQuestionGrades?.[rawTaskCode] || "NP");
 
-  const question =
-    group.closest(
-      '.scenario-question'
-    );
+  const question = group.closest(".scenario-question");
 
-  const summary =
-    question?.querySelector(
-      ':scope > summary'
-    );
+  const summary = question?.querySelector(":scope > summary");
 
   if (!question || !summary) {
     return;
   }
 
-  let host =
-    question.querySelector(
-      ':scope > .grade-reason-host'
-    );
+  let host = question.querySelector(":scope > .grade-reason-host");
 
   if (!gradeRequiresReason(grade)) {
     host?.remove();
@@ -1118,26 +954,20 @@ function syncOralReasonControl(group) {
   }
 
   if (!host) {
-    host =
-      document.createElement('div');
+    host = document.createElement("div");
 
-    host.className =
-      'grade-reason-host grade-reason-host-oral';
+    host.className = "grade-reason-host grade-reason-host-oral";
 
-    summary.insertAdjacentElement(
-      'afterend',
-      host
-    );
+    summary.insertAdjacentElement("afterend", host);
   }
 
-  host.innerHTML = '';
+  host.innerHTML = "";
 
-  const dropdown =
-    createGradeReasonDropdown({
-      scope: 'oral',
-      key: rawTaskCode,
-      grade
-    });
+  const dropdown = createGradeReasonDropdown({
+    scope: "oral",
+    key: rawTaskCode,
+    grade,
+  });
 
   if (dropdown) {
     host.appendChild(dropdown);
@@ -1148,24 +978,16 @@ function syncAllGradeReasonControls() {
   cleanStaleGradeReasons();
 
   document
-    .querySelectorAll(
-      'select[data-grade]'
-    )
-    .forEach(
-      syncTaskSelectReasonControl
-    );
+    .querySelectorAll("select[data-grade]")
+    .forEach(syncTaskSelectReasonControl);
 
   /*
    * Individual Oral Portion question radios do not use the hidden
    * select system.
    */
   document
-    .querySelectorAll(
-      '.scenario-question-grade-radios'
-    )
-    .forEach(
-      syncOralReasonControl
-    );
+    .querySelectorAll(".scenario-question-grade-radios")
+    .forEach(syncOralReasonControl);
 
   /*
    * Support any Flight Portion grade radios rendered directly rather
@@ -1173,20 +995,14 @@ function syncAllGradeReasonControls() {
    */
   document
     .querySelectorAll(
-      '#viewScenario input[type="radio"][data-grade][data-task-code]'
+      '#viewScenario input[type="radio"][data-grade][data-task-code]',
     )
-    .forEach(radio => {
-      if (
-        radio.closest(
-          '.scenario-question-grade-radios'
-        )
-      ) {
+    .forEach((radio) => {
+      if (radio.closest(".scenario-question-grade-radios")) {
         return;
       }
 
-      syncDirectTaskRadioReasonControl(
-        radio
-      );
+      syncDirectTaskRadioReasonControl(radio);
     });
 }
 
@@ -1198,26 +1014,21 @@ function collectMissingGradeReasons() {
   /*
    * Validate every independently graded Oral Portion question.
    */
-  Object.entries(
-    store.oralQuestionGrades || {}
-  ).forEach(([rawTaskCode, grade]) => {
-    if (!gradeRequiresReason(grade)) {
-      return;
-    }
+  Object.entries(store.oralQuestionGrades || {}).forEach(
+    ([rawTaskCode, grade]) => {
+      if (!gradeRequiresReason(grade)) {
+        return;
+      }
 
-    const reasons =
-      normalizeReasonArray(
-        store.oralGradeReasons?.[
-          rawTaskCode
-        ]
+      const reasons = normalizeReasonArray(
+        store.oralGradeReasons?.[rawTaskCode],
       );
 
-    if (!reasons.length) {
-      missing.push(
-        `Oral question ${rawTaskCode} — Grade ${grade}`
-      );
-    }
-  });
+      if (!reasons.length) {
+        missing.push(`Oral question ${rawTaskCode} — Grade ${grade}`);
+      }
+    },
+  );
 
   /*
    * Validate task K/R/S grades.
@@ -1226,147 +1037,103 @@ function collectMissingGradeReasons() {
    * by the reason codes attached to those individual Oral grades, so
    * it is not double-counted here.
    */
-  Object.entries(
-    store.grades || {}
-  ).forEach(([gradeKey, grade]) => {
+  Object.entries(store.grades || {}).forEach(([gradeKey, grade]) => {
     if (!gradeRequiresReason(grade)) {
       return;
     }
 
-    if (
-      hasOralContributorsForTaskGrade(
-        gradeKey
-      )
-    ) {
+    if (hasOralContributorsForTaskGrade(gradeKey)) {
       return;
     }
 
-    const reasons =
-      normalizeReasonArray(
-        store.gradeReasons?.[
-          gradeKey
-        ]
-      );
+    const reasons = normalizeReasonArray(store.gradeReasons?.[gradeKey]);
 
     if (!reasons.length) {
-      missing.push(
-        `${gradeKey} — Grade ${grade}`
-      );
+      missing.push(`${gradeKey} — Grade ${grade}`);
     }
   });
 
   return missing;
 }
 
-
 function escapeGradeRadioValue(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function gradeRadioGroupName(select, index) {
   const taskCode =
     select.dataset.taskCode ||
-    select.closest('[data-task-card]')?.dataset.taskCard ||
-    select.closest('[data-task-code]')?.dataset.taskCode ||
-    'task';
+    select.closest("[data-task-card]")?.dataset.taskCard ||
+    select.closest("[data-task-code]")?.dataset.taskCode ||
+    "task";
 
-  const gradeType =
-    select.dataset.grade ||
-    'grade';
+  const gradeType = select.dataset.grade || "grade";
 
-  const safeTaskCode = String(taskCode)
-    .replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeTaskCode = String(taskCode).replace(/[^a-zA-Z0-9_-]/g, "_");
 
-  const safeGradeType = String(gradeType)
-    .replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeGradeType = String(gradeType).replace(/[^a-zA-Z0-9_-]/g, "_");
 
   return `grade_${safeTaskCode}_${safeGradeType}_${index}`;
 }
 
 function syncGradeRadioGroup(select) {
   const wrapper = select
-    .closest('.grade-radio-control')
-    ?.querySelector('.grade-radio-group');
+    .closest(".grade-radio-control")
+    ?.querySelector(".grade-radio-group");
 
   if (!wrapper) return;
 
-  const selectedValue =
-    String(select.value || 'NP');
+  const selectedValue = String(select.value || "NP");
 
-  wrapper
-    .querySelectorAll('input[type="radio"]')
-    .forEach(radio => {
-      radio.checked =
-        radio.value === selectedValue;
+  wrapper.querySelectorAll('input[type="radio"]').forEach((radio) => {
+    radio.checked = radio.value === selectedValue;
 
-      radio
-        .closest('.grade-radio-option')
-        ?.classList.toggle(
-          'selected',
-          radio.checked
-        );
-    });
+    radio
+      .closest(".grade-radio-option")
+      ?.classList.toggle("selected", radio.checked);
+  });
 }
 
 function upgradeGradeSelectsToRadios(root = document) {
   const selects = Array.from(
     root.querySelectorAll(
-      'select[data-grade]:not([data-radio-upgraded="true"])'
-    )
+      'select[data-grade]:not([data-radio-upgraded="true"])',
+    ),
   );
 
   selects.forEach((select, index) => {
-    select.dataset.radioUpgraded = 'true';
+    select.dataset.radioUpgraded = "true";
 
-    const groupName =
-      gradeRadioGroupName(select, index);
+    const groupName = gradeRadioGroupName(select, index);
 
-    const currentValue =
-      String(select.value || 'NP');
+    const currentValue = String(select.value || "NP");
 
-    const radioGroup =
-      document.createElement('span');
+    const radioGroup = document.createElement("span");
 
-    radioGroup.className = 'grade-radio-group';
-    radioGroup.setAttribute(
-      'role',
-      'radiogroup'
-    );
+    radioGroup.className = "grade-radio-group";
+    radioGroup.setAttribute("role", "radiogroup");
 
-    const taskCode =
-      select.dataset.taskCode || '';
+    const taskCode = select.dataset.taskCode || "";
 
-    const gradeType =
-      select.dataset.grade || '';
+    const gradeType = select.dataset.grade || "";
 
     radioGroup.setAttribute(
-      'aria-label',
-      `${gradeType} grade${
-        taskCode ? ` for ${taskCode}` : ''
-      }`
+      "aria-label",
+      `${gradeType} grade${taskCode ? ` for ${taskCode}` : ""}`,
     );
 
-    radioGroup.innerHTML =
-      GRADE_RADIO_VALUES
-        .map(value => {
-          const escapedValue =
-            escapeGradeRadioValue(value);
+    radioGroup.innerHTML = GRADE_RADIO_VALUES.map((value) => {
+      const escapedValue = escapeGradeRadioValue(value);
 
-          const checked =
-            currentValue === value
-              ? ' checked'
-              : '';
+      const checked = currentValue === value ? " checked" : "";
 
-          const selectedClass =
-            currentValue === value
-              ? ' selected'
-              : '';
+      const selectedClass = currentValue === value ? " selected" : "";
 
-          return `
+      return `
             <label class="grade-radio-option${selectedClass}">
               <input
                 type="radio"
@@ -1377,59 +1144,40 @@ function upgradeGradeSelectsToRadios(root = document) {
               <span>${escapedValue}</span>
             </label>
           `;
-        })
-        .join('');
+    }).join("");
 
-    const control =
-      document.createElement('span');
+    const control = document.createElement("span");
 
-    control.className =
-      'grade-radio-control';
+    control.className = "grade-radio-control";
 
-    select.parentNode.insertBefore(
-      control,
-      select
-    );
+    select.parentNode.insertBefore(control, select);
 
     control.appendChild(select);
     control.appendChild(radioGroup);
 
-    select.classList.add(
-      'grade-select-radio-source'
-    );
+    select.classList.add("grade-select-radio-source");
 
-    radioGroup
-      .querySelectorAll(
-        'input[type="radio"]'
-      )
-      .forEach(radio => {
-        radio.addEventListener(
-          'change',
-          event => {
-            if (!event.target.checked) {
-              return;
-            }
+    radioGroup.querySelectorAll('input[type="radio"]').forEach((radio) => {
+      radio.addEventListener("change", (event) => {
+        if (!event.target.checked) {
+          return;
+        }
 
-            select.value =
-              event.target.value;
+        select.value = event.target.value;
 
-            syncGradeRadioGroup(select);
+        syncGradeRadioGroup(select);
 
-            select.dispatchEvent(
-              new Event('change', {
-                bubbles: true,
-              })
-            );
-          }
+        select.dispatchEvent(
+          new Event("change", {
+            bubbles: true,
+          }),
         );
       });
+    });
 
-    select.addEventListener(
-      'change',
-      () => {
-        syncGradeRadioGroup(select);
-      }
-    );
+    select.addEventListener("change", () => {
+      syncGradeRadioGroup(select);
+    });
 
     syncGradeRadioGroup(select);
   });
@@ -1438,9 +1186,7 @@ function upgradeGradeSelectsToRadios(root = document) {
    * Keep reason-code controls synchronized whenever grade controls
    * are upgraded or refreshed.
    */
-  window.requestAnimationFrame(
-    syncAllGradeReasonControls
-  );
+  window.requestAnimationFrame(syncAllGradeReasonControls);
 }
 
 function startDynamicGradeRadioObserver() {
@@ -1462,26 +1208,24 @@ function startDynamicGradeRadioObserver() {
 
       upgradeGradeSelectsToRadios(document);
 
-      document
-        .querySelectorAll('select[data-grade]')
-        .forEach(select => {
-          syncGradeRadioGroup(select);
-        });
+      document.querySelectorAll("select[data-grade]").forEach((select) => {
+        syncGradeRadioGroup(select);
+      });
     });
   };
 
-  const observer = new MutationObserver(mutations => {
-    const containsGradeControl = mutations.some(mutation =>
-      Array.from(mutation.addedNodes).some(node => {
+  const observer = new MutationObserver((mutations) => {
+    const containsGradeControl = mutations.some((mutation) =>
+      Array.from(mutation.addedNodes).some((node) => {
         if (!(node instanceof Element)) {
           return false;
         }
 
         return (
-          node.matches?.('select[data-grade]') ||
-          node.querySelector?.('select[data-grade]')
+          node.matches?.("select[data-grade]") ||
+          node.querySelector?.("select[data-grade]")
         );
-      })
+      }),
     );
 
     if (containsGradeControl) {
@@ -1491,7 +1235,7 @@ function startDynamicGradeRadioObserver() {
 
   observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
   });
 
   window.emsGradeRadioObserver = observer;
@@ -1501,10 +1245,10 @@ function startDynamicGradeRadioObserver() {
    * its task checkbox is changed. Resynchronize the visible radios
    * after those existing handlers finish.
    */
-  document.addEventListener('change', event => {
+  document.addEventListener("change", (event) => {
     if (
-      !event.target.closest?.('#viewScenario') &&
-      !event.target.closest?.('#scenario-root')
+      !event.target.closest?.("#viewScenario") &&
+      !event.target.closest?.("#scenario-root")
     ) {
       return;
     }
@@ -1517,32 +1261,31 @@ function startDynamicGradeRadioObserver() {
 
 function ensureStoreDefaults() {
   store.applicant ??= {};
-  store.applicant.appCertificate ??= 'Private';
-  store.applicant.appRating ??= 'ASEL';
-  store.applicant.appAircraftClassUsed ??= 'ASEL';
-  store.applicant.appExamType ??= 'Initial';
-  store.applicant.appRatingHeld ??= '';
-  store.applicant.appAmelInstrument ??= '';
-  store.applicant.appEmail ??= '';
-  store.applicant.appInstructorEmail ??= '';
+  store.applicant.appCertificate ??= "Private";
+  store.applicant.appRating ??= "ASEL";
+  store.applicant.appAircraftClassUsed ??= "ASEL";
+  store.applicant.appExamType ??= "Initial";
+  store.applicant.appRatingHeld ??= "";
+  store.applicant.appAmelInstrument ??= "";
+  store.applicant.appEmail ??= "";
+  store.applicant.appInstructorEmail ??= "";
   store.applicant.feeAmount ??= null;
-  store.applicant.practicalTestRequestId ??= '';
-  store.applicant.requestNumber ??= '';
-  store.applicant.scheduledStartAt ??= '';
-  store.applicant.scheduledEndAt ??= '';
-  store.applicant.scheduledLocation ??= '';
+  store.applicant.practicalTestRequestId ??= "";
+  store.applicant.requestNumber ??= "";
+  store.applicant.scheduledStartAt ??= "";
+  store.applicant.scheduledEndAt ??= "";
+  store.applicant.scheduledLocation ??= "";
   store.showAllTasksReferenceMode ??= false;
-  store.practicalTestOutcome ??= '';
+  store.practicalTestOutcome ??= "";
   store.discontinuanceManuallySelected ??= false;
-  
 
   store.checkedElements ??= {};
   store.grades ??= {};
   store.expandedTasks ??= {};
   store.examinerNotes ??= {};
-  store.outcomeNotes ??= '';
-  store.selectedScenario ??= 'Scenario 1';
-  store.activeView ??= 'detailed';
+  store.outcomeNotes ??= "";
+  store.selectedScenario ??= "Scenario 1";
+  store.activeView ??= "detailed";
   store.selectedAcsCodes ??= [];
   store.acsDecoderOpen ??= false;
 
@@ -1552,33 +1295,43 @@ function ensureStoreDefaults() {
   store.expandedEligibilitySections ??= {};
   store.oralQuestionGrades ??= {};
 
+  store.ppcPacket ??= null;
+  store.ppcGrades ??= {};
+  store.ppcExpandedTasks ??= {};
+  store.ppcLoading ??= false;
+  store.ppcLoadError ??= "";
+  store.ppcAircraftConfiguration ??= "airplane";
+  store.ppcLastSyncedAt ??= "";
 }
 
 function formatRatingLabel(rating) {
   const labels = {
-    ASEL: 'ASEL',
-    AMEL: 'AMEL',
-    ASES: 'ASES',
-    AMES: 'AMES',
-    GLIDER: 'Glider',
-    'Instrument Airplane': 'Instrument Airplane'
+    ASEL: "ASEL",
+    AMEL: "AMEL",
+    ASES: "ASES",
+    AMES: "AMES",
+    GLIDER: "Glider",
+    "Instrument Airplane": "Instrument Airplane",
   };
 
   return labels[rating] || rating;
 }
 
 function populateRatingDropdown() {
-  const certificate = store.applicant.appCertificate || 'Private';
+  const certificate = store.applicant.appCertificate || "Private";
   const cfg = modules.CERT_CONFIG?.[certificate];
-  const ratingSelect = $('appRating');
+  const ratingSelect = $("appRating");
 
   if (!cfg || !ratingSelect) return;
 
-  ratingSelect.disabled = certificate === 'Instrument';
+  ratingSelect.disabled = certificate === "Instrument";
 
   ratingSelect.innerHTML = cfg.ratings
-    .map(rating => `<option value="${rating}">${formatRatingLabel(rating)}</option>`)
-    .join('');
+    .map(
+      (rating) =>
+        `<option value="${rating}">${formatRatingLabel(rating)}</option>`,
+    )
+    .join("");
 
   if (!cfg.ratings.includes(store.applicant.appRating)) {
     store.applicant.appRating = cfg.ratings[0];
@@ -1588,69 +1341,61 @@ function populateRatingDropdown() {
 }
 
 async function lookupApplicantByDMS() {
-  const searchValue = $('appDMS')?.value?.trim();
+  const searchValue = $("appDMS")?.value?.trim();
 
   if (!searchValue) {
     alert(
-      'Enter a DMS Preapproval Number, request number, or request ID first.'
+      "Enter a DMS Preapproval Number, request number, or request ID first.",
     );
     return;
   }
 
-  const button = $('btnLookupApplicant');
+  const button = $("btnLookupApplicant");
   const originalText = button?.innerHTML;
 
   try {
     if (button) {
       button.disabled = true;
-      button.innerHTML =
-        '<i class="fas fa-spinner fa-spin"></i> Looking up...';
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Looking up...';
     }
 
-    let appointments = Array.from(
-      window.emtAppointmentsById?.values?.() || []
-    );
+    let appointments = Array.from(window.emtAppointmentsById?.values?.() || []);
 
     if (!appointments.length) {
       appointments = await modules.loadEmtAppointments();
 
       window.emtAppointmentsById = new Map(
-        appointments.map(appointment => [
+        appointments.map((appointment) => [
           appointment.request_id,
-          appointment
-        ])
+          appointment,
+        ]),
       );
     }
 
-    const normalizedSearch =
-      searchValue.toLowerCase();
+    const normalizedSearch = searchValue.toLowerCase();
 
-    const appointment = appointments.find(item => {
+    const appointment = appointments.find((item) => {
       const values = [
         item.dms_preapproval_number,
         item.request_number,
-        item.request_id
+        item.request_id,
       ]
         .filter(Boolean)
-        .map(value =>
-          String(value).trim().toLowerCase()
-        );
+        .map((value) => String(value).trim().toLowerCase());
 
       return values.includes(normalizedSearch);
     });
 
     if (!appointment) {
       alert(
-        'No DPE EMT appointment was found for that DMS number, request number, or request ID.'
+        "No DPE EMT appointment was found for that DMS number, request number, or request ID.",
       );
       return;
     }
 
-    applyApplicantLookupData(
-      appointmentToApplicantData(appointment)
-    );
+    applyApplicantLookupData(appointmentToApplicantData(appointment));
 
-    const select = $('emtAppointmentSelect');
+    const select = $("emtAppointmentSelect");
 
     if (select) {
       select.value = appointment.request_id;
@@ -1659,18 +1404,15 @@ async function lookupApplicantByDMS() {
     modules.notify();
 
     setEmtConnectionMessage(
-      `${appointment.request_number || 'Appointment'} loaded from Supabase.`
+      `${appointment.request_number || "Appointment"} loaded from Supabase.`,
     );
   } catch (error) {
-    console.error(
-      'Supabase applicant lookup failed:',
-      error
-    );
+    console.error("Supabase applicant lookup failed:", error);
 
     alert(
       error instanceof Error
         ? `Applicant lookup failed: ${error.message}`
-        : 'Applicant lookup from Supabase failed.'
+        : "Applicant lookup from Supabase failed.",
     );
   } finally {
     if (button) {
@@ -1680,28 +1422,27 @@ async function lookupApplicantByDMS() {
   }
 }
 
-
-  function applyApplicantLookupData(data) {
+function applyApplicantLookupData(data) {
   const certificateValue =
     data.appCertificate ||
-    (data.RatingSought?.Value === 'Instrument'
-      ? 'Instrument'
-      : ({
-          'Private Pilot': 'Private',
-          'Instrument Rating': 'Instrument',
-          'Commercial Pilot': 'Commercial',
-          'Airline Transport Pilot': 'ATP',
-          'Flight Instructor': 'CFI'
+    (data.RatingSought?.Value === "Instrument"
+      ? "Instrument"
+      : {
+          "Private Pilot": "Private",
+          "Instrument Rating": "Instrument",
+          "Commercial Pilot": "Commercial",
+          "Airline Transport Pilot": "ATP",
+          "Flight Instructor": "CFI",
         }[data.GradeofCertificateSought?.Value] ||
-        data.GradeofCertificateSought?.Value));
+        data.GradeofCertificateSought?.Value);
 
   const examTypeValue =
     data.appExamType ||
-    ({
-      'Original Issuance': 'Initial',
-      'Additional Rating': 'Additional'
+    {
+      "Original Issuance": "Initial",
+      "Additional Rating": "Additional",
     }[data.IssuanceType?.Value] ||
-    data.IssuanceType?.Value);
+    data.IssuanceType?.Value;
 
   const fieldMap = {
     appName: data.appName || data.Name,
@@ -1711,35 +1452,19 @@ async function lookupApplicantByDMS() {
     appRating: data.appRating || data.RatingSought?.Value,
     appExamType: examTypeValue,
     appAircraftType: data.appAircraftType || data.TypeofAircraft,
-    appNNumber:
-      data.appNNumber ||
-      data.AircraftRegistration,
-    appInstructor:
-      data.appInstructor ||
-      data.RecommendingInstructorName,
+    appNNumber: data.appNNumber || data.AircraftRegistration,
+    appInstructor: data.appInstructor || data.RecommendingInstructorName,
     appInstructorEmail:
-      data.appInstructorEmail ||
-      data.RecommendingInstructorEmail,
-    appEmail:
-      data.appEmail ||
-      data.ApplicantEmail,
+      data.appInstructorEmail || data.RecommendingInstructorEmail,
+    appEmail: data.appEmail || data.ApplicantEmail,
     appFTN: data.appFTN || data.FTNNumber,
     appDMS: data.appDMS || data.DMSPreapprovalNumber,
-    feeAmount:
-      data.feeAmount ??
-      data.fee_amount ??
-      data.FeeAmount ??
-      null,
-    practicalTestRequestId:
-      data.practicalTestRequestId || '',
-    requestNumber:
-      data.requestNumber || '',
-    scheduledStartAt:
-      data.scheduledStartAt || '',
-    scheduledEndAt:
-      data.scheduledEndAt || '',
-    scheduledLocation:
-      data.scheduledLocation || '',
+    feeAmount: data.feeAmount ?? data.fee_amount ?? data.FeeAmount ?? null,
+    practicalTestRequestId: data.practicalTestRequestId || "",
+    requestNumber: data.requestNumber || "",
+    scheduledStartAt: data.scheduledStartAt || "",
+    scheduledEndAt: data.scheduledEndAt || "",
+    scheduledLocation: data.scheduledLocation || "",
 
     appRetest:
       data.appRetest ||
@@ -1748,15 +1473,32 @@ async function lookupApplicantByDMS() {
       data.IsRetest?.Value ||
       data.IsRetest ||
       data.Title ||
-      'No'
-      };
+      "No",
+  };
 
   Object.entries(fieldMap).forEach(([fieldId, value]) => {
-    if (value === undefined || value === null || value === '') return;
+    if (value === undefined || value === null || value === "") return;
 
     const input = $(fieldId);
 
     if (input) {
+      /*
+       * Appointment data from EMS is the source of truth.
+       * For select controls, preserve values that are not already
+       * present in EMT's static option list by adding them dynamically.
+       */
+      if (
+        input.tagName === "SELECT" &&
+        !Array.from(input.options).some(
+          (option) => option.value === String(value),
+        )
+      ) {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = String(value);
+        input.appendChild(option);
+      }
+
       input.value = value;
     }
 
@@ -1766,21 +1508,20 @@ async function lookupApplicantByDMS() {
   populateRatingDropdown();
 }
 
-
 function normalizeEmtCertificate(value) {
-  const normalized = String(value || '').trim();
+  const normalized = String(value || "").trim();
 
   const map = {
-    'Private': 'Private',
-    'Private Pilot': 'Private',
-    'Instrument': 'Instrument',
-    'Instrument Rating': 'Instrument',
-    'Commercial': 'Commercial',
-    'Commercial Pilot': 'Commercial',
-    'ATP': 'ATP',
-    'Airline Transport Pilot': 'ATP',
-    'CFI': 'CFI',
-    'Flight Instructor': 'CFI'
+    Private: "Private",
+    "Private Pilot": "Private",
+    Instrument: "Instrument",
+    "Instrument Rating": "Instrument",
+    Commercial: "Commercial",
+    "Commercial Pilot": "Commercial",
+    ATP: "ATP",
+    "Airline Transport Pilot": "ATP",
+    CFI: "CFI",
+    "Flight Instructor": "CFI",
   };
 
   return map[normalized] || normalized;
@@ -1790,52 +1531,48 @@ function normalizeEmtRating(appointment) {
   const values = [
     appointment.class_sought,
     appointment.rating_sought,
-    appointment.category_sought
+    appointment.category_sought,
   ]
     .filter(Boolean)
-    .map(value => String(value).trim());
+    .map((value) => String(value).trim());
 
-  const joined = values.join(' ').toLowerCase();
-
-  if (
-    joined.includes('airplane single engine land') ||
-    joined.includes('asel')
-  ) {
-    return 'ASEL';
-  }
+  const joined = values.join(" ").toLowerCase();
 
   if (
-    joined.includes('airplane multiengine land') ||
-    joined.includes('airplane multi-engine land') ||
-    joined.includes('amel')
+    joined.includes("airplane single engine land") ||
+    joined.includes("asel")
   ) {
-    return 'AMEL';
+    return "ASEL";
   }
 
   if (
-    joined.includes('airplane single engine sea') ||
-    joined.includes('ases')
+    joined.includes("airplane multiengine land") ||
+    joined.includes("airplane multi-engine land") ||
+    joined.includes("amel")
   ) {
-    return 'ASES';
+    return "AMEL";
   }
 
   if (
-    joined.includes('airplane multiengine sea') ||
-    joined.includes('airplane multi-engine sea') ||
-    joined.includes('ames')
+    joined.includes("airplane single engine sea") ||
+    joined.includes("ases")
   ) {
-    return 'AMES';
+    return "ASES";
   }
 
-  if (joined.includes('instrument airplane')) {
-    return 'Instrument Airplane';
+  if (
+    joined.includes("airplane multiengine sea") ||
+    joined.includes("airplane multi-engine sea") ||
+    joined.includes("ames")
+  ) {
+    return "AMES";
   }
 
-  return (
-    appointment.class_sought ||
-    appointment.rating_sought ||
-    'ASEL'
-  );
+  if (joined.includes("instrument airplane")) {
+    return "Instrument Airplane";
+  }
+
+  return appointment.class_sought || appointment.rating_sought || "ASEL";
 }
 
 function formatEmtAppointmentLabel(appointment) {
@@ -1846,39 +1583,116 @@ function formatEmtAppointmentLabel(appointment) {
   const dateLabel =
     start && !Number.isNaN(start.getTime())
       ? start.toLocaleString([], {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit'
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
         })
-      : 'Date not finalized';
+      : "Date not finalized";
 
   const testLabel = [
     appointment.certificate_sought,
-    appointment.class_sought ||
-      appointment.rating_sought
+    appointment.class_sought || appointment.rating_sought,
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   return [
-    appointment.request_number || 'Request',
-    appointment.applicant_name || 'Applicant',
+    appointment.request_number || "Request",
+    appointment.applicant_name || "Applicant",
     dateLabel,
-    testLabel
+    testLabel,
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join(" · ");
+}
+
+/* ============================================================
+   PPC / FAA FORM 8410-1 EVALUATION ROUTING
+
+   PPC evaluations are a separate FAA 8410-1 evaluation family.
+
+   Normal practical test:
+     ACS engine → K/R/S → 1/2/3/4/NP
+
+   Proficiency Check:
+     FAA 8410-1 → S/U/W
+
+   Do not route PPC appointments through ACS_DATASETS.
+   ============================================================ */
+
+function getEmtPpcType(appointment) {
+  const values = [
+    appointment?.certificate_code,
+    appointment?.practical_test_certificate_code,
+    appointment?.practical_test_type_certificate_code,
+    appointment?.certificate_sought,
+    appointment?.rating_sought,
+    appointment?.class_sought,
+    appointment?.issuance_type,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim());
+
+  const joined = values.join(" ").toLowerCase();
+
+  if (
+    joined.includes("pilot_ppc_6158") ||
+    joined.includes("pilot proficiency check") ||
+    joined.includes("61.58") ||
+    joined.includes("ppc_6158")
+  ) {
+    return "pilot";
+  }
+
+  if (
+    joined.includes("flight_engineer_ppc_91529") ||
+    joined.includes("flight engineer proficiency check") ||
+    joined.includes("91.529") ||
+    joined.includes("ppc_91529")
+  ) {
+    return "flight_engineer";
+  }
+
+  const issuance = String(appointment?.issuance_type || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  if (issuance === "proficiency_check") {
+    const certificate = String(
+      appointment?.certificate_sought || "",
+    ).toLowerCase();
+
+    if (certificate.includes("flight engineer")) {
+      return "flight_engineer";
+    }
+
+    /*
+     * The only other currently-supported proficiency-check family
+     * is the Pilot 61.58 PPC.
+     */
+    return "pilot";
+  }
+
+  return "";
+}
+
+function isEmtPpcAppointment(appointment) {
+  return Boolean(getEmtPpcType(appointment));
 }
 
 function appointmentToApplicantData(appointment) {
-  const aircraftType = [
-    appointment.aircraft_make,
-    appointment.aircraft_model
-  ]
+  if (isEmtPpcAppointment(appointment)) {
+    window.setTimeout(() => {
+      launchEmtPpcEvaluation(appointment);
+    }, 0);
+  }
+
+  const aircraftType = [appointment.aircraft_make, appointment.aircraft_model]
     .filter(Boolean)
-    .join(' ')
+    .join(" ")
     .trim();
 
   return {
@@ -1888,86 +1702,82 @@ function appointmentToApplicantData(appointment) {
       appointment.scheduled_start_at?.slice(0, 10) ||
       new Date().toISOString().slice(0, 10),
     appSchool: appointment.flight_school_name,
-    appCertificate: normalizeEmtCertificate(
-      appointment.certificate_sought
-    ),
+    appCertificate: normalizeEmtCertificate(appointment.certificate_sought),
     appRating: normalizeEmtRating(appointment),
     appExamType:
-      appointment.issuance_type === 'Additional Rating'
-        ? 'Additional'
-        : 'Initial',
-    appAircraftType:
-      aircraftType ||
-      appointment.aircraft_description,
+      appointment.issuance_type === "Additional Rating"
+        ? "Additional"
+        : "Initial",
+    appAircraftType: aircraftType || appointment.aircraft_description,
     appNNumber: appointment.aircraft_registration,
     appInstructor: appointment.instructor_name,
     appInstructorEmail: appointment.instructor_email,
     appFTN: appointment.ftn_number,
     appDMS: appointment.dms_preapproval_number,
     feeAmount: appointment.fee_amount,
-    appRetest: appointment.is_retest ? 'Yes' : 'No',
+    appRetest: appointment.is_retest ? "Yes" : "No",
     practicalTestRequestId: appointment.request_id,
     requestNumber: appointment.request_number,
     scheduledStartAt: appointment.scheduled_start_at,
     scheduledEndAt: appointment.scheduled_end_at,
-    scheduledLocation: appointment.scheduled_location
+    scheduledLocation: appointment.scheduled_location,
+
+    evaluationMode: isEmtPpcAppointment(appointment) ? "ppc_8410_1" : "acs",
+
+    ppcType: getEmtPpcType(appointment),
+
+    ppcTypeRatingDesignation:
+      appointment.ppc_type_rating_designation ||
+      appointment.type_rating_designation ||
+      "",
+
+    ppcAircraftTypeCertificateHolder:
+      appointment.ppc_aircraft_type_certificate_holder || "",
+
+    ppcAircraftCivilModelDesignation:
+      appointment.ppc_aircraft_civil_model_designation || "",
   };
 }
 
 function setEmtConnectionMessage(message, isError = false) {
-  const appointmentMessage =
-    $('emtAppointmentMessage');
+  const appointmentMessage = $("emtAppointmentMessage");
 
-  const landingMessage =
-    $('emtLandingAuthMessage');
+  const landingMessage = $("emtLandingAuthMessage");
 
-  const text =
-    message || '';
+  const text = message || "";
 
-  const color =
-    isError
-      ? 'var(--danger)'
-      : 'var(--text-muted)';
+  const color = isError ? "var(--danger)" : "var(--text-muted)";
 
   if (appointmentMessage) {
-    appointmentMessage.textContent =
-      text;
+    appointmentMessage.textContent = text;
 
-    appointmentMessage.style.color =
-      color;
+    appointmentMessage.style.color = color;
   }
 
   if (landingMessage) {
-    landingMessage.textContent =
-      text;
+    landingMessage.textContent = text;
 
-    landingMessage.style.color =
-      isError
-        ? '#ff8a80'
-        : 'rgba(255,255,255,.72)';
+    landingMessage.style.color = isError ? "#ff8a80" : "rgba(255,255,255,.72)";
   }
 }
 
 function getEmtExaminerDisplayName(user) {
   if (!user) {
-    return '';
+    return "";
   }
 
-  const metadata =
-    user.user_metadata || {};
+  const metadata = user.user_metadata || {};
 
   const candidates = [
     metadata.preferred_name,
     metadata.first_name,
     metadata.given_name,
     metadata.full_name,
-    metadata.name
+    metadata.name,
   ];
 
   for (const candidate of candidates) {
-    const value =
-      String(candidate || '')
-        .trim();
+    const value = String(candidate || "").trim();
 
     if (value) {
       /*
@@ -1977,117 +1787,82 @@ function getEmtExaminerDisplayName(user) {
     }
   }
 
-  const email =
-    String(user.email || '')
-      .trim();
+  const email = String(user.email || "").trim();
 
   if (email) {
-    const prefix =
-      email.split('@')[0];
+    const prefix = email.split("@")[0];
 
     return prefix
       .split(/[._-]+/)[0]
-      .replace(
-        /^./,
-        character =>
-          character.toUpperCase()
-      );
+      .replace(/^./, (character) => character.toUpperCase());
   }
 
-  return 'Examiner';
+  return "Examiner";
 }
 
-
 function showEmtSignedInState(user) {
-  const loginFields =
-    $('emtLoginFields');
+  const loginFields = $("emtLoginFields");
 
-  const appointmentFields =
-    $('emtAppointmentFields');
+  const appointmentFields = $("emtAppointmentFields");
 
-  const signOutButton =
-    $('btnEmtSignOut');
+  const signOutButton = $("btnEmtSignOut");
 
-  const status =
-    $('emtAuthStatus');
+  const status = $("emtAuthStatus");
 
-  const signedInLanding =
-    $('emtSignedInLanding');
+  const signedInLanding = $("emtSignedInLanding");
 
-  const welcome =
-    $('emtWelcome');
+  const welcome = $("emtWelcome");
 
-  const protectedContent =
-    $('landingProtectedContent');
+  const protectedContent = $("landingProtectedContent");
 
-  const isSignedIn =
-    Boolean(user);
+  const isSignedIn = Boolean(user);
 
   if (loginFields) {
-    loginFields.style.display =
-      isSignedIn
-        ? 'none'
-        : 'grid';
+    loginFields.style.display = isSignedIn ? "none" : "grid";
   }
 
   if (signedInLanding) {
-    signedInLanding.style.display =
-      isSignedIn
-        ? 'flex'
-        : 'none';
+    signedInLanding.style.display = isSignedIn ? "flex" : "none";
   }
 
   if (appointmentFields) {
-    appointmentFields.style.display =
-      isSignedIn
-        ? 'block'
-        : 'none';
+    appointmentFields.style.display = isSignedIn ? "block" : "none";
   }
 
   if (signOutButton) {
-    signOutButton.style.display =
-      isSignedIn
-        ? 'inline-flex'
-        : 'none';
+    signOutButton.style.display = isSignedIn ? "inline-flex" : "none";
   }
 
   if (protectedContent) {
-    protectedContent.style.display =
-      isSignedIn
-        ? 'block'
-        : 'none';
+    protectedContent.style.display = isSignedIn ? "block" : "none";
   }
 
   if (welcome) {
-    welcome.textContent =
-      isSignedIn
-        ? `Welcome ${getEmtExaminerDisplayName(user)}`
-        : '';
+    welcome.textContent = isSignedIn
+      ? `Welcome ${getEmtExaminerDisplayName(user)}`
+      : "";
   }
 
   if (status) {
-    status.textContent =
-      isSignedIn
-        ? `Signed in as ${user.email || 'examiner'}`
-        : 'Not signed in';
+    status.textContent = isSignedIn
+      ? `Signed in as ${user.email || "examiner"}`
+      : "Not signed in";
   }
 
   /*
    * Do not leave stale authentication messages visible.
    */
   if (isSignedIn) {
-    const landingMessage =
-      $('emtLandingAuthMessage');
+    const landingMessage = $("emtLandingAuthMessage");
 
     if (landingMessage) {
-      landingMessage.textContent =
-        '';
+      landingMessage.textContent = "";
     }
   }
 }
 async function refreshEmtAppointments() {
-  const select = $('emtAppointmentSelect');
-  const button = $('btnLoadEmtAppointments');
+  const select = $("emtAppointmentSelect");
+  const button = $("btnLoadEmtAppointments");
 
   if (!select) return;
 
@@ -2096,33 +1871,25 @@ async function refreshEmtAppointments() {
   try {
     if (button) {
       button.disabled = true;
-      button.innerHTML =
-        '<i class="fas fa-spinner fa-spin"></i> Loading';
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading';
     }
 
-    setEmtConnectionMessage('Loading appointments...');
+    setEmtConnectionMessage("Loading appointments...");
 
-    const appointments =
-      await modules.loadEmtAppointments();
+    const appointments = await modules.loadEmtAppointments();
 
     window.emtAppointmentsById = new Map(
-      appointments.map(appointment => [
-        appointment.request_id,
-        appointment
-      ])
+      appointments.map((appointment) => [appointment.request_id, appointment]),
     );
 
-    const currentRequestId =
-      store.applicant?.practicalTestRequestId || '';
+    const currentRequestId = store.applicant?.practicalTestRequestId || "";
 
     select.innerHTML = `
       <option value="">Select an appointment...</option>
       ${appointments
-        .map(appointment => {
+        .map((appointment) => {
           const selected =
-            appointment.request_id === currentRequestId
-              ? ' selected'
-              : '';
+            appointment.request_id === currentRequestId ? " selected" : "";
 
           return `
             <option
@@ -2133,44 +1900,48 @@ async function refreshEmtAppointments() {
             </option>
           `;
         })
-        .join('')}
+        .join("")}
     `;
 
     const requestedRequestId =
-      new URLSearchParams(window.location.search)
-        .get('request')
-        ?.trim() || '';
+      new URLSearchParams(window.location.search).get("request")?.trim() || "";
 
     if (requestedRequestId) {
       const requestedAppointment =
-        window.emtAppointmentsById.get(
-          requestedRequestId
-        );
+        window.emtAppointmentsById.get(requestedRequestId);
 
       if (requestedAppointment) {
         select.value = requestedRequestId;
 
-        applyApplicantLookupData(
-          appointmentToApplicantData(
-            requestedAppointment
-          )
-        );
+        const applicantData = appointmentToApplicantData(requestedAppointment);
+
+        applyApplicantLookupData(applicantData);
+
+        if (applicantData.evaluationMode === "ppc_8410_1") {
+          store.ppcPacket = null;
+          store.ppcGrades = {};
+          store.ppcExpandedTasks = {};
+          store.activeAreaId = null;
+        }
 
         modules.notify();
 
+        if (applicantData.evaluationMode === "ppc_8410_1") {
+          await loadPpcEvaluationIntoEmt(requestedAppointment.request_id);
+        }
+
         setEmtConnectionMessage(
           `${
-            requestedAppointment.request_number ||
-            'Appointment'
-          } loaded from Supabase.`
+            requestedAppointment.request_number || "Appointment"
+          } loaded from Supabase.`,
         );
 
         return;
       }
 
       setEmtConnectionMessage(
-        'The requested appointment was not found or is not assigned to this examiner.',
-        true
+        "The requested appointment was not found or is not assigned to this examiner.",
+        true,
       );
 
       return;
@@ -2179,18 +1950,16 @@ async function refreshEmtAppointments() {
     setEmtConnectionMessage(
       appointments.length
         ? `${appointments.length} appointment${
-            appointments.length === 1 ? '' : 's'
+            appointments.length === 1 ? "" : "s"
           } available.`
-        : 'No accepted, scheduled, or confirmed appointments were found.'
+        : "No accepted, scheduled, or confirmed appointments were found.",
     );
   } catch (error) {
-    console.error('Unable to load EMT appointments:', error);
+    console.error("Unable to load EMT appointments:", error);
 
     setEmtConnectionMessage(
-      error instanceof Error
-        ? error.message
-        : 'Unable to load appointments.',
-      true
+      error instanceof Error ? error.message : "Unable to load appointments.",
+      true,
     );
   } finally {
     if (button) {
@@ -2210,199 +1979,1847 @@ async function initializeEmtConnection() {
       await refreshEmtAppointments();
     }
   } catch (error) {
-    console.error(
-      'Unable to initialize EMT Web App connection:',
-      error
-    );
+    console.error("Unable to initialize EMT Web App connection:", error);
 
     showEmtSignedInState(null);
 
     setEmtConnectionMessage(
       error instanceof Error
         ? error.message
-        : 'Unable to check sign-in status.',
-      true
+        : "Unable to check sign-in status.",
+      true,
     );
   }
 }
 
 function wireEmtConnectionEvents() {
-  $('emtLoginPassword')?.addEventListener(
-    'keydown',
-    event => {
-      if (event.key !== 'Enter') {
-        return;
-      }
-
-      event.preventDefault();
-
-      $('btnEmtSignIn')?.click();
+  $("emtLoginPassword")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
     }
-  );
 
-  $('btnEmtSignIn')?.addEventListener(
-    'click',
-    async () => {
-      const email =
-        $('emtLoginEmail')?.value?.trim() || '';
-      const password =
-        $('emtLoginPassword')?.value || '';
-      const button = $('btnEmtSignIn');
-      const originalText = button?.innerHTML;
+    event.preventDefault();
 
-      if (!email || !password) {
-        setEmtConnectionMessage(
-          'Enter your examiner email and password.',
-          true
-        );
-        return;
-      }
+    $("btnEmtSignIn")?.click();
+  });
 
-      try {
-        if (button) {
-          button.disabled = true;
-          button.innerHTML =
-            '<i class="fas fa-spinner fa-spin"></i> Signing In';
-        }
+  $("btnEmtSignIn")?.addEventListener("click", async () => {
+    const email = $("emtLoginEmail")?.value?.trim() || "";
+    const password = $("emtLoginPassword")?.value || "";
+    const button = $("btnEmtSignIn");
+    const originalText = button?.innerHTML;
 
-        const user =
-          await modules.signInEmtExaminer(
-            email,
-            password
-          );
-
-        showEmtSignedInState(user);
-
-        if ($('emtLoginPassword')) {
-          $('emtLoginPassword').value = '';
-        }
-
-        await refreshEmtAppointments();
-      } catch (error) {
-        console.error('Examiner sign-in failed:', error);
-
-        setEmtConnectionMessage(
-          error instanceof Error
-            ? error.message
-            : 'Sign-in failed.',
-          true
-        );
-      } finally {
-        if (button) {
-          button.disabled = false;
-          button.innerHTML = originalText;
-        }
-      }
+    if (!email || !password) {
+      setEmtConnectionMessage("Enter your examiner email and password.", true);
+      return;
     }
-  );
 
-  $('btnEmtSignOut')?.addEventListener(
-    'click',
-    async () => {
-      try {
-        await modules.signOutEmtExaminer();
-
-        showEmtSignedInState(null);
-
-        document.body.classList.add(
-          'show-landing'
-        );
-
-        const select = $('emtAppointmentSelect');
-
-        if (select) {
-          select.innerHTML =
-            '<option value="">Select an appointment...</option>';
-        }
-
-        setEmtConnectionMessage('');
-      } catch (error) {
-        console.error('Examiner sign-out failed:', error);
-
-        setEmtConnectionMessage(
-          error instanceof Error
-            ? error.message
-            : 'Sign-out failed.',
-          true
-        );
-      }
-    }
-  );
-
-  $('btnLoadEmtAppointments')?.addEventListener(
-    'click',
-    refreshEmtAppointments
-  );
-
-  $('emtAppointmentSelect')?.addEventListener(
-    'change',
-    event => {
-      const requestId = event.target.value;
-
-      if (!requestId) return;
-
-      const appointment =
-        window.emtAppointmentsById?.get(requestId);
-
-      if (!appointment) {
-        setEmtConnectionMessage(
-          'The selected appointment could not be loaded.',
-          true
-        );
-        return;
+    try {
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In';
       }
 
-      applyApplicantLookupData(
-        appointmentToApplicantData(appointment)
-      );
+      const user = await modules.signInEmtExaminer(email, password);
 
-      modules.notify();
+      showEmtSignedInState(user);
+
+      if ($("emtLoginPassword")) {
+        $("emtLoginPassword").value = "";
+      }
+
+      await refreshEmtAppointments();
+    } catch (error) {
+      console.error("Examiner sign-in failed:", error);
 
       setEmtConnectionMessage(
-        `${appointment.request_number || 'Appointment'} loaded into the gradesheet.`
+        error instanceof Error ? error.message : "Sign-in failed.",
+        true,
+      );
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = originalText;
+      }
+    }
+  });
+
+  $("btnEmtSignOut")?.addEventListener("click", async () => {
+    try {
+      await modules.signOutEmtExaminer();
+
+      showEmtSignedInState(null);
+
+      document.body.classList.add("show-landing");
+
+      const select = $("emtAppointmentSelect");
+
+      if (select) {
+        select.innerHTML = '<option value="">Select an appointment...</option>';
+      }
+
+      setEmtConnectionMessage("");
+    } catch (error) {
+      console.error("Examiner sign-out failed:", error);
+
+      setEmtConnectionMessage(
+        error instanceof Error ? error.message : "Sign-out failed.",
+        true,
       );
     }
+  });
+
+  $("btnLoadEmtAppointments")?.addEventListener(
+    "click",
+    refreshEmtAppointments,
   );
+
+  $("emtAppointmentSelect")?.addEventListener("change", async (event) => {
+    const requestId = event.target.value;
+
+    if (!requestId) return;
+
+    const appointment = window.emtAppointmentsById?.get(requestId);
+
+    if (!appointment) {
+      setEmtConnectionMessage(
+        "The selected appointment could not be loaded.",
+        true,
+      );
+      return;
+    }
+
+    const applicantData = appointmentToApplicantData(appointment);
+
+    applyApplicantLookupData(applicantData);
+
+    /*
+     * Never carry another appointment's PPC task state into this check.
+     */
+    if (applicantData.evaluationMode === "ppc_8410_1") {
+      store.ppcPacket = null;
+      store.ppcGrades = {};
+      store.ppcExpandedTasks = {};
+      store.activeAreaId = null;
+    }
+
+    modules.notify();
+
+    if (applicantData.evaluationMode === "ppc_8410_1") {
+      await loadPpcEvaluationIntoEmt(appointment.request_id);
+    }
+
+    setEmtConnectionMessage(
+      `${appointment.request_number || "Appointment"} loaded into the gradesheet.`,
+    );
+  });
 }
 
 function handleApplicantChange(field, value) {
-  if (field === 'appCertificate') {
+  if (field === "appCertificate") {
     const cfg = modules.CERT_CONFIG?.[value];
 
     if (cfg) {
       store.applicant.appCertificate = value;
       store.applicant.appRating = cfg.ratings[0];
-      store.applicant.appRatingHeld = '';
+      store.applicant.appRatingHeld = "";
       populateRatingDropdown();
     }
   }
 
-  if (field === 'appRating') {
+  if (field === "appRating") {
     store.applicant.appRating = value;
-    store.applicant.appRatingHeld = '';
+    store.applicant.appRatingHeld = "";
   }
 
-  if (field === 'appExamType') {
-  store.applicant.appExamType = value;
-  store.applicant.appRatingHeld = '';
+  if (field === "appExamType") {
+    store.applicant.appExamType = value;
+    store.applicant.appRatingHeld = "";
 
-  // NEW
-  store.retestSelectedTasks ??= [];
+    // NEW
+    store.retestSelectedTasks ??= [];
 
-  if (value === 'Retest') {
-    store.retestSelectedTasks = [];
+    if (value === "Retest") {
+      store.retestSelectedTasks = [];
+    }
   }
-}
 
   modules.updateApplicant(field, value);
 }
 
+function isCurrentEmtPpc() {
+  return (
+    store?.applicant?.evaluationMode === "ppc_8410_1" ||
+    Boolean(store?.applicant?.ppcType)
+  );
+}
+
+function buildPpcGradePayload() {
+  const packet = store.ppcPacket;
+
+  if (!packet?.tasks?.length) {
+    return [];
+  }
+
+  return packet.tasks
+    .map((task) => {
+      const local = store.ppcGrades?.[task.id] || {};
+
+      const grade = local.grade_value || task.grade_value || "";
+
+      const remarks = local.remarks ?? task.remarks ?? "";
+
+      if (!grade) {
+        return null;
+      }
+
+      return {
+        ppc_task_id: task.id,
+
+        grade_value: grade,
+
+        remarks: String(remarks || "").trim() || null,
+      };
+    })
+    .filter(Boolean);
+}
+
+function seedPpcGradesFromPacket(packet) {
+  store.ppcGrades ??= {};
+
+  for (const task of packet?.tasks || []) {
+    /*
+     * Preserve local/offline work if it already exists.
+     * Otherwise seed from the database packet.
+     */
+    if (!store.ppcGrades[task.id]) {
+      store.ppcGrades[task.id] = {
+        grade_value: task.grade_value || "",
+
+        remarks: task.remarks || "",
+      };
+    }
+  }
+}
+
+async function loadPpcEvaluationIntoEmt(practicalTestRequestId) {
+  if (!practicalTestRequestId) {
+    return;
+  }
+
+  store.ppcLoading = true;
+  store.ppcLoadError = "";
+
+  modules.notify();
+
+  try {
+    const packet = await modules.loadPpcEvaluation(practicalTestRequestId);
+
+    store.ppcPacket = packet;
+
+    if (packet?.aircraft_configuration) {
+      store.ppcAircraftConfiguration = packet.aircraft_configuration;
+    }
+
+    seedPpcGradesFromPacket(packet);
+
+    /*
+     * Use the authoritative PPC family returned by Supabase.
+     */
+    if (packet?.certificate_code === "FLIGHT_ENGINEER_PPC_91529") {
+      store.applicant.ppcType = "flight_engineer";
+    } else if (packet?.certificate_code === "PILOT_PPC_6158") {
+      store.applicant.ppcType = "pilot";
+    }
+
+    if (packet?.aircraft_used) {
+      store.applicant.appAircraftType = packet.aircraft_used;
+    }
+
+    store.ppcLoading = false;
+    store.ppcLoadError = "";
+
+    const sections = modules.getPpcSections?.(packet) || [];
+
+    if (
+      !store.activeAreaId ||
+      !sections.some((section) => section.id === store.activeAreaId)
+    ) {
+      store.activeAreaId = sections[0]?.id || null;
+    }
+
+    modules.notify();
+
+    setEmtConnectionMessage(
+      `${store.applicant.requestNumber || "PPC"} loaded in FAA 8410-1 grading mode.`,
+    );
+  } catch (error) {
+    console.error("Unable to load PPC evaluation:", error);
+
+    /*
+     * If tasks were previously cached locally, retain them for
+     * offline use. Otherwise show a clear loading error.
+     */
+    store.ppcLoading = false;
+    store.ppcLoadError =
+      error instanceof Error ? error.message : "Unable to load PPC evaluation.";
+
+    modules.notify();
+
+    setEmtConnectionMessage(
+      store.ppcPacket?.tasks?.length
+        ? "PPC is using the locally cached task set because the server could not be reached."
+        : store.ppcLoadError,
+      !store.ppcPacket?.tasks?.length,
+    );
+  }
+}
+
+let ppcDraftSaveTimer = null;
+
+function queuePpcDraftSync() {
+  if (!isCurrentEmtPpc()) {
+    return;
+  }
+
+  /*
+   * Local storage is already updated by modules.notify().
+   * Network sync is secondary so the EMT remains usable offline.
+   */
+  window.clearTimeout(ppcDraftSaveTimer);
+
+  ppcDraftSaveTimer = window.setTimeout(async () => {
+    const requestId = store.applicant?.practicalTestRequestId;
+
+    if (!requestId || !store.ppcPacket) {
+      return;
+    }
+
+    try {
+      const result = await modules.savePpcEvaluation({
+        practicalTestRequestId: requestId,
+
+        grades: buildPpcGradePayload(),
+
+        finalize: false,
+
+        startedAt: store.applicant?.scheduledStartAt || null,
+
+        aircraftUsed:
+          store.applicant?.appAircraftType ||
+          store.ppcPacket?.aircraft_used ||
+          null,
+
+        examinerNotes: store.outcomeNotes || null,
+
+        aircraftConfiguration:
+          store.applicant?.ppcType === "pilot"
+            ? store.ppcAircraftConfiguration || "airplane"
+            : null,
+      });
+
+      store.ppcLastSyncedAt = result?.saved_at || new Date().toISOString();
+
+      saveToLocalStorage();
+
+      setEmtConnectionMessage(
+        `${store.applicant.requestNumber || "PPC"} saved.`,
+      );
+    } catch (error) {
+      console.warn("PPC draft network sync deferred:", error);
+
+      setEmtConnectionMessage(
+        `${store.applicant.requestNumber || "PPC"} saved locally. Server sync will be retried when changes are made with connectivity.`,
+      );
+    }
+  }, 700);
+}
+
+function setPpcTaskGrade(taskId, grade) {
+  const task = store.ppcPacket?.tasks?.find((item) => item.id === taskId);
+
+  if (!task) {
+    return;
+  }
+
+  if (grade === "W" && !task.waiver_allowed) {
+    alert("Waiver is not authorized for this FAA 8410-1 task.");
+    return;
+  }
+
+  store.ppcGrades ??= {};
+
+  store.ppcGrades[taskId] = {
+    ...store.ppcGrades[taskId],
+
+    grade_value: grade,
+
+    remarks: store.ppcGrades[taskId]?.remarks ?? task.remarks ?? "",
+  };
+
+  modules.notify();
+  queuePpcDraftSync();
+}
+
+function setPpcTaskRemarks(taskId, remarks) {
+  store.ppcGrades ??= {};
+
+  const task = store.ppcPacket?.tasks?.find((item) => item.id === taskId);
+
+  store.ppcGrades[taskId] = {
+    ...store.ppcGrades[taskId],
+
+    grade_value:
+      store.ppcGrades[taskId]?.grade_value || task?.grade_value || "",
+
+    remarks,
+  };
+
+  /*
+   * Do not force a full render on every keystroke.
+   * Save locally immediately and debounce network synchronization.
+   */
+  saveToLocalStorage();
+  queuePpcDraftSync();
+}
+
+function togglePpcTask(taskId) {
+  store.ppcExpandedTasks ??= {};
+
+  store.ppcExpandedTasks[taskId] = !store.ppcExpandedTasks[taskId];
+
+  modules.notify();
+}
+
+function configurePpcChrome(summary) {
+  document.body.classList.add("emt-ppc-mode");
+
+  const packet = store.ppcPacket;
+
+  const isFlightEngineer =
+    packet?.certificate_code === "FLIGHT_ENGINEER_PPC_91529" ||
+    store.applicant?.ppcType === "flight_engineer";
+
+  const title = isFlightEngineer
+    ? "Flight Engineer Proficiency Check (91.529)"
+    : "Pilot Proficiency Check (61.58)";
+
+  const subtitle = document.getElementById("pageSubtitle");
+
+  if (subtitle) {
+    subtitle.textContent = `${title} · FAA Form 8410-1`;
+  }
+
+  const sidebarRating = document.getElementById("sidebarRating");
+
+  if (sidebarRating) {
+    sidebarRating.textContent = title;
+  }
+
+  const decoder = document.getElementById("acsCodeDecoder");
+
+  if (decoder) {
+    decoder.style.display = "none";
+  }
+
+  const filterBanner = document.getElementById("filterBanner");
+
+  if (filterBanner) {
+    filterBanner.style.display = "none";
+  }
+
+  document.querySelectorAll(".grade-scale-bar").forEach((element) => {
+    element.innerHTML = `
+        <div class="grade-chip g3">
+          S Satisfactory
+        </div>
+
+        <div class="grade-chip g1">
+          U Unsatisfactory
+        </div>
+
+        <div class="grade-chip">
+          W Waived
+        </div>
+      `;
+  });
+
+  /*
+   * ACS POA/Oral Flight engine is a different evaluation family.
+   */
+  const scenarioTab = document.querySelector('.view-tab[data-view="scenario"]');
+
+  if (scenarioTab) {
+    scenarioTab.style.display = "none";
+  }
+
+  /*
+   * Keep the normal EMT navigation shell: Eligibility,
+   * Required Briefings, Detailed, Summary, Debrief and Outcome.
+   */
+  modules.renderPpcStats?.(summary);
+}
+
+function restoreAcsChrome() {
+  document.body.classList.remove("emt-ppc-mode");
+
+  const saveButton = document.getElementById("btnSaveEvaluation");
+
+  if (saveButton) {
+    saveButton.innerHTML = `
+      <i class="fas fa-database"></i>
+      Submit Practical Test to Database
+    `;
+
+    saveButton.title =
+      "Save the evaluation and mark the scheduling request completed";
+  }
+
+  const reportButton = document.getElementById("btnSaveHTML");
+
+  if (reportButton) {
+    reportButton.style.display = "";
+  }
+
+  const decoder = document.getElementById("acsCodeDecoder");
+
+  if (decoder) {
+    decoder.style.display = "";
+  }
+
+  const scenarioTab = document.querySelector('.view-tab[data-view="scenario"]');
+
+  if (scenarioTab) {
+    scenarioTab.style.display = "";
+  }
+}
+
+function renderPpcOutcome(summary) {
+  const container = document.getElementById("viewOutcome");
+
+  if (!container) return;
+
+  const failed = summary.statuses.filter((row) => row.status === "fail");
+
+  const incomplete = summary.statuses.filter(
+    (row) => row.status === "incomplete",
+  );
+
+  const resultClass =
+    summary.overall === "SATISFACTORY"
+      ? "selected-sat"
+      : summary.overall === "UNSATISFACTORY"
+        ? "selected-unsat"
+        : "";
+
+  container.innerHTML = `
+    <div class="outcome-section">
+      <h3
+        style="
+          font-family:var(--font-mono);
+          margin-bottom:4px;
+        "
+      >
+        Proficiency Check Outcome
+      </h3>
+
+      <p
+        style="
+          font-family:var(--font-mono);
+          font-size:.78rem;
+          color:var(--text-muted);
+          margin:0 0 14px;
+        "
+      >
+        Automatically determined from FAA 8410-1 task grades.
+      </p>
+
+      <div class="outcome-buttons">
+        <button
+          class="outcome-btn ${
+            resultClass === "selected-sat" ? "selected-sat" : ""
+          }"
+          disabled
+        >
+          <i class="fas fa-check-circle"></i>
+          Satisfactory
+        </button>
+
+        <button
+          class="outcome-btn ${
+            resultClass === "selected-unsat" ? "selected-unsat" : ""
+          }"
+          disabled
+        >
+          <i class="fas fa-times-circle"></i>
+          Unsatisfactory
+        </button>
+      </div>
+
+      <div
+        style="
+          margin-top:16px;
+          padding:14px;
+          border:1px solid #d0d7de;
+          border-radius:10px;
+          background:#f8fafc;
+        "
+      >
+        <strong>
+          ${summary.overall}
+        </strong>
+
+        <div style="margin-top:6px;">
+          ${summary.graded} of
+          ${summary.total}
+          applicable FAA 8410-1 tasks graded.
+        </div>
+      </div>
+
+      ${
+        failed.length
+          ? `
+            <div
+              class="incomplete-tasks-list"
+              style="margin-top:16px;"
+            >
+              <h4>
+                <i class="fas fa-exclamation-triangle"></i>
+                Unsatisfactory Tasks
+              </h4>
+
+              ${failed
+                .map(
+                  ({ task }) => `
+                    <div>
+                      Task ${escapeHtml(task.task_number)} —
+                      ${escapeHtml(task.task_name)}
+                    </div>
+                  `,
+                )
+                .join("")}
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        incomplete.length
+          ? `
+            <div
+              class="incomplete-tasks-list"
+              style="margin-top:16px;"
+            >
+              <h4>
+                <i class="fas fa-circle-exclamation"></i>
+                Tasks Remaining
+              </h4>
+
+              <div>
+                ${incomplete.length}
+                task${incomplete.length === 1 ? "" : "s"}
+                still require a grade.
+              </div>
+            </div>
+          `
+          : ""
+      }
+
+      <div class="outcome-notes">
+        <label>
+          Examiner / Outcome Notes
+        </label>
+
+        <textarea
+          id="outcomeNotes"
+          placeholder="Enter PPC outcome notes..."
+        >${escapeHtml(store.outcomeNotes || "")}</textarea>
+      </div>
+    </div>
+  `;
+
+  const notes = document.getElementById("outcomeNotes");
+
+  if (notes) {
+    notes.addEventListener("input", () => {
+      store.outcomeNotes = notes.value;
+
+      saveToLocalStorage();
+      queuePpcDraftSync();
+    });
+  }
+}
+
+function renderPpcApp() {
+  const packet = store.ppcPacket;
+
+  if (store.ppcLoading && !packet) {
+    configurePpcChrome({
+      total: 0,
+      graded: 0,
+      satisfactory: 0,
+      unsatisfactory: 0,
+      waived: 0,
+      overall: "INCOMPLETE",
+      progressPct: 0,
+    });
+
+    const detail = document.getElementById("viewDetailed");
+
+    if (detail) {
+      detail.innerHTML = `
+        <div
+          style="
+            padding:24px;
+            border:1px solid #d0d7de;
+            border-radius:10px;
+          "
+        >
+          <i class="fas fa-spinner fa-spin"></i>
+          Loading FAA 8410-1 task set...
+        </div>
+      `;
+    }
+
+    return;
+  }
+
+  if (!packet?.tasks?.length) {
+    configurePpcChrome({
+      total: 0,
+      graded: 0,
+      satisfactory: 0,
+      unsatisfactory: 0,
+      waived: 0,
+      overall: "INCOMPLETE",
+      progressPct: 0,
+    });
+
+    const detail = document.getElementById("viewDetailed");
+
+    if (detail) {
+      detail.innerHTML = `
+        <div
+          style="
+            padding:24px;
+            border:1px solid #ef4444;
+            border-radius:10px;
+          "
+        >
+          <strong>
+            FAA 8410-1 tasks could not be loaded.
+          </strong>
+
+          <div style="margin-top:8px;">
+            ${escapeHtml(
+              store.ppcLoadError || "No cached PPC task set is available.",
+            )}
+          </div>
+        </div>
+      `;
+    }
+
+    return;
+  }
+
+  const sections = modules.getPpcSections(packet);
+
+  if (
+    !store.activeAreaId ||
+    !sections.some((section) => section.id === store.activeAreaId)
+  ) {
+    store.activeAreaId = sections[0]?.id || null;
+  }
+
+  const summary = modules.summarizePpc(packet, store.ppcGrades);
+
+  configurePpcChrome(summary);
+
+  modules.renderPpcSidebar(
+    sections,
+    summary,
+    store.activeAreaId,
+    (sectionId) => {
+      store.activeAreaId = sectionId;
+
+      modules.notify();
+    },
+    store.ppcGrades,
+  );
+
+  syncActiveView();
+
+  const activeSection = sections.find(
+    (section) => section.id === store.activeAreaId,
+  );
+
+  modules.renderPpcDetailed(
+    document.getElementById("viewDetailed"),
+    activeSection,
+    store,
+    {
+      onGradeChange: setPpcTaskGrade,
+
+      onToggleTask: togglePpcTask,
+
+      onRemarksChange: setPpcTaskRemarks,
+    },
+  );
+
+  modules.renderPpcSummary(
+    document.getElementById("viewSummary"),
+    packet,
+    store.ppcGrades,
+  );
+
+  /*
+   * Debrief can continue to use the EMT notes workflow.
+   * The normal ACS Debrief renderer is intentionally not given
+   * fake ACS tasks.
+   */
+  const debrief = document.getElementById("viewDebrief");
+
+  if (debrief) {
+    const unsat = summary.statuses.filter((row) => row.status === "fail");
+
+    debrief.innerHTML = `
+      <div class="summary-area-card">
+        <h3>
+          PPC Debrief Notes
+        </h3>
+
+        ${
+          unsat.length
+            ? unsat
+                .map(({ task }) => {
+                  const note =
+                    store.ppcGrades?.[task.id]?.remarks || task.remarks || "";
+
+                  return `
+                      <div
+                        style="
+                          padding:10px 0;
+                          border-bottom:1px solid #e5e7eb;
+                        "
+                      >
+                        <strong>
+                          Task ${escapeHtml(task.task_number)} —
+                          ${escapeHtml(task.task_name)}
+                        </strong>
+
+                        <div>
+                          ${escapeHtml(note || "No examiner note entered.")}
+                        </div>
+                      </div>
+                    `;
+                })
+                .join("")
+            : `
+              <p>
+                No unsatisfactory PPC tasks.
+              </p>
+            `
+        }
+      </div>
+    `;
+  }
+
+  renderPpcOutcome(summary);
+
+  store.practicalTestOutcome =
+    summary.overall === "SATISFACTORY" || summary.overall === "UNSATISFACTORY"
+      ? summary.overall
+      : "";
+
+  /*
+   * Keep the existing Eligibility and Required Briefings tabs
+   * operational for now.
+   */
+  renderRequiredBriefings(document.getElementById("viewChecklists"));
+
+  modules.renderEligibility?.(
+    document.getElementById("viewEligibility"),
+    store.applicant,
+    store,
+  );
+
+  const saveButton = document.getElementById("btnSaveEvaluation");
+
+  if (saveButton) {
+    saveButton.innerHTML = `
+      <i class="fas fa-file-signature"></i>
+      Complete PPC
+    `;
+
+    saveButton.title = "Finalize the PPC grades in EMT";
+  }
+
+  const reportButton = document.getElementById("btnSaveHTML");
+
+  if (reportButton) {
+    reportButton.style.display = "none";
+  }
+}
+
+function ensurePpc8410ReviewOverlay() {
+  let overlay = document.getElementById("emtPpc8410Overlay");
+
+  if (overlay) {
+    return overlay;
+  }
+
+  overlay = document.createElement("div");
+
+  overlay.id = "emtPpc8410Overlay";
+
+  overlay.innerHTML = `
+    <style>
+      #emtPpc8410Overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        background: rgba(15, 23, 42, .88);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+      }
+
+      #emtPpc8410Overlay.show {
+        display: flex;
+      }
+
+      .emt-8410-window {
+        width: min(1180px, 98vw);
+        height: min(94vh, 1000px);
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow:
+          0 25px 60px
+          rgba(0,0,0,.35);
+      }
+
+      .emt-8410-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #0b315b;
+        color: white;
+      }
+
+      .emt-8410-toolbar h3 {
+        flex: 1;
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .emt-8410-toolbar button {
+        border: 0;
+        border-radius: 7px;
+        padding: 8px 13px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .emt-8410-close {
+        background: #e5e7eb;
+        color: #111827;
+      }
+
+      .emt-8410-download {
+        background: #d6a740;
+        color: #10233f;
+      }
+
+      #emtPpc8410Frame {
+        width: 100%;
+        flex: 1;
+        border: 0;
+        background: #ddd;
+      }
+
+      .emt-8410-status {
+        padding: 8px 14px;
+        border-top: 1px solid #d1d5db;
+        color: #4b5563;
+        font-size: .82rem;
+      }
+    </style>
+
+    <div class="emt-8410-window">
+      <div class="emt-8410-toolbar">
+        <h3>
+          FAA Form 8410-1 — Review
+        </h3>
+
+        <button
+          type="button"
+          id="emtPpc8410Download"
+          class="emt-8410-download"
+        >
+          <i class="fas fa-file-arrow-down"></i>
+          Save PDF
+        </button>
+
+        <button
+          type="button"
+          id="emtPpc8410Close"
+          class="emt-8410-close"
+        >
+          Close
+        </button>
+      </div>
+
+      <iframe
+        id="emtPpc8410Frame"
+        title="FAA Form 8410-1 Preview"
+      ></iframe>
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:12px;
+          padding:12px 14px;
+          border-top:1px solid #d1d5db;
+          background:#f8fafc;
+        "
+      >
+        <label
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:5px;
+            font-size:.78rem;
+            font-weight:700;
+            color:#334155;
+          "
+        >
+          Employed By
+          <input
+            id="emtPpc8410EmployedBy"
+            type="text"
+            autocomplete="off"
+            style="
+              padding:8px 10px;
+              border:1px solid #cbd5e1;
+              border-radius:6px;
+              font:inherit;
+              font-weight:400;
+            "
+          />
+        </label>
+
+        <label
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:5px;
+            font-size:.78rem;
+            font-weight:700;
+            color:#334155;
+          "
+        >
+          Based At
+          <input
+            id="emtPpc8410BasedAt"
+            type="text"
+            autocomplete="off"
+            placeholder="City and State"
+            style="
+              padding:8px 10px;
+              border:1px solid #cbd5e1;
+              border-radius:6px;
+              font:inherit;
+              font-weight:400;
+            "
+          />
+        </label>
+
+        <label
+          style="
+            grid-column:1 / -1;
+            display:flex;
+            flex-direction:column;
+            gap:5px;
+            font-size:.78rem;
+            font-weight:700;
+            color:#334155;
+          "
+        >
+          Remarks
+
+          <textarea
+            id="emtPpc8410Remarks"
+            rows="7"
+            autocomplete="off"
+            placeholder="Enter remarks as they should appear on FAA Form 8410-1"
+            style="
+              width:100%;
+              min-height:135px;
+              resize:vertical;
+              padding:10px;
+              border:1px solid #cbd5e1;
+              border-radius:6px;
+              font:inherit;
+              font-weight:400;
+              line-height:1.35;
+            "
+          ></textarea>
+        </label>
+      </div>
+
+      <div
+        id="emtPpc8410Status"
+        class="emt-8410-status"
+      >
+        Generated from the finalized EMT PPC grades.
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById("emtPpc8410Close")?.addEventListener("click", () => {
+    overlay.classList.remove("show");
+  });
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      overlay.classList.remove("show");
+    }
+  });
+
+  return overlay;
+}
+
+function getPpc8410GradeMap() {
+  const map = new Map();
+
+  for (const task of store.ppcPacket?.tasks || []) {
+    const grade =
+      store.ppcGrades?.[task.id]?.grade_value || task.grade_value || "";
+
+    map.set(Number(task.task_number), grade);
+  }
+
+  return map;
+}
+
+function getPpc8410Remarks() {
+  const lines = [];
+
+  for (const task of store.ppcPacket?.tasks || []) {
+    const note = store.ppcGrades?.[task.id]?.remarks || task.remarks || "";
+
+    if (String(note).trim()) {
+      lines.push(
+        `${task.task_number}. ${task.task_name}: ${String(note).trim()}`,
+      );
+    }
+  }
+
+  if (String(store.outcomeNotes || "").trim()) {
+    lines.push(String(store.outcomeNotes).trim());
+  }
+
+  return lines.join("\n");
+}
+
+function wrap8410Text(text, maxChars = 58) {
+  const output = [];
+
+  for (const paragraph of String(text || "").split("\n")) {
+    const words = paragraph.split(/\s+/);
+
+    let line = "";
+
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+
+      if (candidate.length > maxChars && line) {
+        output.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+
+    if (line) {
+      output.push(line);
+    }
+  }
+
+  return output;
+}
+
+function formatPpc8410Date(value) {
+  const text = String(value || "").trim();
+
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (iso) {
+    return `${iso[2]}/${iso[3]}/${iso[1]}`;
+  }
+
+  const parsed = new Date(text);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return [
+      String(parsed.getMonth() + 1).padStart(2, "0"),
+      String(parsed.getDate()).padStart(2, "0"),
+      parsed.getFullYear(),
+    ].join("/");
+  }
+
+  return text;
+}
+
+async function generatePpc8410PdfBlob() {
+  if (!window.PDFLib) {
+    throw new Error("PDF library did not load.");
+  }
+
+  if (!store.ppcPacket?.tasks?.length) {
+    throw new Error("PPC task data is not loaded.");
+  }
+
+  const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+
+  const response = await fetch("/forms/faa-form-8410-1.pdf");
+
+  if (!response.ok) {
+    throw new Error("FAA Form 8410-1 template could not be loaded.");
+  }
+
+  const template = await response.arrayBuffer();
+
+  const pdf = await PDFDocument.load(template);
+
+  const page = pdf.getPages()[0];
+
+  if (!page) {
+    throw new Error("FAA Form 8410-1 template contains no page.");
+  }
+
+  const { width, height } = page.getSize();
+
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  /*
+   * The original form is calibrated against
+   * its 768 x 1024 rendered layout.
+   */
+  const X = (px) => (px / 768) * width;
+
+  const Y = (pxFromTop) => height - (pxFromTop / 1024) * height;
+
+  const drawText = (value, x, y, size = 7, options = {}) => {
+    const text = String(value || "").trim();
+
+    if (!text) {
+      return;
+    }
+
+    page.drawText(text, {
+      x: X(x),
+      y: Y(y),
+      size,
+      font: options.bold ? bold : font,
+      color: rgb(0, 0, 0),
+    });
+  };
+
+  const applicant = store.applicant || {};
+
+  const isFlightEngineer =
+    applicant.ppcType === "flight_engineer" ||
+    store.ppcPacket?.certificate_code === "FLIGHT_ENGINEER_PPC_91529";
+
+  const checkLabel = isFlightEngineer
+    ? "FE Proficiency Check"
+    : "Pilot Proficiency Check";
+
+  /*
+   * FAA Form 8410-1 already contains native AcroForm fields.
+   *
+   * Use those fields for the header instead of stamping text at
+   * manually-calibrated coordinates. This preserves the FAA layout
+   * and avoids text overlapping the printed field labels.
+   */
+  const form = pdf.getForm();
+
+  const set8410Field = (fieldName, value, fontSize = 8) => {
+    try {
+      const field = form.getTextField(fieldName);
+
+      field.setText(String(value || "").trim());
+
+      try {
+        field.setFontSize(fontSize);
+      } catch {
+        /*
+         * Some original FAA field appearances control their own
+         * font sizing. Text is still populated if sizing cannot
+         * be overridden.
+         */
+      }
+    } catch (error) {
+      console.warn(
+        `FAA 8410-1 field "${fieldName}" could not be populated.`,
+        error,
+      );
+    }
+  };
+
+  const date = formatPpc8410Date(
+    applicant.appDate || new Date().toISOString().slice(0, 10),
+  );
+
+  /*
+   * LOCATION comes exclusively from the scheduled airport /
+   * location carried by the practical-test request.
+   */
+  const location = applicant.scheduledLocation || "";
+
+  const typeOfCheck = isFlightEngineer ? "91.529" : "61.58";
+
+  const aircraftType =
+    applicant.ppcTypeRatingDesignation ||
+    applicant.appAircraftType ||
+    store.ppcPacket?.aircraft_used ||
+    "";
+
+  const tailNumber = applicant.appNNumber || "";
+
+  const aircraftAndTail = [aircraftType, tailNumber]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" / ");
+
+  /*
+   * Pull examiner name and DPE designation number from the same
+   * Designee Information profile used by the Examiner Portal.
+   */
+  let designeeProfile = store.ppcExaminerDesigneeProfile || null;
+
+  if (
+    !designeeProfile &&
+    typeof modules.loadCurrentExaminerDesigneeProfile === "function"
+  ) {
+    try {
+      designeeProfile = await modules.loadCurrentExaminerDesigneeProfile();
+
+      store.ppcExaminerDesigneeProfile = designeeProfile;
+    } catch (error) {
+      console.warn(
+        "Unable to load examiner designation information for FAA 8410-1.",
+        error,
+      );
+    }
+  }
+
+  const examinerName =
+    designeeProfile?.designeeName || applicant.appExaminer || "";
+
+  const designationNumber = designeeProfile?.designationNumber || "";
+
+  const checkAirman = [
+    examinerName,
+    designationNumber ? `DPE ${designationNumber}` : "",
+  ]
+    .filter(Boolean)
+    .join(" - ");
+
+  /*
+   * BLOCK TIME comes from Flight Information only.
+   * Do not substitute ground duration.
+   */
+  const blockTime = applicant.appBlockTime || applicant.appFlightDuration || "";
+
+  const employedBy = String(store.ppc8410EmployedBy || "").trim();
+
+  const basedAt = String(store.ppc8410BasedAt || "").trim();
+
+  set8410Field("DATE OF CHECK", date);
+
+  set8410Field("LOCATION", location);
+
+  set8410Field("NAME OF AIRMAN", applicant.appName || "");
+
+  set8410Field("TYPE OF CHECK", typeOfCheck);
+
+  /*
+   * These two fields intentionally remain examiner-editable.
+   */
+  set8410Field("EMPLOYED BY", employedBy);
+
+  set8410Field("BASED AT", basedAt);
+
+  set8410Field("TYPE AIRCRAFTSIMULATOR USED", aircraftAndTail);
+
+  set8410Field("NAME OF CHECK AIRMAN", checkAirman);
+
+  set8410Field("BLOCK TIME", blockTime);
+
+  /*
+   * REMARKS is an actual multiline field in FAA Form 8410-1.
+   * The review-screen value overrides automatically assembled
+   * task remarks when the examiner edits it.
+   */
+  const formRemarks = String(
+    store.ppc8410Remarks ?? getPpc8410Remarks() ?? "",
+  ).trim();
+
+  set8410Field("REMARKS", formRemarks, 7);
+
+  const gradeMap = getPpc8410GradeMap();
+
+  /*
+   * FAA 8410-1 grade positions.
+   *
+   * S/U are marked in their respective boxes.
+   * W is centered over the S/U pair because the
+   * form provides the waiver convention without
+   * a dedicated third column.
+   */
+  const pilotY = {
+    1: 276.5,
+    2: 292,
+    3: 307.2,
+    4: 322.4,
+
+    5: 353.4,
+    6: 369,
+    7: 384.5,
+    8: 399.7,
+    9: 414.9,
+
+    10: 445.9,
+    11: 461.4,
+    12: 476.9,
+    13: 492.5,
+    14: 508,
+    15: 523.5,
+    16: 539,
+
+    17: 570,
+    18: 585.2,
+    19: 600.4,
+    20: 616.3,
+
+    21: 647,
+    22: 662.5,
+    23: 678,
+    24: 693.5,
+    25: 709,
+    26: 724.2,
+
+    27: 755,
+    28: 770.5,
+    29: 786,
+    30: 801.5,
+    31: 817,
+    32: 832.5,
+  };
+
+  const feY = {
+    1: 258,
+    2: 276,
+    3: 294,
+    4: 311,
+    5: 329,
+    6: 347,
+    7: 365,
+    8: 382,
+    9: 400,
+    10: 417,
+    11: 435,
+    12: 452,
+    13: 470,
+    14: 488,
+    15: 505,
+    16: 523,
+    17: 540,
+    18: 558,
+    19: 576,
+    20: 593,
+    21: 611,
+    22: 628,
+  };
+
+  const yMap = isFlightEngineer ? feY : pilotY;
+
+  const gradeX = isFlightEngineer
+    ? {
+        S: 714,
+        U: 739,
+        W: 726,
+      }
+    : {
+        S: 352,
+        U: 386,
+        W: 369,
+      };
+
+  for (const [number, grade] of gradeMap.entries()) {
+    const y = yMap[number];
+
+    if (!isFlightEngineer) {
+      const configuration =
+        store.ppcAircraftConfiguration ||
+        store.ppcPacket?.aircraft_configuration ||
+        "airplane";
+
+      /*
+       * FAA Form 8410-1 Pilot applicability:
+       *
+       * 30 Hovering Maneuvers:
+       *    helicopter only
+       *
+       * 31 Rapid Decelerations:
+       *    helicopter only
+       *
+       * 32 Autorotations:
+       *    single-engine helicopter only
+       */
+      if (configuration === "airplane" && number >= 30) {
+        continue;
+      }
+
+      if (configuration === "helicopter_multi" && number === 32) {
+        continue;
+      }
+    }
+
+    if (!y || !["S", "U", "W"].includes(grade)) {
+      continue;
+    }
+
+    drawText(grade === "W" ? "W" : "X", gradeX[grade], y + 3, 8, {
+      bold: true,
+    });
+  }
+
+  const overall = String(store.practicalTestOutcome || "").toUpperCase();
+
+  /*
+   * RESULT OF CHECK uses the FAA template's actual fields rather
+   * than manually positioned X marks.
+   */
+  set8410Field("APPROVED", overall === "SATISFACTORY" ? "X" : "", 8);
+
+  set8410Field("DISAPPROVED", overall === "UNSATISFACTORY" ? "X" : "", 8);
+
+  /*
+   * We intentionally do NOT auto-mark
+   * CHECK AIRMAN'S PERFORMANCE.
+   *
+   * That field is separate from the airman's PPC
+   * result and should not simply mirror the check result.
+   */
+
+  const bytes = await pdf.save();
+
+  return new Blob([bytes], {
+    type: "application/pdf",
+  });
+}
+
+let currentPpc8410BlobUrl = "";
+
+async function reviewPpc8410InsideEmt() {
+  const overlay = ensurePpc8410ReviewOverlay();
+
+  const status = document.getElementById("emtPpc8410Status");
+
+  const frame = document.getElementById("emtPpc8410Frame");
+
+  const download = document.getElementById("emtPpc8410Download");
+
+  overlay.classList.add("show");
+
+  const employedByInput = document.getElementById("emtPpc8410EmployedBy");
+
+  const basedAtInput = document.getElementById("emtPpc8410BasedAt");
+
+  const remarksInput = document.getElementById("emtPpc8410Remarks");
+
+  if (employedByInput) {
+    employedByInput.value = store.ppc8410EmployedBy || "";
+
+    employedByInput.oninput = (event) => {
+      store.ppc8410EmployedBy = event.target.value;
+
+      saveToLocalStorage();
+    };
+  }
+
+  if (basedAtInput) {
+    basedAtInput.value = store.ppc8410BasedAt || "";
+
+    basedAtInput.oninput = (event) => {
+      store.ppc8410BasedAt = event.target.value;
+
+      saveToLocalStorage();
+    };
+  }
+
+  if (remarksInput) {
+    if (store.ppc8410Remarks === undefined || store.ppc8410Remarks === null) {
+      store.ppc8410Remarks = getPpc8410Remarks() || "";
+    }
+
+    remarksInput.value = store.ppc8410Remarks;
+
+    remarksInput.oninput = (event) => {
+      store.ppc8410Remarks = event.target.value;
+
+      saveToLocalStorage();
+    };
+  }
+
+  if (status) {
+    status.textContent = "Generating FAA Form 8410-1 from EMT grades...";
+  }
+
+  try {
+    const blob = await generatePpc8410PdfBlob();
+
+    if (currentPpc8410BlobUrl) {
+      URL.revokeObjectURL(currentPpc8410BlobUrl);
+    }
+
+    currentPpc8410BlobUrl = URL.createObjectURL(blob);
+
+    if (frame) {
+      frame.src = currentPpc8410BlobUrl;
+    }
+
+    if (status) {
+      status.textContent =
+        "FAA Form 8410-1 generated from the finalized EMT S/U/W grades.";
+    }
+
+    if (download) {
+      download.onclick = () => {
+        const link = document.createElement("a");
+
+        const requestNumber = store.applicant?.requestNumber || "PPC";
+
+        link.href = currentPpc8410BlobUrl;
+
+        link.download = `${requestNumber}-FAA-8410-1.pdf`;
+
+        document.body.appendChild(link);
+
+        link.click();
+        link.remove();
+      };
+    }
+
+    const regenerateFromEditableFields = async () => {
+      try {
+        if (status) {
+          status.textContent = "Updating FAA Form 8410-1...";
+        }
+
+        const updatedBlob = await generatePpc8410PdfBlob();
+
+        if (currentPpc8410BlobUrl) {
+          URL.revokeObjectURL(currentPpc8410BlobUrl);
+        }
+
+        currentPpc8410BlobUrl = URL.createObjectURL(updatedBlob);
+
+        if (frame) {
+          frame.src = currentPpc8410BlobUrl;
+        }
+
+        if (status) {
+          status.textContent = "FAA Form 8410-1 updated.";
+        }
+      } catch (error) {
+        console.error("FAA 8410-1 editable-field update failed:", error);
+      }
+    };
+
+    if (employedByInput) {
+      employedByInput.onchange = regenerateFromEditableFields;
+    }
+
+    if (basedAtInput) {
+      basedAtInput.onchange = regenerateFromEditableFields;
+    }
+
+    if (remarksInput) {
+      remarksInput.onchange = regenerateFromEditableFields;
+    }
+  } catch (error) {
+    console.error("FAA 8410-1 generation failed:", error);
+
+    if (status) {
+      status.textContent =
+        error instanceof Error
+          ? error.message
+          : "FAA 8410-1 generation failed.";
+    }
+
+    alert(
+      `FAA 8410-1 generation failed: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    );
+  }
+}
+
+function renderCompletedPpcActions() {
+  const actions = document.getElementById("outcomeOnlyActions");
+
+  if (!actions) {
+    return;
+  }
+
+  actions.style.display = "flex";
+
+  actions.innerHTML = `
+    <button
+      class="btn btn-accent"
+      id="btnReviewPpc8410"
+      type="button"
+    >
+      <i class="fas fa-file-signature"></i>
+      Review FAA 8410-1
+    </button>
+  `;
+
+  document
+    .getElementById("btnReviewPpc8410")
+    ?.addEventListener("click", reviewPpc8410InsideEmt);
+}
+
+async function finalizePpcEvaluationInEmt() {
+  const packet = store.ppcPacket;
+
+  if (!packet?.tasks?.length) {
+    alert("The FAA 8410-1 task set is not loaded.");
+    return;
+  }
+
+  const summary = modules.summarizePpc(packet, store.ppcGrades);
+
+  if (summary.graded !== summary.total) {
+    alert(
+      `All applicable FAA 8410-1 tasks must be graded before completing the PPC.\n\n${summary.graded} of ${summary.total} tasks are graded.`,
+    );
+
+    return;
+  }
+
+  const label =
+    store.applicant?.ppcType === "flight_engineer"
+      ? "Flight Engineer Proficiency Check (91.529)"
+      : "Pilot Proficiency Check (61.58)";
+
+  const confirmed = window.confirm(
+    `Complete ${label}?\n\nResult: ${summary.overall}\n\nThe S / U / W grades will be finalized and used to generate FAA Form 8410-1.`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const button = document.getElementById("btnSaveEvaluation");
+
+  const oldHtml = button?.innerHTML || "";
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        Finalizing PPC
+      `;
+    }
+
+    const result = await modules.savePpcEvaluation({
+      practicalTestRequestId: store.applicant.practicalTestRequestId,
+
+      grades: buildPpcGradePayload(),
+
+      finalize: true,
+
+      startedAt: store.applicant?.scheduledStartAt || null,
+
+      aircraftUsed:
+        store.applicant?.appAircraftType || packet.aircraft_used || null,
+
+      examinerNotes: store.outcomeNotes || null,
+
+      aircraftConfiguration:
+        store.applicant?.ppcType === "pilot"
+          ? store.ppcAircraftConfiguration || "airplane"
+          : null,
+    });
+
+    store.ppcPacket = {
+      ...packet,
+      practical_test_id: result?.practical_test_id || packet.practical_test_id,
+
+      evaluation_status: result?.evaluation_status || "finalized",
+
+      result: result?.result || null,
+
+      approved_status: result?.approved_status || null,
+    };
+
+    /*
+     * PPC grades are now finalized.
+     *
+     * Keep the examiner inside EMT and immediately transition to the
+     * FAA Form 8410-1 review generated from the finalized S / U / W grades.
+     */
+    store.ppcLastSyncedAt = result?.saved_at || new Date().toISOString();
+
+    saveToLocalStorage();
+
+    setEmtConnectionMessage(
+      `${store.applicant.requestNumber || "PPC"} finalized in EMT.`,
+    );
+
+    modules.notify();
+
+    renderCompletedPpcActions();
+
+    await reviewPpc8410InsideEmt();
+  } catch (error) {
+    console.error("PPC finalization failed:", error);
+
+    alert(
+      `PPC finalization failed: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    );
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.innerHTML = oldHtml;
+    }
+  }
+}
+
 function getDatasetKey() {
   if (
-    store.applicant.appCertificate === 'Private' &&
-    store.applicant.appRating === 'GLIDER'
+    store.applicant.appCertificate === "Private" &&
+    store.applicant.appRating === "GLIDER"
   ) {
-    return 'PrivateGlider';
+    return "PrivateGlider";
   }
 
   return store.applicant.appCertificate;
@@ -2418,9 +3835,9 @@ function getCurrentAreas() {
     // For Instrument Airplane, use Aircraft Class used for test
     // instead of the Rating dropdown for task filtering.
     appRating:
-      store.applicant.appCertificate === 'Instrument'
-        ? store.applicant.appAircraftClassUsed || 'ASEL'
-        : store.applicant.appRating
+      store.applicant.appCertificate === "Instrument"
+        ? store.applicant.appAircraftClassUsed || "ASEL"
+        : store.applicant.appRating,
   };
 
   return modules.buildVisibleAreas(dataset, applicantForFiltering);
@@ -2432,18 +3849,28 @@ function getCurrentTasks(areas = getCurrentAreas()) {
 
 function renderApp() {
   ensureStoreDefaults();
-// Show Aircraft Class ONLY for Instrument
-const aircraftClassGroup = document.getElementById('aircraftClassUsedGroup');
 
-if (aircraftClassGroup) {
-  const isInstrument =
-    store.applicant.appCertificate === 'Instrument';
+  if (isCurrentEmtPpc()) {
+    renderPpcApp();
+    return;
+  }
 
-  aircraftClassGroup.style.display = isInstrument ? 'block' : 'none';
-}
+  restoreAcsChrome();
+
+  // Show Aircraft Class ONLY for Instrument
+  const aircraftClassGroup = document.getElementById("aircraftClassUsedGroup");
+
+  if (aircraftClassGroup) {
+    const isInstrument = store.applicant.appCertificate === "Instrument";
+
+    aircraftClassGroup.style.display = isInstrument ? "block" : "none";
+  }
   const areas = getCurrentAreas();
 
-  if (!store.activeAreaId || !areas.some(area => area.id === store.activeAreaId)) {
+  if (
+    !store.activeAreaId ||
+    !areas.some((area) => area.id === store.activeAreaId)
+  ) {
     store.activeAreaId = areas[0]?.id ?? null;
   }
 
@@ -2456,84 +3883,69 @@ if (aircraftClassGroup) {
   const summary = modules.summarizeTasks(flatTasks);
 
   const averages = {
-    K: modules.averageGrade(flatTasks, 'K'),
-    R: modules.averageGrade(flatTasks, 'R'),
-    S: modules.averageGrade(flatTasks, 'S')
+    K: modules.averageGrade(flatTasks, "K"),
+    R: modules.averageGrade(flatTasks, "R"),
+    S: modules.averageGrade(flatTasks, "S"),
   };
 
   modules.renderStats?.(summary, averages);
 
   const summaryByArea = Object.fromEntries(
-    areas.map(area => {
+    areas.map((area) => {
       const areaSummary = modules.summarizeTasks(area.tasks);
-      return [area.id, { complete: areaSummary.overall === 'SATISFACTORY' }];
-    })
+      return [area.id, { complete: areaSummary.overall === "SATISFACTORY" }];
+    }),
   );
 
-  modules.renderSidebar?.(
-    areas,
-    summaryByArea,
-    store.activeAreaId,
-    areaId => modules.setActiveArea(areaId)
+  modules.renderSidebar?.(areas, summaryByArea, store.activeAreaId, (areaId) =>
+    modules.setActiveArea(areaId),
   );
 
   syncActiveView();
 
-  const activeArea = areas.find(area => area.id === store.activeAreaId);
+  const activeArea = areas.find((area) => area.id === store.activeAreaId);
 
-  modules.renderDetailed?.($('viewDetailed'), activeArea, store, {
+  modules.renderDetailed?.($("viewDetailed"), activeArea, store, {
     onGradeChange: (taskCode, gradeType, value) =>
       modules.setGrade(taskCode, gradeType, value),
 
-    onToggleTask: taskCode =>
-      modules.toggleTask(taskCode),
+    onToggleTask: (taskCode) => modules.toggleTask(taskCode),
 
     onTaskCheck: (taskCode, checked) =>
       handleTaskCheck(taskCode, checked, { setAllGradesToThree: true }),
 
     onExaminerNoteChange: (taskCode, note) =>
-      handleExaminerNoteChange(taskCode, note)
+      handleExaminerNoteChange(taskCode, note),
   });
 
   applyAcsCodeHighlights();
 
-  if (
-    typeof modules.renderScenarioEngine === 'function' &&
-    !scenarioRendered
-  ) {
-    modules.renderScenarioEngine(
-      'scenario-root'
-    );
+  if (typeof modules.renderScenarioEngine === "function" && !scenarioRendered) {
+    modules.renderScenarioEngine("scenario-root");
 
     scenarioRendered = true;
 
     window.requestAnimationFrame(() => {
-      upgradeGradeSelectsToRadios(
-        document
-      );
+      upgradeGradeSelectsToRadios(document);
 
       syncScenarioGradesFromStore();
     });
   }
 
-  modules.renderSummary?.($('viewSummary'), areas, store);
-  modules.renderDebrief?.($('viewDebrief'), areas, store);
+  modules.renderSummary?.($("viewSummary"), areas, store);
+  modules.renderDebrief?.($("viewDebrief"), areas, store);
   modules.renderOutcome?.(summary);
 
   syncPracticalTestOutcomeFromOutcomeTab(summary);
-  renderRequiredBriefings($('viewChecklists'));
+  renderRequiredBriefings($("viewChecklists"));
   wireReportActionButtons();
 
-  modules.renderEligibility?.(
-  $('viewEligibility'),
-  store.applicant,
-  store
-);
+  modules.renderEligibility?.($("viewEligibility"), store.applicant, store);
 
-  const outcomeNotes = $('outcomeNotes');
+  const outcomeNotes = $("outcomeNotes");
   if (outcomeNotes) {
-    outcomeNotes.value = store.outcomeNotes || '';
-    outcomeNotes.oninput = event => {
+    outcomeNotes.value = store.outcomeNotes || "";
+    outcomeNotes.oninput = (event) => {
       store.outcomeNotes = event.target.value;
     };
   }
@@ -2554,24 +3966,24 @@ if (aircraftClassGroup) {
 }
 
 function syncActiveView() {
-  document.querySelectorAll('.view-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.view === store.activeView);
+  document.querySelectorAll(".view-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.view === store.activeView);
   });
 
-  document.querySelectorAll('.view-content').forEach(view => {
-    view.classList.remove('active');
+  document.querySelectorAll(".view-content").forEach((view) => {
+    view.classList.remove("active");
   });
 
   const activeId = `view${store.activeView[0].toUpperCase()}${store.activeView.slice(1)}`;
-  $(activeId)?.classList.add('active');
+  $(activeId)?.classList.add("active");
 
-  const outcomeOnlyActions = $('outcomeOnlyActions');
+  const outcomeOnlyActions = $("outcomeOnlyActions");
 
   if (outcomeOnlyActions) {
     outcomeOnlyActions.style.display =
-      store.activeView === 'outcome' ? 'flex' : 'none';
+      store.activeView === "outcome" ? "flex" : "none";
   }
-}  
+}
 
 function wireFullAppEvents() {
   /*
@@ -2579,169 +3991,161 @@ function wireFullAppEvents() {
    * including task and Flight Portion checkboxes. Synchronize the
    * visible radio groups after those handlers finish.
    */
-  document.addEventListener('change', event => {
-    if (
-      !event.target.matches(
-        'input[type="checkbox"], select[data-grade]'
-      )
-    ) {
+  document.addEventListener("change", (event) => {
+    if (!event.target.matches('input[type="checkbox"], select[data-grade]')) {
       return;
     }
 
     window.setTimeout(() => {
-      document
-        .querySelectorAll('select[data-grade]')
-        .forEach(select => {
-          syncGradeRadioGroup(select);
-        });
+      document.querySelectorAll("select[data-grade]").forEach((select) => {
+        syncGradeRadioGroup(select);
+      });
 
       upgradeGradeSelectsToRadios(document);
     }, 0);
   });
 
-  document.querySelectorAll('.view-tab').forEach(tab => {
+  document.querySelectorAll(".view-tab").forEach((tab) => {
     tab.onclick = () => {
       scenarioRendered = false;
       modules.setActiveView(tab.dataset.view);
     };
   });
 
-  document.addEventListener('change', event => {
-  if (!isOutcomeTabField(event.target)) return;
+  document.addEventListener("change", (event) => {
+    if (!isOutcomeTabField(event.target)) return;
 
-  const selectedOutcome = normalizePracticalTestOutcome(
-    event.target.value ||
-    event.target.options?.[event.target.selectedIndex]?.textContent ||
-    event.target.closest('label')?.innerText ||
-    event.target.parentElement?.innerText
-  );
+    const selectedOutcome = normalizePracticalTestOutcome(
+      event.target.value ||
+        event.target.options?.[event.target.selectedIndex]?.textContent ||
+        event.target.closest("label")?.innerText ||
+        event.target.parentElement?.innerText,
+    );
 
-  if (selectedOutcome === 'DISCONTINUANCE') {
-    store.discontinuanceManuallySelected = true;
-    store.practicalTestOutcome = 'DISCONTINUANCE';
-  } else {
-    store.discontinuanceManuallySelected = false;
-    syncPracticalTestOutcomeFromOutcomeTab();
-  }
-
-  updatePostFlightOutcomeGroups(document);
-  modules.notify();
-});
-
-  $('btnLookupApplicant')?.addEventListener('click', lookupApplicantByDMS);
-
-  document.addEventListener('click', () => {
-  setTimeout(() => {
-    updatePostFlightOutcomeGroups(document);
-  }, 0);
-});
-
-document.addEventListener('click', event => {
-  const btn = event.target.closest('.outcome-btn');
-  if (!btn) return;
-
-  const selectedOutcome = btn.dataset.outcome;
-
-  if (selectedOutcome === 'discontinuance') {
-    store.discontinuanceManuallySelected = true;
-    store.practicalTestOutcome = 'DISCONTINUANCE';
-
-    document.querySelectorAll('.outcome-btn').forEach(button => {
-      button.classList.remove('selected-sat', 'selected-unsat', 'selected-disc');
-    });
-
-    btn.classList.add('selected-disc');
+    if (selectedOutcome === "DISCONTINUANCE") {
+      store.discontinuanceManuallySelected = true;
+      store.practicalTestOutcome = "DISCONTINUANCE";
+    } else {
+      store.discontinuanceManuallySelected = false;
+      syncPracticalTestOutcomeFromOutcomeTab();
+    }
 
     updatePostFlightOutcomeGroups(document);
     modules.notify();
-  }
-});
+  });
 
-  $('btnExpandAll')?.addEventListener('click', () => {
-    getCurrentTasks().forEach(task => {
+  $("btnLookupApplicant")?.addEventListener("click", lookupApplicantByDMS);
+
+  document.addEventListener("click", () => {
+    setTimeout(() => {
+      updatePostFlightOutcomeGroups(document);
+    }, 0);
+  });
+
+  document.addEventListener("click", (event) => {
+    const btn = event.target.closest(".outcome-btn");
+    if (!btn) return;
+
+    const selectedOutcome = btn.dataset.outcome;
+
+    if (selectedOutcome === "discontinuance") {
+      store.discontinuanceManuallySelected = true;
+      store.practicalTestOutcome = "DISCONTINUANCE";
+
+      document.querySelectorAll(".outcome-btn").forEach((button) => {
+        button.classList.remove(
+          "selected-sat",
+          "selected-unsat",
+          "selected-disc",
+        );
+      });
+
+      btn.classList.add("selected-disc");
+
+      updatePostFlightOutcomeGroups(document);
+      modules.notify();
+    }
+  });
+
+  $("btnExpandAll")?.addEventListener("click", () => {
+    if (isCurrentEmtPpc()) {
+      store.ppcExpandedTasks ??= {};
+
+      for (const task of store.ppcPacket?.tasks || []) {
+        store.ppcExpandedTasks[task.id] = true;
+      }
+
+      modules.notify();
+      return;
+    }
+
+    getCurrentTasks().forEach((task) => {
       store.expandedTasks[task.filterCode] = true;
     });
 
     modules.notify();
   });
 
-  $('btnCollapseAll')?.addEventListener('click', () => {
+  $("btnCollapseAll")?.addEventListener("click", () => {
     store.expandedTasks = {};
     modules.notify();
   });
 
-  $('btnExportJSON')?.addEventListener('click', exportJsonSave);
-  $('btnSaveHTML')?.addEventListener('click', generateCheckrideReport);
+  $("btnExportJSON")?.addEventListener("click", exportJsonSave);
+  $("btnSaveHTML")?.addEventListener("click", generateCheckrideReport);
 
-  $('btnSaveEvaluation')?.addEventListener(
-    'click',
-    submitPracticalTestToDatabase
+  $("btnSaveEvaluation")?.addEventListener(
+    "click",
+    submitPracticalTestToDatabase,
   );
 
-  $('btnReset')?.addEventListener('click', () => {
-    $('confirmModal')?.classList.add('show');
+  $("btnReset")?.addEventListener("click", () => {
+    $("confirmModal")?.classList.add("show");
   });
 
-  $('modalCancel')?.addEventListener('click', () => {
-    $('confirmModal')?.classList.remove('show');
+  $("modalCancel")?.addEventListener("click", () => {
+    $("confirmModal")?.classList.remove("show");
   });
 
-  $('modalConfirm')?.addEventListener('click', () => {
+  $("modalConfirm")?.addEventListener("click", () => {
     resetAllEvaluationData();
   });
 }
 
 function normalizeDatabasePracticalTestResult(value) {
-  const normalized =
-    String(value || '')
-      .trim()
-      .toUpperCase();
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
 
-  if (normalized === 'SATISFACTORY') {
-    return 'pass';
+  if (normalized === "SATISFACTORY") {
+    return "pass";
   }
 
-  if (normalized === 'UNSATISFACTORY') {
-    return 'fail';
+  if (normalized === "UNSATISFACTORY") {
+    return "fail";
   }
 
-  if (
-    normalized === 'DISCONTINUANCE' ||
-    normalized === 'DISCONTINUED'
-  ) {
-    return 'letter_of_discontinuance';
+  if (normalized === "DISCONTINUANCE" || normalized === "DISCONTINUED") {
+    return "letter_of_discontinuance";
   }
 
-  if (normalized === 'NO SHOW') {
-    return 'no_show';
+  if (normalized === "NO SHOW") {
+    return "no_show";
   }
 
   return null;
 }
 
 function parseEvaluationFeeAmount() {
-  const rawValue =
-    store.applicant?.feeAmount ??
-    store.feeAmount ??
-    null;
+  const rawValue = store.applicant?.feeAmount ?? store.feeAmount ?? null;
 
-  if (
-    rawValue === null ||
-    rawValue === undefined ||
-    rawValue === ''
-  ) {
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
     return null;
   }
 
-  const numericValue =
-    Number(
-      String(rawValue)
-        .replace(/[$,\s]/g, '')
-    );
+  const numericValue = Number(String(rawValue).replace(/[$,\s]/g, ""));
 
-  return Number.isFinite(numericValue)
-    ? numericValue
-    : null;
+  return Number.isFinite(numericValue) ? numericValue : null;
 }
 
 function buildEvaluationStateForDatabase() {
@@ -2754,28 +4158,17 @@ function buildEvaluationStateForDatabase() {
    * duplicated inside evaluation_state.
    */
   const limitedApplicant = {
-    appDate:
-      applicant.appDate || '',
-    appSchool:
-      applicant.appSchool || '',
-    appCertificate:
-      applicant.appCertificate || '',
-    appRating:
-      applicant.appRating || '',
-    appExamType:
-      applicant.appExamType || '',
-    appAircraftType:
-      applicant.appAircraftType || '',
-    appInstructor:
-      applicant.appInstructor || '',
-    scheduledLocation:
-      applicant.scheduledLocation || '',
-    appGroundDuration:
-      applicant.appGroundDuration || '',
-    appFlightDuration:
-      applicant.appFlightDuration || '',
-    appRetest:
-      applicant.appRetest || 'No'
+    appDate: applicant.appDate || "",
+    appSchool: applicant.appSchool || "",
+    appCertificate: applicant.appCertificate || "",
+    appRating: applicant.appRating || "",
+    appExamType: applicant.appExamType || "",
+    appAircraftType: applicant.appAircraftType || "",
+    appInstructor: applicant.appInstructor || "",
+    scheduledLocation: applicant.scheduledLocation || "",
+    appGroundDuration: applicant.appGroundDuration || "",
+    appFlightDuration: applicant.appFlightDuration || "",
+    appRetest: applicant.appRetest || "No",
   };
 
   /*
@@ -2788,78 +4181,71 @@ function buildEvaluationStateForDatabase() {
       applicant: limitedApplicant,
       databaseMetadata: {
         schemaVersion: 3,
-        submittedFrom: 'ems-web',
-        submittedAt:
-          new Date().toISOString()
-      }
-    })
+        submittedFrom: "ems-web",
+        submittedAt: new Date().toISOString(),
+      },
+    }),
   );
 }
 
 async function submitPracticalTestToDatabase() {
-  const requestId =
-    store.applicant
-      ?.practicalTestRequestId || '';
+  if (isCurrentEmtPpc()) {
+    await finalizePpcEvaluationInEmt();
+    return;
+  }
+
+  const requestId = store.applicant?.practicalTestRequestId || "";
 
   if (!requestId) {
     alert(
-      'Load an accepted or confirmed DPE EMT appointment before submitting the practical test.'
+      "Load an accepted or confirmed DPE EMT appointment before submitting the practical test.",
     );
     return;
   }
 
-  const missingGradeReasons =
-    collectMissingGradeReasons();
+  const missingGradeReasons = collectMissingGradeReasons();
 
   if (missingGradeReasons.length) {
-    const preview =
-      missingGradeReasons
-        .slice(0, 8)
-        .map(item => `• ${item}`)
-        .join('\n');
+    const preview = missingGradeReasons
+      .slice(0, 8)
+      .map((item) => `• ${item}`)
+      .join("\n");
 
     const additional =
       missingGradeReasons.length > 8
-        ? `\n• ...and ${
-            missingGradeReasons.length - 8
-          } more`
-        : '';
+        ? `\n• ...and ${missingGradeReasons.length - 8} more`
+        : "";
 
     alert(
-      `Reason Code Required\n\nEvery grade of 1 or 2 must have a reason code selected.\n\n${preview}${additional}`
+      `Reason Code Required\n\nEvery grade of 1 or 2 must have a reason code selected.\n\n${preview}${additional}`,
     );
 
     syncAllGradeReasonControls();
     return;
   }
 
-  const result =
-    normalizeDatabasePracticalTestResult(
-      store.practicalTestOutcome
-    );
+  const result = normalizeDatabasePracticalTestResult(
+    store.practicalTestOutcome,
+  );
 
   if (!result) {
     alert(
-      'Select a final Practical Test Outcome before submitting the practical test.'
+      "Select a final Practical Test Outcome before submitting the practical test.",
     );
     return;
   }
 
-  const requestNumber =
-    store.applicant?.requestNumber ||
-    'this practical test';
+  const requestNumber = store.applicant?.requestNumber || "this practical test";
 
   const confirmed = window.confirm(
-    `Submit ${requestNumber} to the database and complete the practical test?\n\nThis will save the evaluation and grading data, create both Practical Test Reports, release the Applicant Report, and then mark the request Completed.`
+    `Submit ${requestNumber} to the database and complete the practical test?\n\nThis will save the evaluation and grading data, create both Practical Test Reports, release the Applicant Report, and then mark the request Completed.`,
   );
 
   if (!confirmed) return;
 
-  const button =
-    $('btnSaveEvaluation');
+  const button = $("btnSaveEvaluation");
 
-  const originalHtml =
-    button?.innerHTML || '';
+  const originalHtml = button?.innerHTML || "";
 
   try {
     if (button) {
@@ -2868,106 +4254,79 @@ async function submitPracticalTestToDatabase() {
         '<i class="fas fa-spinner fa-spin"></i> Submitting Practical Test';
     }
 
-    const resultData =
-      await modules.submitEmtPracticalTest({
-        practicalTestRequestId:
-          requestId,
+    const resultData = await modules.submitEmtPracticalTest({
+      practicalTestRequestId: requestId,
 
-        evaluationState:
-          buildEvaluationStateForDatabase(),
+      evaluationState: buildEvaluationStateForDatabase(),
 
-        result,
+      result,
 
-        startedAt:
-          store.applicant?.scheduledStartAt ||
-          null,
+      startedAt: store.applicant?.scheduledStartAt || null,
 
-        aircraftUsed:
-          [
-            store.applicant?.appAircraftType,
-            store.applicant?.appNNumber
-          ]
-            .filter(Boolean)
-            .join(' · ') ||
-          null,
+      aircraftUsed:
+        [store.applicant?.appAircraftType, store.applicant?.appNNumber]
+          .filter(Boolean)
+          .join(" · ") || null,
 
-        feeAmount:
-          parseEvaluationFeeAmount(),
+      feeAmount: parseEvaluationFeeAmount(),
 
-        examinerNotes:
-          store.outcomeNotes ||
-          null,
+      examinerNotes: store.outcomeNotes || null,
 
-        dmsPreapprovalNumber:
-          store.applicant?.appDMS ||
-          null
-      });
+      dmsPreapprovalNumber: store.applicant?.appDMS || null,
+    });
 
-    const practicalTestId =
-      resultData?.practical_test_id ||
-      null;
+    const practicalTestId = resultData?.practical_test_id || null;
 
     if (!practicalTestId) {
       throw new Error(
-        'The practical test was finalized, but no practical-test ID was returned.'
+        "The practical test was finalized, but no practical-test ID was returned.",
       );
     }
 
-    const generatedAt =
-      resultData?.saved_at ||
-      new Date().toISOString();
+    const generatedAt = resultData?.saved_at || new Date().toISOString();
 
-    const finalRequestNumber =
-      resultData?.request_number ||
-      requestNumber;
+    const finalRequestNumber = resultData?.request_number || requestNumber;
 
     if (button) {
       button.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> Creating Applicant Report';
     }
 
-    const applicantReportPdf =
-      await generateApplicantReportPdfBlob();
+    const applicantReportPdf = await generateApplicantReportPdfBlob();
 
     if (button) {
       button.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> Uploading Applicant Report';
     }
 
-    const applicantReportRow =
-      await modules.uploadApplicantPracticalTestReport({
+    const applicantReportRow = await modules.uploadApplicantPracticalTestReport(
+      {
         practicalTestId,
-        requestNumber:
-          finalRequestNumber,
-        pdfBlob:
-          applicantReportPdf,
+        requestNumber: finalRequestNumber,
+        pdfBlob: applicantReportPdf,
         generatedAt,
-        releaseToApplicant:
-          true
-      });
+        releaseToApplicant: true,
+      },
+    );
 
     if (button) {
       button.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> Creating Designee Report';
     }
 
-    const designeeReportPdf =
-      await generateDesigneeReportPdfBlob();
+    const designeeReportPdf = await generateDesigneeReportPdfBlob();
 
     if (button) {
       button.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> Uploading Designee Report';
     }
 
-    const designeeReportRow =
-      await modules.uploadDesigneePracticalTestReport({
-        practicalTestId,
-        requestNumber:
-          finalRequestNumber,
-        pdfBlob:
-          designeeReportPdf,
-        generatedAt
-      });
+    const designeeReportRow = await modules.uploadDesigneePracticalTestReport({
+      practicalTestId,
+      requestNumber: finalRequestNumber,
+      pdfBlob: designeeReportPdf,
+      generatedAt,
+    });
 
     if (button) {
       button.innerHTML =
@@ -2975,50 +4334,36 @@ async function submitPracticalTestToDatabase() {
     }
 
     const completionData =
-      await modules.finalizeEmtPracticalTest(
-        practicalTestId
-      );
+      await modules.finalizeEmtPracticalTest(practicalTestId);
 
     if (
-      completionData?.request_status !==
-        'completed' ||
-      completionData?.evaluation_status !==
-        'completed'
+      completionData?.request_status !== "completed" ||
+      completionData?.evaluation_status !== "completed"
     ) {
       throw new Error(
-        'The reports were saved, but the practical test did not return a Completed status.'
+        "The reports were saved, but the practical test did not return a Completed status.",
       );
     }
 
     store.databaseSubmission = {
       practicalTestId,
-      status: 'completed',
-      submittedAt:
-        completionData?.completed_at ||
-        generatedAt,
-      applicantReportId:
-        applicantReportRow?.id ||
-        null,
+      status: "completed",
+      submittedAt: completionData?.completed_at || generatedAt,
+      applicantReportId: applicantReportRow?.id || null,
       applicantReportReleasedAt:
-        applicantReportRow
-          ?.released_to_applicant_at ||
-        null,
-      designeeReportId:
-        designeeReportRow?.id ||
-        null,
-      completedAt:
-        completionData?.completed_at ||
-        null
+        applicantReportRow?.released_to_applicant_at || null,
+      designeeReportId: designeeReportRow?.id || null,
+      completedAt: completionData?.completed_at || null,
     };
 
     saveToLocalStorage();
 
     setEmtConnectionMessage(
-      `${requestNumber} was submitted successfully. Grading data and both reports were saved, the Applicant Report was released, and the scheduling request is Completed.`
+      `${requestNumber} was submitted successfully. Grading data and both reports were saved, the Applicant Report was released, and the scheduling request is Completed.`,
     );
 
     alert(
-      `${requestNumber} was submitted successfully.\n\nThe evaluation and grading data were saved, both Practical Test Reports were stored, the Applicant Report was released to the applicant, and the scheduling request was changed to Completed.`
+      `${requestNumber} was submitted successfully.\n\nThe evaluation and grading data were saved, both Practical Test Reports were stored, the Applicant Report was released to the applicant, and the scheduling request was changed to Completed.`,
     );
 
     /*
@@ -3027,67 +4372,45 @@ async function submitPracticalTestToDatabase() {
      */
     await refreshEmtAppointments();
   } catch (error) {
-    console.error(
-      'Practical-test submission failed:',
-      error
-    );
+    console.error("Practical-test submission failed:", error);
 
     const message =
       error instanceof Error
         ? error.message
-        : 'The practical test could not be submitted.';
+        : "The practical test could not be submitted.";
 
-    setEmtConnectionMessage(
-      message,
-      true
-    );
+    setEmtConnectionMessage(message, true);
 
-    alert(
-      `Practical-test submission failed: ${message}`
-    );
+    alert(`Practical-test submission failed: ${message}`);
   } finally {
     if (button) {
       button.disabled = false;
-      button.innerHTML =
-        originalHtml;
+      button.innerHTML = originalHtml;
     }
   }
 }
 
-
 async function regenerateStoredPracticalTestReports() {
   const practicalTestId =
-    store.databaseSubmission
-      ?.practicalTestId ||
-    store.practicalTestId ||
-    null;
+    store.databaseSubmission?.practicalTestId || store.practicalTestId || null;
 
-  const requestNumber =
-    store.applicant
-      ?.requestNumber ||
-    '';
+  const requestNumber = store.applicant?.requestNumber || "";
 
   if (!practicalTestId) {
     alert(
-      'A submitted practical test must be loaded before stored reports can be regenerated.'
+      "A submitted practical test must be loaded before stored reports can be regenerated.",
     );
     return;
   }
 
   if (!requestNumber) {
-    alert(
-      'The practical-test request number is unavailable.'
-    );
+    alert("The practical-test request number is unavailable.");
     return;
   }
 
-  const button =
-    document.getElementById(
-      'regenerateStoredReportsBtn'
-    );
+  const button = document.getElementById("regenerateStoredReportsBtn");
 
-  const originalHtml =
-    button?.innerHTML || '';
+  const originalHtml = button?.innerHTML || "";
 
   if (button) {
     button.disabled = true;
@@ -3102,157 +4425,132 @@ async function regenerateStoredPracticalTestReports() {
     /*
      * Generate using the CURRENT working report builders.
      */
-    const applicantPdf =
-      await generateApplicantReportPdfBlob();
+    const applicantPdf = await generateApplicantReportPdfBlob();
 
     if (button) {
       button.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> Uploading Applicant Report';
     }
 
-    const generatedAt =
-      new Date().toISOString();
+    const generatedAt = new Date().toISOString();
 
-    await modules
-      .uploadApplicantPracticalTestReport({
-        practicalTestId,
-        requestNumber,
-        pdfBlob:
-          applicantPdf,
-        generatedAt,
-        releaseToApplicant:
-          true
-      });
+    await modules.uploadApplicantPracticalTestReport({
+      practicalTestId,
+      requestNumber,
+      pdfBlob: applicantPdf,
+      generatedAt,
+      releaseToApplicant: true,
+    });
 
     if (button) {
       button.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> Creating Designee Report';
     }
 
-    const designeePdf =
-      await generateDesigneeReportPdfBlob();
+    const designeePdf = await generateDesigneeReportPdfBlob();
 
     if (button) {
       button.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> Uploading Designee Report';
     }
 
-    await modules
-      .uploadDesigneePracticalTestReport({
-        practicalTestId,
-        requestNumber,
-        pdfBlob:
-          designeePdf,
-        generatedAt
-      });
+    await modules.uploadDesigneePracticalTestReport({
+      practicalTestId,
+      requestNumber,
+      pdfBlob: designeePdf,
+      generatedAt,
+    });
 
     store.databaseSubmission ??= {};
 
-    store.databaseSubmission
-      .reportsRegeneratedAt =
-      generatedAt;
+    store.databaseSubmission.reportsRegeneratedAt = generatedAt;
 
     saveToLocalStorage();
 
     alert(
-      `${requestNumber} reports were regenerated successfully.\n\nThe prior stored Applicant and Designee reports were superseded, and the web portals will now use the new PDFs.`
+      `${requestNumber} reports were regenerated successfully.\n\nThe prior stored Applicant and Designee reports were superseded, and the web portals will now use the new PDFs.`,
     );
   } catch (error) {
-    console.error(
-      'Stored report regeneration failed:',
-      error
-    );
+    console.error("Stored report regeneration failed:", error);
 
     alert(
       `Stored report regeneration failed: ${
-        error instanceof Error
-          ? error.message
-          : 'Unknown error'
-      }`
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
     );
   } finally {
     if (button) {
       button.disabled = false;
-      button.innerHTML =
-        originalHtml;
+      button.innerHTML = originalHtml;
     }
   }
 }
 
 function wireReportActionButtons() {
-  const printApplicantBtn = $('printApplicantReportBtn');
-  const emailApplicantBtn = $('emailApplicantReportBtn');
-  const printDesigneeBtn = $('printDesigneeReportBtn');
-  const emailDesigneeBtn = $('emailDesigneeReportBtn');
-  const regenerateStoredReportsBtn =
-    $('regenerateStoredReportsBtn');
+  const printApplicantBtn = $("printApplicantReportBtn");
+  const emailApplicantBtn = $("emailApplicantReportBtn");
+  const printDesigneeBtn = $("printDesigneeReportBtn");
+  const emailDesigneeBtn = $("emailDesigneeReportBtn");
+  const regenerateStoredReportsBtn = $("regenerateStoredReportsBtn");
 
   if (printApplicantBtn && !printApplicantBtn.dataset.wired) {
-    printApplicantBtn.dataset.wired = 'true';
-    printApplicantBtn.addEventListener('click', () => {
-      generatePracticalTestReport('applicant');
+    printApplicantBtn.dataset.wired = "true";
+    printApplicantBtn.addEventListener("click", () => {
+      generatePracticalTestReport("applicant");
     });
   }
 
   if (emailApplicantBtn && !emailApplicantBtn.dataset.wired) {
-    emailApplicantBtn.dataset.wired = 'true';
-    emailApplicantBtn.addEventListener('click', () => {
-      openEmailReportDialog('applicant');
+    emailApplicantBtn.dataset.wired = "true";
+    emailApplicantBtn.addEventListener("click", () => {
+      openEmailReportDialog("applicant");
     });
   }
 
   if (printDesigneeBtn && !printDesigneeBtn.dataset.wired) {
-    printDesigneeBtn.dataset.wired = 'true';
-    printDesigneeBtn.addEventListener('click', () => {
-      generatePracticalTestReport('designee');
+    printDesigneeBtn.dataset.wired = "true";
+    printDesigneeBtn.addEventListener("click", () => {
+      generatePracticalTestReport("designee");
     });
   }
 
-  if (
-    regenerateStoredReportsBtn &&
-    !regenerateStoredReportsBtn.dataset.wired
-  ) {
-    regenerateStoredReportsBtn.dataset.wired =
-      'true';
+  if (regenerateStoredReportsBtn && !regenerateStoredReportsBtn.dataset.wired) {
+    regenerateStoredReportsBtn.dataset.wired = "true";
 
-    regenerateStoredReportsBtn
-      .addEventListener(
-        'click',
-        () => {
-          void regenerateStoredPracticalTestReports();
-        }
-      );
+    regenerateStoredReportsBtn.addEventListener("click", () => {
+      void regenerateStoredPracticalTestReports();
+    });
   }
 
   if (emailDesigneeBtn && !emailDesigneeBtn.dataset.wired) {
-    emailDesigneeBtn.dataset.wired = 'true';
-    emailDesigneeBtn.addEventListener('click', () => {
-      openEmailReportDialog('designee');
+    emailDesigneeBtn.dataset.wired = "true";
+    emailDesigneeBtn.addEventListener("click", () => {
+      openEmailReportDialog("designee");
     });
   }
 }
 
 function openEmailReportDialog(reportType) {
-  const isApplicant = reportType === 'applicant';
+  const isApplicant = reportType === "applicant";
 
   const email = prompt(
     isApplicant
-      ? 'Enter applicant email address:'
-      : 'Enter designee report email address:'
+      ? "Enter applicant email address:"
+      : "Enter designee report email address:",
   );
 
   if (!email) return;
 
   const subject = encodeURIComponent(
     isApplicant
-      ? 'Applicant Practical Test Report'
-      : 'Designee Practical Test Report'
+      ? "Applicant Practical Test Report"
+      : "Designee Practical Test Report",
   );
 
   const body = encodeURIComponent(
     isApplicant
-      ? 'The Applicant Practical Test Report is ready. Please open the EMS app and use the Save / Print Applicant Test Report button to generate the PDF.'
-      : 'The Designee Practical Test Report is ready. Please open the EMS app and use the Save / Print Designee Test Report button to generate the PDF.'
+      ? "The Applicant Practical Test Report is ready. Please open the EMS app and use the Save / Print Applicant Test Report button to generate the PDF."
+      : "The Designee Practical Test Report is ready. Please open the EMS app and use the Save / Print Designee Test Report button to generate the PDF.",
   );
 
   window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
@@ -3262,43 +4560,45 @@ function isOutcomeTabField(element) {
   if (!element) return false;
 
   return (
-    element.id === 'practicalTestOutcome' ||
-    element.id === 'testOutcome' ||
-    element.id === 'finalOutcome' ||
-    element.id === 'outcome' ||
-    element.name === 'practicalTestOutcome' ||
-    element.name === 'testOutcome' ||
-    element.name === 'finalOutcome' ||
-    element.name === 'outcome' ||
-    !!element.closest?.('#viewOutcome')
+    element.id === "practicalTestOutcome" ||
+    element.id === "testOutcome" ||
+    element.id === "finalOutcome" ||
+    element.id === "outcome" ||
+    element.name === "practicalTestOutcome" ||
+    element.name === "testOutcome" ||
+    element.name === "finalOutcome" ||
+    element.name === "outcome" ||
+    !!element.closest?.("#viewOutcome")
   );
 }
 
 function normalizePracticalTestOutcome(value) {
-  const text = String(value || '').toUpperCase().trim();
+  const text = String(value || "")
+    .toUpperCase()
+    .trim();
 
-  if (!text) return '';
+  if (!text) return "";
 
   if (
-    text.includes('DISCONTINUANCE') ||
-    text.includes('DISCONTINUE') ||
-    text.includes('DISCONTINUED')
+    text.includes("DISCONTINUANCE") ||
+    text.includes("DISCONTINUE") ||
+    text.includes("DISCONTINUED")
   ) {
-    return 'DISCONTINUANCE';
+    return "DISCONTINUANCE";
   }
 
-  if (text.includes('UNSATISFACTORY')) return 'UNSATISFACTORY';
+  if (text.includes("UNSATISFACTORY")) return "UNSATISFACTORY";
 
-  if (text.includes('SATISFACTORY')) return 'SATISFACTORY';
+  if (text.includes("SATISFACTORY")) return "SATISFACTORY";
 
-  if (text.includes('INCOMPLETE')) return '';
+  if (text.includes("INCOMPLETE")) return "";
 
-  return '';
+  return "";
 }
 
 function syncPracticalTestOutcomeFromOutcomeTab(summary = null) {
   if (store.discontinuanceManuallySelected) {
-    store.practicalTestOutcome = 'DISCONTINUANCE';
+    store.practicalTestOutcome = "DISCONTINUANCE";
     return store.practicalTestOutcome;
   }
 
@@ -3306,40 +4606,34 @@ function syncPracticalTestOutcomeFromOutcomeTab(summary = null) {
     const summaryOutcome = normalizePracticalTestOutcome(summary.overall);
 
     if (
-      summaryOutcome === 'SATISFACTORY' ||
-      summaryOutcome === 'UNSATISFACTORY'
+      summaryOutcome === "SATISFACTORY" ||
+      summaryOutcome === "UNSATISFACTORY"
     ) {
       store.practicalTestOutcome = summaryOutcome;
       return store.practicalTestOutcome;
     }
 
-    store.practicalTestOutcome = '';
-    return '';
+    store.practicalTestOutcome = "";
+    return "";
   }
 
-  return store.practicalTestOutcome || '';
+  return store.practicalTestOutcome || "";
 }
-
-  
 
 function handleTaskCheck(taskCode, checked, options = {}) {
   store.checkedElements[taskCode] = checked;
 
   if (options.setAllGradesToThree) {
-  ensureGradeReasonStores();
+    ensureGradeReasonStores();
 
-  ['K', 'R', 'S'].forEach(type => {
-    const gradeKey =
-      `${taskCode}.${type}`;
+    ["K", "R", "S"].forEach((type) => {
+      const gradeKey = `${taskCode}.${type}`;
 
-    store.grades[gradeKey] =
-      checked ? '3' : 'NP';
+      store.grades[gradeKey] = checked ? "3" : "NP";
 
-    delete store.gradeReasons[
-      gradeKey
-    ];
-  });
-}
+      delete store.gradeReasons[gradeKey];
+    });
+  }
 
   modules.notify();
 }
@@ -3360,7 +4654,7 @@ function setBriefingItemChecked(sectionId, index, checked) {
 }
 
 function getSelectedPostFlightOutcome() {
-  return store.practicalTestOutcome || '';
+  return store.practicalTestOutcome || "";
 }
 
 function isBriefingGroupDisabled(group) {
@@ -3373,12 +4667,13 @@ function isBriefingGroupDisabled(group) {
 
 function getBriefingStatus(section) {
   let total = section.items?.length || 0;
-  let completed = section.items?.filter((_, index) =>
-    isBriefingItemChecked(section.id, index)
-  ).length || 0;
+  let completed =
+    section.items?.filter((_, index) =>
+      isBriefingItemChecked(section.id, index),
+    ).length || 0;
 
   if (section.groups?.length) {
-    section.groups.forEach(group => {
+    section.groups.forEach((group) => {
       if (isBriefingGroupDisabled(group)) return;
 
       const groupKey = `${section.id}.${group.id}`;
@@ -3386,7 +4681,7 @@ function getBriefingStatus(section) {
       total += group.items.length;
 
       completed += group.items.filter((_, index) =>
-        isBriefingItemChecked(groupKey, index)
+        isBriefingItemChecked(groupKey, index),
       ).length;
     });
   }
@@ -3394,16 +4689,17 @@ function getBriefingStatus(section) {
   return {
     total,
     completed,
-    complete: total > 0 && completed === total
+    complete: total > 0 && completed === total,
   };
 }
 
 function renderPostFlightOutcomeStatus() {
-  const outcomeLabel = {
-    SATISFACTORY: 'Satisfactory',
-    UNSATISFACTORY: 'Unsatisfactory',
-    DISCONTINUANCE: 'Letter of Discontinuance'
-  }[store.practicalTestOutcome] || 'Not selected';
+  const outcomeLabel =
+    {
+      SATISFACTORY: "Satisfactory",
+      UNSATISFACTORY: "Unsatisfactory",
+      DISCONTINUANCE: "Letter of Discontinuance",
+    }[store.practicalTestOutcome] || "Not selected";
 
   return `
     <div class="postflight-outcome-selector">
@@ -3417,32 +4713,25 @@ function renderPostFlightOutcomeStatus() {
 }
 
 function getBriefingItemText(item) {
-  if (item.text !== 'Collect Examiner Fee') {
+  if (item.text !== "Collect Examiner Fee") {
     return item.text;
   }
 
-  const rawFee =
-    store.applicant?.feeAmount ??
-    store.feeAmount ??
-    null;
+  const rawFee = store.applicant?.feeAmount ?? store.feeAmount ?? null;
 
-  if (
-    rawFee === null ||
-    rawFee === undefined ||
-    rawFee === ''
-  ) {
-    return 'Collect Examiner Fee';
+  if (rawFee === null || rawFee === undefined || rawFee === "") {
+    return "Collect Examiner Fee";
   }
 
   const fee = Number(rawFee);
 
   if (!Number.isFinite(fee)) {
-    return 'Collect Examiner Fee';
+    return "Collect Examiner Fee";
   }
 
-  return `Collect Examiner Fee - ${fee.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD'
+  return `Collect Examiner Fee - ${fee.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
   })}`;
 }
 
@@ -3485,13 +4774,13 @@ function renderRequiredBriefings(container) {
         }
       </style>
 
-      ${REQUIRED_BRIEFINGS.map(section => {
+      ${REQUIRED_BRIEFINGS.map((section) => {
         const status = getBriefingStatus(section);
         const isOpen = store.expandedBriefings?.[section.id] !== false;
 
         return `
           <div 
-            class="checklist-section ${status.complete ? 'checklist-section-complete' : ''} ${isOpen ? 'open' : ''}"
+            class="checklist-section ${status.complete ? "checklist-section-complete" : ""} ${isOpen ? "open" : ""}"
             data-briefing-section-card="${escapeHtml(section.id)}"
           >
             <div class="checklist-header" data-briefing-toggle="${escapeHtml(section.id)}">
@@ -3500,7 +4789,7 @@ function renderRequiredBriefings(container) {
                   type="checkbox"
                   class="briefing-master-check"
                   data-briefing-master-check="${escapeHtml(section.id)}"
-                  ${status.complete ? 'checked' : ''}
+                  ${status.complete ? "checked" : ""}
                   title="Check or uncheck all items in this section"
                   onclick="event.stopPropagation();"
                 />
@@ -3511,22 +4800,23 @@ function renderRequiredBriefings(container) {
 
               <div class="checklist-header-right">
                 <span class="checklist-progress">${status.completed} / ${status.total}</span>
-                <i class="fas ${status.complete ? 'fa-circle-check' : 'fa-circle'} checklist-status-icon ${status.complete ? 'complete' : ''}"></i>
+                <i class="fas ${status.complete ? "fa-circle-check" : "fa-circle"} checklist-status-icon ${status.complete ? "complete" : ""}"></i>
                 <i class="fas fa-chevron-down checklist-chevron"></i>
               </div>
             </div>
 
             <div class="checklist-body">
-              ${section.id === 'postFlightBriefing' ? renderPostFlightOutcomeStatus() : ''}
+              ${section.id === "postFlightBriefing" ? renderPostFlightOutcomeStatus() : ""}
 
               <div class="checklist-items">
-                ${(section.items || []).map((item, index) => {
-                  const checked = isBriefingItemChecked(section.id, index);
-                  const itemKey = `${section.id}_${index}`;
+                ${(section.items || [])
+                  .map((item, index) => {
+                    const checked = isBriefingItemChecked(section.id, index);
+                    const itemKey = `${section.id}_${index}`;
 
-                  return `
+                    return `
                     <div
-                      class="checklist-item ${checked ? 'checked' : ''}"
+                      class="checklist-item ${checked ? "checked" : ""}"
                       style="margin-left:${(item.indent || 0) * 24}px;"
                     >
                       <input
@@ -3534,7 +4824,7 @@ function renderRequiredBriefings(container) {
                         id="briefing_${escapeHtml(itemKey)}"
                         data-required-briefing-section="${escapeHtml(section.id)}"
                         data-required-briefing-index="${index}"
-                        ${checked ? 'checked' : ''}
+                        ${checked ? "checked" : ""}
                       />
 
                       <label for="briefing_${escapeHtml(itemKey)}">
@@ -3542,33 +4832,39 @@ function renderRequiredBriefings(container) {
                       </label>
                     </div>
                   `;
-                }).join('')}
+                  })
+                  .join("")}
 
-                ${(section.groups || []).map(group => {
-                  const groupDisabled = isBriefingGroupDisabled(group);
-                  const groupKey = `${section.id}.${group.id}`;
-                  const disabledStyle = groupDisabled
-                    ? 'opacity:0.35; filter:grayscale(100%); pointer-events:none;'
-                    : 'opacity:1; filter:none; pointer-events:auto;';
+                ${(section.groups || [])
+                  .map((group) => {
+                    const groupDisabled = isBriefingGroupDisabled(group);
+                    const groupKey = `${section.id}.${group.id}`;
+                    const disabledStyle = groupDisabled
+                      ? "opacity:0.35; filter:grayscale(100%); pointer-events:none;"
+                      : "opacity:1; filter:none; pointer-events:auto;";
 
-                  return `
+                    return `
                     <div 
                       class="briefing-group" 
                       data-briefing-outcome="${group.outcome}"
                       style="${disabledStyle}"
                     >
-                      <div class="briefing-group-title" style="${groupDisabled ? 'background:#e5e7eb;color:#6b7280;' : ''}">
+                      <div class="briefing-group-title" style="${groupDisabled ? "background:#e5e7eb;color:#6b7280;" : ""}">
                         ${escapeHtml(group.title)}
-                        ${groupDisabled ? '<span class="briefing-disabled-note">Disabled by selected outcome</span>' : ''}
+                        ${groupDisabled ? '<span class="briefing-disabled-note">Disabled by selected outcome</span>' : ""}
                       </div>
 
-                      ${group.items.map((item, index) => {
-                        const checked = isBriefingItemChecked(groupKey, index);
-                        const itemKey = `${groupKey}_${index}`;
+                      ${group.items
+                        .map((item, index) => {
+                          const checked = isBriefingItemChecked(
+                            groupKey,
+                            index,
+                          );
+                          const itemKey = `${groupKey}_${index}`;
 
-                        return `
+                          return `
                           <div
-                            class="checklist-item ${checked ? 'checked' : ''}"
+                            class="checklist-item ${checked ? "checked" : ""}"
                             style="margin-left:${Number(item.indent || 0) * 24}px;"
                           >
                             <input
@@ -3576,30 +4872,32 @@ function renderRequiredBriefings(container) {
                               id="briefing_${escapeHtml(itemKey)}"
                               data-required-briefing-section="${escapeHtml(groupKey)}"
                               data-required-briefing-index="${index}"
-                              ${checked ? 'checked' : ''}
-                              ${groupDisabled ? 'disabled' : ''}
+                              ${checked ? "checked" : ""}
+                              ${groupDisabled ? "disabled" : ""}
                             />
                             <label for="briefing_${escapeHtml(itemKey)}">${escapeHtml(item.text)}</label>
                           </div>
                         `;
-                      }).join('')}
+                        })
+                        .join("")}
                     </div>
                   `;
-                }).join('')}
+                  })
+                  .join("")}
               </div>
             </div>
           </div>
         `;
-      }).join('')}
+      }).join("")}
     </div>
   `;
 
-  container.querySelectorAll('[data-briefing-toggle]').forEach(header => {
-    header.addEventListener('click', event => {
+  container.querySelectorAll("[data-briefing-toggle]").forEach((header) => {
+    header.addEventListener("click", (event) => {
       if (
-        event.target.tagName === 'INPUT' ||
-        event.target.tagName === 'LABEL' ||
-        event.target.tagName === 'SELECT'
+        event.target.tagName === "INPUT" ||
+        event.target.tagName === "LABEL" ||
+        event.target.tagName === "SELECT"
       ) {
         return;
       }
@@ -3607,52 +4905,59 @@ function renderRequiredBriefings(container) {
       const sectionId = header.dataset.briefingToggle;
 
       store.expandedBriefings ??= {};
-      store.expandedBriefings[sectionId] = store.expandedBriefings?.[sectionId] === false;
+      store.expandedBriefings[sectionId] =
+        store.expandedBriefings?.[sectionId] === false;
 
       modules.notify();
     });
   });
 
-  container.querySelectorAll('[data-briefing-master-check]').forEach(master => {
-  master.addEventListener('change', event => {
-    event.stopPropagation();
+  container
+    .querySelectorAll("[data-briefing-master-check]")
+    .forEach((master) => {
+      master.addEventListener("change", (event) => {
+        event.stopPropagation();
 
-    const sectionId = event.target.dataset.briefingMasterCheck;
-    const checked = event.target.checked;
+        const sectionId = event.target.dataset.briefingMasterCheck;
+        const checked = event.target.checked;
 
-    const section = REQUIRED_BRIEFINGS.find(item => item.id === sectionId);
-    if (!section) return;
+        const section = REQUIRED_BRIEFINGS.find(
+          (item) => item.id === sectionId,
+        );
+        if (!section) return;
 
-    store.requiredBriefings ??= {};
-    store.requiredBriefings[section.id] ??= {};
+        store.requiredBriefings ??= {};
+        store.requiredBriefings[section.id] ??= {};
 
-    (section.items || []).forEach((_, index) => {
-      store.requiredBriefings[section.id][index] = checked;
-    });
+        (section.items || []).forEach((_, index) => {
+          store.requiredBriefings[section.id][index] = checked;
+        });
 
-    (section.groups || []).forEach(group => {
-      if (isBriefingGroupDisabled(group)) return;
+        (section.groups || []).forEach((group) => {
+          if (isBriefingGroupDisabled(group)) return;
 
-      const groupKey = `${section.id}.${group.id}`;
-      store.requiredBriefings[groupKey] ??= {};
+          const groupKey = `${section.id}.${group.id}`;
+          store.requiredBriefings[groupKey] ??= {};
 
-      group.items.forEach((_, index) => {
-        store.requiredBriefings[groupKey][index] = checked;
+          group.items.forEach((_, index) => {
+            store.requiredBriefings[groupKey][index] = checked;
+          });
+        });
+
+        modules.notify();
       });
     });
 
-    modules.notify();
-  });
-});
+  container
+    .querySelectorAll("[data-required-briefing-section]")
+    .forEach((input) => {
+      input.addEventListener("change", (event) => {
+        const sectionId = event.target.dataset.requiredBriefingSection;
+        const index = Number(event.target.dataset.requiredBriefingIndex);
 
-  container.querySelectorAll('[data-required-briefing-section]').forEach(input => {
-    input.addEventListener('change', event => {
-      const sectionId = event.target.dataset.requiredBriefingSection;
-      const index = Number(event.target.dataset.requiredBriefingIndex);
-
-      setBriefingItemChecked(sectionId, index, event.target.checked);
+        setBriefingItemChecked(sectionId, index, event.target.checked);
+      });
     });
-  });
 
   updatePostFlightOutcomeGroups(container);
 }
@@ -3660,67 +4965,67 @@ function renderRequiredBriefings(container) {
 function updatePostFlightOutcomeGroups(container = document) {
   syncPracticalTestOutcomeFromOutcomeTab();
 
-  const selectedOutcome = store.practicalTestOutcome || '';
-  const groups = container.querySelectorAll('[data-briefing-outcome]');
+  const selectedOutcome = store.practicalTestOutcome || "";
+  const groups = container.querySelectorAll("[data-briefing-outcome]");
 
-  groups.forEach(group => {
+  groups.forEach((group) => {
     const groupOutcome = group.dataset.briefingOutcome;
     const disabled = !!selectedOutcome && groupOutcome !== selectedOutcome;
 
-    group.style.opacity = disabled ? '0.35' : '1';
-    group.style.filter = disabled ? 'grayscale(100%)' : 'none';
-    group.style.pointerEvents = disabled ? 'none' : 'auto';
+    group.style.opacity = disabled ? "0.35" : "1";
+    group.style.filter = disabled ? "grayscale(100%)" : "none";
+    group.style.pointerEvents = disabled ? "none" : "auto";
 
-    const title = group.querySelector('.briefing-group-title');
+    const title = group.querySelector(".briefing-group-title");
 
     if (title) {
-      title.style.background = disabled ? '#e5e7eb' : '#f3f4f6';
-      title.style.color = disabled ? '#6b7280' : '#374151';
+      title.style.background = disabled ? "#e5e7eb" : "#f3f4f6";
+      title.style.color = disabled ? "#6b7280" : "#374151";
 
-      const existingNote = title.querySelector('.briefing-disabled-note');
+      const existingNote = title.querySelector(".briefing-disabled-note");
 
       if (existingNote) {
         existingNote.remove();
       }
 
       if (disabled) {
-        const note = document.createElement('span');
-        note.className = 'briefing-disabled-note';
-        note.textContent = ' Disabled by selected outcome';
+        const note = document.createElement("span");
+        note.className = "briefing-disabled-note";
+        note.textContent = " Disabled by selected outcome";
         title.appendChild(note);
       }
     }
 
-    group.querySelectorAll('input[type="checkbox"]').forEach(input => {
+    group.querySelectorAll('input[type="checkbox"]').forEach((input) => {
       input.disabled = disabled;
-      input.style.cursor = disabled ? 'not-allowed' : 'pointer';
+      input.style.cursor = disabled ? "not-allowed" : "pointer";
     });
 
-    group.querySelectorAll('label').forEach(label => {
-      label.style.cursor = disabled ? 'not-allowed' : 'pointer';
+    group.querySelectorAll("label").forEach((label) => {
+      label.style.cursor = disabled ? "not-allowed" : "pointer";
     });
   });
 }
 
 function renderTestingCompleteCheckbox() {
   const applicantBox =
-    document.querySelector('.applicant-info-card') ||
-    document.querySelector('.applicant-card') ||
-    document.querySelector('.applicant-info') ||
-    document.querySelector('#applicantInfo') ||
-    document.querySelector('#applicantInfoBox');
+    document.querySelector(".applicant-info-card") ||
+    document.querySelector(".applicant-card") ||
+    document.querySelector(".applicant-info") ||
+    document.querySelector("#applicantInfo") ||
+    document.querySelector("#applicantInfoBox");
 
   if (!applicantBox) return;
 
-  if (document.getElementById('testingCompleteBox')) return;
+  if (document.getElementById("testingCompleteBox")) return;
 
-  const testingBox = document.createElement('div');
-  testingBox.id = 'testingCompleteBox';
-  testingBox.style.marginTop = '12px';
-  testingBox.style.padding = '12px';
-  testingBox.style.border = '1px solid #d0d7de';
-  testingBox.style.borderRadius = '10px';
-  testingBox.style.background = '#fffbe6';
+  const testingBox = document.createElement("div");
+  testingBox.id = "testingCompleteBox";
+  testingBox.style.marginTop = "12px";
+  testingBox.style.padding = "12px";
+  testingBox.style.border = "1px solid #d0d7de";
+  testingBox.style.borderRadius = "10px";
+  testingBox.style.background = "#fffbe6";
 
   testingBox.innerHTML = `
     <label style="display:flex; align-items:center; gap:10px; font-weight:700; cursor:pointer;">
@@ -3732,11 +5037,11 @@ function renderTestingCompleteCheckbox() {
     </div>
   `;
 
-  applicantBox.insertAdjacentElement('afterend', testingBox);
+  applicantBox.insertAdjacentElement("afterend", testingBox);
 
   document
-    .getElementById('markAllCompleteForTesting')
-    ?.addEventListener('change', event => {
+    .getElementById("markAllCompleteForTesting")
+    ?.addEventListener("change", (event) => {
       if (event.target.checked) {
         markAllItemsCompleteForTesting();
       }
@@ -3747,22 +5052,22 @@ function markAllItemsCompleteForTesting() {
   const areas = getCurrentAreas();
   const tasks = getCurrentTasks(areas);
 
-  tasks.forEach(task => {
+  tasks.forEach((task) => {
     store.checkedElements[task.filterCode] = true;
 
-    ['K', 'R', 'S'].forEach(type => {
-      store.grades[`${task.filterCode}.${type}`] = '3';
+    ["K", "R", "S"].forEach((type) => {
+      store.grades[`${task.filterCode}.${type}`] = "3";
     });
   });
 
-  REQUIRED_BRIEFINGS.forEach(section => {
+  REQUIRED_BRIEFINGS.forEach((section) => {
     store.requiredBriefings[section.id] ??= {};
 
     (section.items || []).forEach((_, index) => {
       store.requiredBriefings[section.id][index] = true;
     });
 
-    (section.groups || []).forEach(group => {
+    (section.groups || []).forEach((group) => {
       const groupKey = `${section.id}.${group.id}`;
       store.requiredBriefings[groupKey] ??= {};
 
@@ -3777,29 +5082,27 @@ function markAllItemsCompleteForTesting() {
 }
 
 function renderAcsCodeDecoder(tasks) {
-  let container = document.getElementById('acsCodeDecoder');
+  let container = document.getElementById("acsCodeDecoder");
 
   if (!container) {
     const applicantBox =
-      document.querySelector('.applicant-info-card') ||
-      document.querySelector('.applicant-card') ||
-      document.querySelector('.applicant-info') ||
-      document.querySelector('#applicantInfo') ||
-      document.querySelector('#applicantInfoBox');
+      document.querySelector(".applicant-info-card") ||
+      document.querySelector(".applicant-card") ||
+      document.querySelector(".applicant-info") ||
+      document.querySelector("#applicantInfo") ||
+      document.querySelector("#applicantInfoBox");
 
     if (!applicantBox) return;
 
-    container = document.createElement('div');
-    container.id = 'acsCodeDecoder';
+    container = document.createElement("div");
+    container.id = "acsCodeDecoder";
 
-    applicantBox.insertAdjacentElement('afterend', container);
+    applicantBox.insertAdjacentElement("afterend", container);
   }
 
-  const codes = [...new Set(
-    tasks
-      .map(task => task.code)
-      .filter(Boolean)
-  )].sort();
+  const codes = [
+    ...new Set(tasks.map((task) => task.code).filter(Boolean)),
+  ].sort();
 
   const isOpen = store.acsDecoderOpen !== false;
 
@@ -3825,7 +5128,7 @@ function renderAcsCodeDecoder(tasks) {
         "
       >
         <span>ACS Code Decoder</span>
-        <span style="font-size:0.9rem;color:#000000;">${isOpen ? '▲' : '▼'}</span>
+        <span style="font-size:0.9rem;color:#000000;">${isOpen ? "▲" : "▼"}</span>
       </div>
 
       <div style="
@@ -3874,13 +5177,15 @@ function renderAcsCodeDecoder(tasks) {
       <div
         id="acsDecoderBody"
         style="
-          display:${isOpen ? 'grid' : 'none'};
+          display:${isOpen ? "grid" : "none"};
           grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
           gap:6px;
           color:#000000;
         "
       >
-        ${codes.map(code => `
+        ${codes
+          .map(
+            (code) => `
           <label style="
             display:flex;
             align-items:center;
@@ -3897,53 +5202,56 @@ function renderAcsCodeDecoder(tasks) {
             <input
               type="checkbox"
               value="${escapeHtml(code)}"
-              ${store.selectedAcsCodes.includes(code) ? 'checked' : ''}
+              ${store.selectedAcsCodes.includes(code) ? "checked" : ""}
             />
             <span style="color:#000000;">${escapeHtml(code)}</span>
           </label>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
     </div>
   `;
 
-  container.querySelector('#acsDecoderHeader')?.addEventListener('click', () => {
-    store.acsDecoderOpen = store.acsDecoderOpen === false;
-    modules.notify();
-  });
-
-  container.querySelectorAll('#acsDecoderBody input[type="checkbox"]').forEach(box => {
-    box.addEventListener('change', event => {
-      const code = event.target.value;
-
-      if (typeof modules.toggleAcsCode === 'function') {
-        modules.toggleAcsCode(code);
-      } else {
-        toggleAcsCodeFallback(code);
-      }
+  container
+    .querySelector("#acsDecoderHeader")
+    ?.addEventListener("click", () => {
+      store.acsDecoderOpen = store.acsDecoderOpen === false;
+      modules.notify();
     });
-  });
 
   container
-    .querySelector('#aktReportUpload')
-    ?.addEventListener(
-      'change',
-      handleAKTReportUpload
-    );
+    .querySelectorAll('#acsDecoderBody input[type="checkbox"]')
+    .forEach((box) => {
+      box.addEventListener("change", (event) => {
+        const code = event.target.value;
+
+        if (typeof modules.toggleAcsCode === "function") {
+          modules.toggleAcsCode(code);
+        } else {
+          toggleAcsCodeFallback(code);
+        }
+      });
+    });
+
+  container
+    .querySelector("#aktReportUpload")
+    ?.addEventListener("change", handleAKTReportUpload);
 }
 
 async function handleAKTReportUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  const status = document.getElementById('aktUploadStatus');
-  status.textContent = 'Reading report...';
+  const status = document.getElementById("aktUploadStatus");
+  status.textContent = "Reading report...";
 
   try {
-    let text = '';
+    let text = "";
 
     if (
-      file.type === 'application/pdf' ||
-      file.name.toLowerCase().endsWith('.pdf')
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf")
     ) {
       text = await extractPdfText(file);
     } else {
@@ -3953,93 +5261,86 @@ async function handleAKTReportUpload(event) {
     const matches = extractAcsCodesFromText(text);
 
     if (!matches.length) {
-      status.textContent = 'No ACS codes found. The report may need clearer OCR.';
+      status.textContent =
+        "No ACS codes found. The report may need clearer OCR.";
       return;
     }
 
     store.selectedAcsCodes = [
-      ...new Set([
-        ...(store.selectedAcsCodes || []),
-        ...matches
-      ])
+      ...new Set([...(store.selectedAcsCodes || []), ...matches]),
     ];
 
-    status.textContent =
-      `Selected ${matches.length} ACS code(s): ${matches.join(', ')}`;
+    status.textContent = `Selected ${matches.length} ACS code(s): ${matches.join(", ")}`;
 
     modules.notify();
-
   } catch (err) {
     console.error(err);
-    status.textContent = 'Unable to read Airman Knowledge Test Report.';
+    status.textContent = "Unable to read Airman Knowledge Test Report.";
   }
 }
 
 function extractAcsCodesFromText(text) {
-  const cleaned = String(text || '')
+  const cleaned = String(text || "")
     .toUpperCase()
-    .replace(/[|]/g, 'I')
-    .replace(/\s+/g, ' ')
-    .replace(/P A\./g, 'PA.')
-    .replace(/P\.A\./g, 'PA.')
-    .replace(/PAI/g, 'PA.I')
-    .replace(/PAI\./g, 'PA.I.')
-    .replace(/PA\.\s*/g, 'PA.')
-    .replace(/IR\.\s*/g, 'IR.')
-    .replace(/CA\.\s*/g, 'CA.')
-    .replace(/ATP\.\s*/g, 'ATP.')
-    .replace(/FI\.\s*/g, 'FI.')
-    .replace(/\.\s*/g, '.');
+    .replace(/[|]/g, "I")
+    .replace(/\s+/g, " ")
+    .replace(/P A\./g, "PA.")
+    .replace(/P\.A\./g, "PA.")
+    .replace(/PAI/g, "PA.I")
+    .replace(/PAI\./g, "PA.I.")
+    .replace(/PA\.\s*/g, "PA.")
+    .replace(/IR\.\s*/g, "IR.")
+    .replace(/CA\.\s*/g, "CA.")
+    .replace(/ATP\.\s*/g, "ATP.")
+    .replace(/FI\.\s*/g, "FI.")
+    .replace(/\.\s*/g, ".");
 
   const elementRegex =
     /\b(?:PA|IR|CA|ATP|FI)\.[IVXLC]+\.[A-Z]\.[KRS]\d+[A-Z]?\b/g;
 
-  const taskRegex =
-    /\b(?:PA|IR|CA|ATP|FI)\.[IVXLC]+\.[A-Z]\b/g;
+  const taskRegex = /\b(?:PA|IR|CA|ATP|FI)\.[IVXLC]+\.[A-Z]\b/g;
 
   const elementMatches = cleaned.match(elementRegex) || [];
   const taskMatches = cleaned.match(taskRegex) || [];
 
   const allMatches = [...elementMatches, ...taskMatches];
 
-  const taskCodes = allMatches.map(code => {
-    const parts = code.split('.');
-    return parts.slice(0, 3).join('.');
+  const taskCodes = allMatches.map((code) => {
+    const parts = code.split(".");
+    return parts.slice(0, 3).join(".");
   });
 
-  console.log('AKTR raw OCR text:', text);
-  console.log('AKTR cleaned text:', cleaned);
-  console.log('AKTR matched ACS codes:', taskCodes);
+  console.log("AKTR raw OCR text:", text);
+  console.log("AKTR cleaned text:", cleaned);
+  console.log("AKTR matched ACS codes:", taskCodes);
 
   return [...new Set(taskCodes)];
 }
 
 async function extractPdfText(file) {
   if (!window.pdfjsLib) {
-    throw new Error('PDF.js is not loaded.');
+    throw new Error("PDF.js is not loaded.");
   }
 
   pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
   const buffer = await file.arrayBuffer();
 
   const pdf = await pdfjsLib.getDocument({
-    data: buffer
+    data: buffer,
   }).promise;
 
-  let text = '';
+  let text = "";
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
     const page = await pdf.getPage(pageNumber);
 
     const content = await page.getTextContent();
 
-    text += content.items
-      .map(item => item.str)
-      .join(' ');
+    text += content.items.map((item) => item.str).join(" ");
 
-    text += '\n';
+    text += "\n";
   }
 
   const pdfTextMatches = extractAcsCodesFromText(text);
@@ -4049,49 +5350,44 @@ async function extractPdfText(file) {
   }
 
   if (!window.Tesseract) {
-    throw new Error('Tesseract OCR is not loaded.');
+    throw new Error("Tesseract OCR is not loaded.");
   }
 
-  let ocrText = '';
+  let ocrText = "";
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
     const page = await pdf.getPage(pageNumber);
 
     const viewport = page.getViewport({
-      scale: 2.5
+      scale: 2.5,
     });
 
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
 
     canvas.width = viewport.width;
     canvas.height = viewport.height;
 
     await page.render({
       canvasContext: context,
-      viewport
+      viewport,
     }).promise;
 
-    const result = await Tesseract.recognize(
-      canvas,
-      'eng',
-      {
-        logger: message => {
-          const status = document.getElementById('aktUploadStatus');
+    const result = await Tesseract.recognize(canvas, "eng", {
+      logger: (message) => {
+        const status = document.getElementById("aktUploadStatus");
 
-          if (
-            status &&
-            message.status === 'recognizing text' &&
-            typeof message.progress === 'number'
-          ) {
-            status.textContent =
-              `OCR reading report... ${Math.round(message.progress * 100)}%`;
-          }
+        if (
+          status &&
+          message.status === "recognizing text" &&
+          typeof message.progress === "number"
+        ) {
+          status.textContent = `OCR reading report... ${Math.round(message.progress * 100)}%`;
         }
-      }
-    );
+      },
+    });
 
-    ocrText += result.data.text + '\n';
+    ocrText += result.data.text + "\n";
   }
 
   return ocrText;
@@ -4101,7 +5397,9 @@ function toggleAcsCodeFallback(code) {
   store.selectedAcsCodes ??= [];
 
   if (store.selectedAcsCodes.includes(code)) {
-    store.selectedAcsCodes = store.selectedAcsCodes.filter(item => item !== code);
+    store.selectedAcsCodes = store.selectedAcsCodes.filter(
+      (item) => item !== code,
+    );
   } else {
     store.selectedAcsCodes.push(code);
   }
@@ -4109,52 +5407,52 @@ function toggleAcsCodeFallback(code) {
   modules.notify();
 }
 
-
 async function testApplicantReportFlow() {
-  const flowUrl = 'https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f14216e9ffbb4101b5f5c7967895a81f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V1LRs5VLQeeDdkG7H0U_e15ChR9hO66xGlCdXTK-m2o';
+  const flowUrl =
+    "https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f14216e9ffbb4101b5f5c7967895a81f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V1LRs5VLQeeDdkG7H0U_e15ChR9hO66xGlCdXTK-m2o";
 
   const payload = {
     itemId: 7,
-    email: 'kele@fergerstrom.net',
-    recommendingInstructorEmail: 'kele.fergerstrom@icloud.com',
-    applicantName: 'Test Applicant',
-    pdfFileName: 'TestReport.pdf',
-    pdfBase64: 'dGVzdA=='
+    email: "kele@fergerstrom.net",
+    recommendingInstructorEmail: "kele.fergerstrom@icloud.com",
+    applicantName: "Test Applicant",
+    pdfFileName: "TestReport.pdf",
+    pdfBase64: "dGVzdA==",
   };
 
   try {
     const response = await fetch(flowUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    console.log('Flow status:', response.status);
+    console.log("Flow status:", response.status);
     console.log(await response.text());
 
-    alert('Flow triggered. Check Power Automate run history.');
+    alert("Flow triggered. Check Power Automate run history.");
   } catch (error) {
-    console.error('Flow trigger failed:', error);
-    alert('Flow trigger failed. Check console.');
+    console.error("Flow trigger failed:", error);
+    alert("Flow trigger failed. Check console.");
   }
 }
 
 function applyAcsCodeHighlights() {
-  document.querySelectorAll('[data-acs-code]').forEach(el => {
+  document.querySelectorAll("[data-acs-code]").forEach((el) => {
     const code = el.dataset.acsCode;
 
     if (store.selectedAcsCodes?.includes(code)) {
-      el.style.background = '#ffd6e8';
-      el.style.border = '2px solid #ff4fa3';
-      el.style.borderRadius = '6px';
-      el.style.padding = '2px 6px';
+      el.style.background = "#ffd6e8";
+      el.style.border = "2px solid #ff4fa3";
+      el.style.borderRadius = "6px";
+      el.style.padding = "2px 6px";
     } else {
-      el.style.background = '';
-      el.style.border = '';
-      el.style.borderRadius = '';
-      el.style.padding = '';
+      el.style.background = "";
+      el.style.border = "";
+      el.style.borderRadius = "";
+      el.style.padding = "";
     }
   });
 }
@@ -4163,7 +5461,7 @@ function exportJsonSave() {
   const areas = getCurrentAreas();
   const tasks = getCurrentTasks(areas);
 
-  modules.downloadJson('acs-ems-save.json', {
+  modules.downloadJson("acs-ems-save.json", {
     exportedAt: new Date().toISOString(),
     datasetKey: getDatasetKey(),
     applicant: store.applicant,
@@ -4179,7 +5477,7 @@ function exportJsonSave() {
     selectedAcsCodes: store.selectedAcsCodes,
     acsDecoderOpen: store.acsDecoderOpen,
     summary: modules.summarizeTasks(tasks),
-    areas
+    areas,
   });
 }
 
@@ -4188,7 +5486,7 @@ async function submitToSharePoint() {
   const tasks = getCurrentTasks(areas);
   const summary = modules.summarizeTasks(tasks);
 
-  const button = $('btnSharePoint');
+  const button = $("btnSharePoint");
   const originalText = button?.innerHTML;
 
   const payload = {
@@ -4207,7 +5505,7 @@ async function submitToSharePoint() {
     selectedAcsCodes: store.selectedAcsCodes,
     acsDecoderOpen: store.acsDecoderOpen,
     summary,
-    areas
+    areas,
   };
 
   try {
@@ -4217,9 +5515,9 @@ async function submitToSharePoint() {
     }
 
     const response = await fetch(SUBMIT_FLOW_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -4228,32 +5526,39 @@ async function submitToSharePoint() {
 
     const result = await response.json();
 
-    console.log('SharePoint Item ID:', result.itemId);
+    console.log("SharePoint Item ID:", result.itemId);
 
-    const reportHtml = buildPracticalTestReportHtml('applicant');
+    const reportHtml = buildPracticalTestReportHtml("applicant");
 
-    await fetch('https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f14216e9ffbb4101b5f5c7967895a81f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V1LRs5VLQeeDdkG7H0U_e15ChR9hO66xGlCdXTK-m2o', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+    await fetch(
+      "https://default59acb2f988f145c3981040caf9cf42.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f14216e9ffbb4101b5f5c7967895a81f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V1LRs5VLQeeDdkG7H0U_e15ChR9hO66xGlCdXTK-m2o",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          itemId: Number(result.itemId),
+          email: store.applicant.appEmail || "kele@fergerstrom.net",
+          recommendingInstructorEmail:
+            store.applicant.appInstructorEmail ||
+            store.applicant.recommendingInstructorEmail ||
+            "kele.fergerstrom@icloud.com",
+          applicantName: store.applicant.appName || "Applicant",
+          pdfFileName: `Applicant_Practical_Test_Report_${Date.now()}.pdf`,
+          reportHtml,
+        }),
       },
-      body: JSON.stringify({
-        itemId: Number(result.itemId),
-        email: store.applicant.appEmail || 'kele@fergerstrom.net',
-        recommendingInstructorEmail:
-          store.applicant.appInstructorEmail ||
-          store.applicant.recommendingInstructorEmail ||
-          'kele.fergerstrom@icloud.com',
-        applicantName: store.applicant.appName || 'Applicant',
-        pdfFileName: `Applicant_Practical_Test_Report_${Date.now()}.pdf`,
-        reportHtml
-      })
-    });
+    );
 
-    alert(`Submitted to SharePoint successfully. Item ID: ${result.itemId}. Report HTML sent to PDF/email flow.`);
+    alert(
+      `Submitted to SharePoint successfully. Item ID: ${result.itemId}. Report HTML sent to PDF/email flow.`,
+    );
   } catch (error) {
     console.error(error);
-    alert('Submission failed. Check Power Automate run history and browser console.');
+    alert(
+      "Submission failed. Check Power Automate run history and browser console.",
+    );
   } finally {
     if (button) {
       button.disabled = false;
@@ -4262,385 +5567,239 @@ async function submitToSharePoint() {
   }
 }
 
-function buildPracticalTestReportHtml(
-  reportType = 'applicant'
-) {
-  const isApplicant =
-    reportType === 'applicant';
+function buildPracticalTestReportHtml(reportType = "applicant") {
+  const isApplicant = reportType === "applicant";
 
-  const areas =
-    getCurrentAreas();
+  const areas = getCurrentAreas();
 
-  const tasks =
-    getCurrentTasks(areas);
+  const tasks = getCurrentTasks(areas);
 
-  const summary =
-    modules.summarizeTasks(tasks);
+  const summary = modules.summarizeTasks(tasks);
 
-  const applicant =
-    store.applicant || {};
+  const applicant = store.applicant || {};
 
-  const notes =
-    store.examinerNotes || {};
+  const notes = store.examinerNotes || {};
 
-  const applicantName =
-    applicant.appName || '';
+  const applicantName = applicant.appName || "";
 
-  const getTaskKeys = task => {
+  const getTaskKeys = (task) => {
     const keys = [
       task.filterCode,
       task.code,
       task.id,
       `${task.areaId}_${task.id}`,
-      String(task.code || '')
-        .replaceAll('.', '_'),
-      String(task.filterCode || '')
-        .replaceAll('_', '.')
+      String(task.code || "").replaceAll(".", "_"),
+      String(task.filterCode || "").replaceAll("_", "."),
     ];
 
-    return [
-      ...new Set(
-        keys.filter(Boolean)
-      )
-    ];
+    return [...new Set(keys.filter(Boolean))];
   };
 
-  const getExaminerNote = task => {
-    for (
-      const key of getTaskKeys(task)
-    ) {
+  const getExaminerNote = (task) => {
+    for (const key of getTaskKeys(task)) {
       const note = notes[key];
 
-      if (
-        note !== null &&
-        note !== undefined &&
-        String(note).trim()
-      ) {
+      if (note !== null && note !== undefined && String(note).trim()) {
         return String(note).trim();
       }
     }
 
-    return '';
+    return "";
   };
 
-  const aircraftDisplay = [
-    applicant.appAircraftType,
-    applicant.appNNumber
-  ]
+  const aircraftDisplay = [applicant.appAircraftType, applicant.appNNumber]
     .filter(Boolean)
-    .join(' / ');
+    .join(" / ");
 
-  const reportTitle =
-    isApplicant
-      ? 'Applicant Practical Test Report'
-      : 'Designee Practical Test Report';
+  const reportTitle = isApplicant
+    ? "Applicant Practical Test Report"
+    : "Designee Practical Test Report";
 
-  const getTaskStatus = task => {
-    const row =
-      summary.statuses?.find(item =>
-        item.task?.filterCode ===
-        task.filterCode
-      );
+  const getTaskStatus = (task) => {
+    const row = summary.statuses?.find(
+      (item) => item.task?.filterCode === task.filterCode,
+    );
 
-    const k =
-      store.grades?.[
-        `${task.filterCode}.K`
-      ] || 'NP';
+    const k = store.grades?.[`${task.filterCode}.K`] || "NP";
 
-    const r =
-      store.grades?.[
-        `${task.filterCode}.R`
-      ] || 'NP';
+    const r = store.grades?.[`${task.filterCode}.R`] || "NP";
 
-    const s =
-      store.grades?.[
-        `${task.filterCode}.S`
-      ] || 'NP';
+    const s = store.grades?.[`${task.filterCode}.S`] || "NP";
 
     const values = [k, r, s];
 
-    const hasGrade =
-      values.some(value =>
-        value &&
-        value !== 'NP'
-      );
+    const hasGrade = values.some((value) => value && value !== "NP");
 
-    if (
-      row?.status === 'not-required' &&
-      !hasGrade
-    ) {
-      return 'Not Required';
+    if (row?.status === "not-required" && !hasGrade) {
+      return "Not Required";
     }
 
-    if (
-      row?.status === 'not-required' &&
-      hasGrade
-    ) {
-      if (
-        values.includes('1') ||
-        values.includes('2')
-      ) {
-        return 'Unsatisfactory';
+    if (row?.status === "not-required" && hasGrade) {
+      if (values.includes("1") || values.includes("2")) {
+        return "Unsatisfactory";
       }
 
-      if (
-        values.includes('3') ||
-        values.includes('4')
-      ) {
-        return 'Satisfactory';
+      if (values.includes("3") || values.includes("4")) {
+        return "Satisfactory";
       }
 
-      return 'Not Required';
+      return "Not Required";
     }
 
     if (!row) {
-      return 'Incomplete';
+      return "Incomplete";
     }
 
-    if (row.status === 'fail') {
-      return 'Unsatisfactory';
+    if (row.status === "fail") {
+      return "Unsatisfactory";
     }
 
-    if (
-      row.status === 'incomplete'
-    ) {
-      return 'Incomplete';
+    if (row.status === "incomplete") {
+      return "Incomplete";
     }
 
-    return 'Satisfactory';
+    return "Satisfactory";
   };
 
-  const getStatusPresentation =
-    status => {
-      if (
-        status === 'Satisfactory'
-      ) {
-        return {
-          symbol: '✓',
-          className: 'task-status-sat',
-          label: 'Satisfactory'
-        };
-      }
-
-      if (
-        status === 'Unsatisfactory'
-      ) {
-        return {
-          symbol: '×',
-          className: 'task-status-unsat',
-          label: 'Unsatisfactory'
-        };
-      }
-
+  const getStatusPresentation = (status) => {
+    if (status === "Satisfactory") {
       return {
-        symbol: '!',
-        className: 'task-status-inc',
-        label:
-          status === 'Not Required'
-            ? 'Not Required'
-            : 'Incomplete'
+        symbol: "✓",
+        className: "task-status-sat",
+        label: "Satisfactory",
       };
-    };
+    }
 
-  const isAcsHighlighted = task => {
-    const selected =
-      store.selectedAcsCodes || [];
+    if (status === "Unsatisfactory") {
+      return {
+        symbol: "×",
+        className: "task-status-unsat",
+        label: "Unsatisfactory",
+      };
+    }
+
+    return {
+      symbol: "!",
+      className: "task-status-inc",
+      label: status === "Not Required" ? "Not Required" : "Incomplete",
+    };
+  };
+
+  const isAcsHighlighted = (task) => {
+    const selected = store.selectedAcsCodes || [];
 
     return (
       selected.includes(task.code) ||
-      selected.includes(
-        task.filterCode
-      ) ||
-      selected.includes(
-        String(
-          task.filterCode || ''
-        ).replaceAll('_', '.')
-      ) ||
-      selected.includes(
-        String(
-          task.code || ''
-        ).replaceAll('.', '_')
-      )
+      selected.includes(task.filterCode) ||
+      selected.includes(String(task.filterCode || "").replaceAll("_", ".")) ||
+      selected.includes(String(task.code || "").replaceAll(".", "_"))
     );
   };
 
-  const taskRows =
-    tasks.map(task => {
-      const status =
-        getTaskStatus(task);
+  const taskRows = tasks
+    .map((task) => {
+      const status = getTaskStatus(task);
 
-      const presentation =
-        getStatusPresentation(status);
+      const presentation = getStatusPresentation(status);
 
-      const note =
-        getExaminerNote(task);
+      const note = getExaminerNote(task);
 
-      const highlighted =
-        isAcsHighlighted(task);
+      const highlighted = isAcsHighlighted(task);
 
       return `
         <tr>
-          <td class="task-code-cell ${
-            highlighted
-              ? 'acs-highlight'
-              : ''
-          }">
+          <td class="task-code-cell ${highlighted ? "acs-highlight" : ""}">
             <span
               class="task-status-icon ${presentation.className}"
-              title="${escapeReport(
-                presentation.label
-              )}"
-              aria-label="${escapeReport(
-                presentation.label
-              )}"
+              title="${escapeReport(presentation.label)}"
+              aria-label="${escapeReport(presentation.label)}"
             >
               ${presentation.symbol}
             </span>
 
             <span class="task-code-text">
-              ${escapeReport(
-                task.code || ''
-              )}
+              ${escapeReport(task.code || "")}
             </span>
           </td>
 
-          <td class="task-title-cell ${
-            highlighted
-              ? 'acs-highlight'
-              : ''
-          }">
-            ${escapeReport(
-              task.title || ''
-            )}
+          <td class="task-title-cell ${highlighted ? "acs-highlight" : ""}">
+            ${escapeReport(task.title || "")}
           </td>
 
           <td class="examiner-comment-cell">
-            ${
-              note
-                ? escapeReport(note)
-                    .replace(
-                      /\n/g,
-                      '<br>'
-                    )
-                : ''
-            }
+            ${note ? escapeReport(note).replace(/\n/g, "<br>") : ""}
           </td>
         </tr>
       `;
-    }).join('');
+    })
+    .join("");
 
-  const detailRows =
-    tasks.map(task => {
-      const note =
-        getExaminerNote(task);
+  const detailRows = tasks
+    .map((task) => {
+      const note = getExaminerNote(task);
 
       return `
         <tr>
           <td>
-            ${escapeReport(
-              task.code || ''
-            )}
+            ${escapeReport(task.code || "")}
           </td>
 
           <td>
-            ${escapeReport(
-              task.title || ''
-            )}
+            ${escapeReport(task.title || "")}
           </td>
 
           <td>
-            ${escapeReport(
-              store.grades?.[
-                `${task.filterCode}.K`
-              ] || 'NP'
-            )}
+            ${escapeReport(store.grades?.[`${task.filterCode}.K`] || "NP")}
           </td>
 
           <td>
-            ${escapeReport(
-              store.grades?.[
-                `${task.filterCode}.R`
-              ] || 'NP'
-            )}
+            ${escapeReport(store.grades?.[`${task.filterCode}.R`] || "NP")}
           </td>
 
           <td>
-            ${escapeReport(
-              store.grades?.[
-                `${task.filterCode}.S`
-              ] || 'NP'
-            )}
+            ${escapeReport(store.grades?.[`${task.filterCode}.S`] || "NP")}
           </td>
 
           <td>
-            ${
-              note
-                ? escapeReport(note)
-                    .replace(
-                      /\n/g,
-                      '<br>'
-                    )
-                : ''
-            }
+            ${note ? escapeReport(note).replace(/\n/g, "<br>") : ""}
           </td>
         </tr>
       `;
-    }).join('');
+    })
+    .join("");
 
-  const overall =
-    String(
-      summary.overall ||
-      store.practicalTestOutcome ||
-      'INCOMPLETE'
-    ).toUpperCase();
+  const overall = String(
+    summary.overall || store.practicalTestOutcome || "INCOMPLETE",
+  ).toUpperCase();
 
   const overallClass =
-    overall === 'SATISFACTORY'
-      ? 'overall-sat'
-      : overall ===
-          'UNSATISFACTORY'
-      ? 'overall-unsat'
-      : 'overall-inc';
+    overall === "SATISFACTORY"
+      ? "overall-sat"
+      : overall === "UNSATISFACTORY"
+        ? "overall-unsat"
+        : "overall-inc";
 
   const overallSymbol =
-    overall === 'SATISFACTORY'
-      ? '✓'
-      : overall ===
-          'UNSATISFACTORY'
-      ? '×'
-      : '!';
+    overall === "SATISFACTORY" ? "✓" : overall === "UNSATISFACTORY" ? "×" : "!";
 
   const requestNumber =
-    applicant.requestNumber ||
-    store.databaseSubmission
-      ?.requestNumber ||
-    '';
+    applicant.requestNumber || store.databaseSubmission?.requestNumber || "";
 
-  const generatedAt =
-    new Date().toLocaleString(
-      'en-US',
-      {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
-      }
-    );
+  const generatedAt = new Date().toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
-  const groundDuration =
-    applicant.appGroundDuration
-      ? `${escapeReport(
-          applicant.appGroundDuration
-        )} hrs`
-      : '—';
+  const groundDuration = applicant.appGroundDuration
+    ? `${escapeReport(applicant.appGroundDuration)} hrs`
+    : "—";
 
-  const flightDuration =
-    applicant.appFlightDuration
-      ? `${escapeReport(
-          applicant.appFlightDuration
-        )} hrs`
-      : '—';
+  const flightDuration = applicant.appFlightDuration
+    ? `${escapeReport(applicant.appFlightDuration)} hrs`
+    : "—";
 
   return `
 <!DOCTYPE html>
@@ -5158,7 +6317,7 @@ function buildPracticalTestReportHtml(
       </h1>
 
       <div class="header-page">
-        ${isApplicant ? '' : 'Page 1 of 2'}
+        ${isApplicant ? "" : "Page 1 of 2"}
       </div>
     </header>
 
@@ -5185,11 +6344,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                formatDateMMDDYYYY(
-                  applicant.appDate
-                )
-              )}
+              ${escapeReport(formatDateMMDDYYYY(applicant.appDate))}
             </div>
           </div>
 
@@ -5199,9 +6354,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                applicant.appCertificate
-              )}
+              ${escapeReport(applicant.appCertificate)}
             </div>
           </div>
 
@@ -5211,11 +6364,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                formatRatingLabel(
-                  applicant.appRating
-                )
-              )}
+              ${escapeReport(formatRatingLabel(applicant.appRating))}
             </div>
           </div>
 
@@ -5225,9 +6374,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                applicant.appExamType
-              )}
+              ${escapeReport(applicant.appExamType)}
             </div>
           </div>
         </div>
@@ -5239,9 +6386,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                aircraftDisplay
-              )}
+              ${escapeReport(aircraftDisplay)}
             </div>
           </div>
 
@@ -5251,9 +6396,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                applicant.appExaminer
-              )}
+              ${escapeReport(applicant.appExaminer)}
             </div>
           </div>
 
@@ -5263,10 +6406,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                applicant.appRetest ||
-                'No'
-              )}
+              ${escapeReport(applicant.appRetest || "No")}
             </div>
           </div>
 
@@ -5276,10 +6416,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                applicant.scheduledLocation ||
-                ''
-              )}
+              ${escapeReport(applicant.scheduledLocation || "")}
             </div>
           </div>
 
@@ -5289,10 +6426,7 @@ function buildPracticalTestReportHtml(
             </div>
 
             <div class="information-value">
-              ${escapeReport(
-                applicant.appInstructor ||
-                ''
-              )}
+              ${escapeReport(applicant.appInstructor || "")}
             </div>
           </div>
         </div>
@@ -5400,10 +6534,7 @@ function buildPracticalTestReportHtml(
       </div>
 
       <div>
-        ${escapeReport(
-          store.outcomeNotes ||
-          'None'
-        ).replace(/\n/g, '<br>')}
+        ${escapeReport(store.outcomeNotes || "None").replace(/\n/g, "<br>")}
       </div>
     </div>
 
@@ -5414,7 +6545,7 @@ function buildPracticalTestReportHtml(
       </span>
 
       <span>
-        ${isApplicant ? '' : 'Page 1 of 2'}
+        ${isApplicant ? "" : "Page 1 of 2"}
       </span>
     </footer>
   </section>
@@ -5470,16 +6601,12 @@ function buildPracticalTestReportHtml(
           <footer class="page-footer">
             <span>
               Request Number:
-              ${escapeReport(
-                requestNumber
-              )}
+              ${escapeReport(requestNumber)}
             </span>
 
             <span>
               Generated:
-              ${escapeReport(
-                generatedAt
-              )}
+              ${escapeReport(generatedAt)}
             </span>
 
             <span>
@@ -5488,13 +6615,12 @@ function buildPracticalTestReportHtml(
           </footer>
         </section>
       `
-      : ''
+      : ""
   }
 </body>
 </html>
 `;
 }
-
 
 function buildDesigneePracticalTestReportHtml() {
   /*
@@ -5505,88 +6631,54 @@ function buildDesigneePracticalTestReportHtml() {
    *
    * There is intentionally NO separate Detailed K/R/S page.
    */
-  const applicantHtml =
-    buildPracticalTestReportHtml(
-      'applicant'
-    );
+  const applicantHtml = buildPracticalTestReportHtml("applicant");
 
-  const parser =
-    new DOMParser();
+  const parser = new DOMParser();
 
-  const documentCopy =
-    parser.parseFromString(
-      applicantHtml,
-      'text/html'
-    );
+  const documentCopy = parser.parseFromString(applicantHtml, "text/html");
 
   /*
    * Change only the report identity.
    */
-  documentCopy.title =
-    'Designee Practical Test Report';
+  documentCopy.title = "Designee Practical Test Report";
 
-  const title =
-    documentCopy.querySelector(
-      '.header-title'
-    );
+  const title = documentCopy.querySelector(".header-title");
 
   if (title) {
-    title.textContent =
-      'Designee Practical Test Report';
+    title.textContent = "Designee Practical Test Report";
   }
 
   /*
    * Locate the same Task Summary table used by the good Applicant
    * report.
    */
-  let taskTable =
-    documentCopy.querySelector(
-      '.task-summary table'
-    );
+  let taskTable = documentCopy.querySelector(".task-summary table");
 
   if (!taskTable) {
     taskTable =
-      Array.from(
-        documentCopy.querySelectorAll(
-          'table'
-        )
-      ).find(table => {
-        const headerText =
-          String(
-            table.querySelector(
-              'thead'
-            )?.textContent || ''
-          );
+      Array.from(documentCopy.querySelectorAll("table")).find((table) => {
+        const headerText = String(
+          table.querySelector("thead")?.textContent || "",
+        );
 
         return (
-          headerText.includes('Task') &&
-          headerText.includes('Title') &&
-          headerText.includes(
-            'Examiner Comments'
-          )
+          headerText.includes("Task") &&
+          headerText.includes("Title") &&
+          headerText.includes("Examiner Comments")
         );
       }) || null;
   }
 
   if (!taskTable) {
-    throw new Error(
-      'The Applicant Task Summary table could not be found.'
-    );
+    throw new Error("The Applicant Task Summary table could not be found.");
   }
 
-  taskTable.classList.add(
-    'designee-task-table'
-  );
+  taskTable.classList.add("designee-task-table");
 
-  const headerRow =
-    taskTable.querySelector(
-      'thead tr'
-    );
+  const headerRow = taskTable.querySelector("thead tr");
 
   if (!headerRow) {
-    throw new Error(
-      'The Task Summary header could not be found.'
-    );
+    throw new Error("The Task Summary header could not be found.");
   }
 
   /*
@@ -5596,196 +6688,108 @@ function buildDesigneePracticalTestReportHtml() {
    *
    * Insert K/R/S immediately before Examiner Comments.
    */
-  const commentHeader =
-    headerRow.lastElementChild;
+  const commentHeader = headerRow.lastElementChild;
 
   if (!commentHeader) {
-    throw new Error(
-      'The Examiner Comments column could not be found.'
-    );
+    throw new Error("The Examiner Comments column could not be found.");
   }
 
-  ['K', 'R', 'S'].forEach(
-    gradeType => {
-      const th =
-        documentCopy.createElement(
-          'th'
-        );
+  ["K", "R", "S"].forEach((gradeType) => {
+    const th = documentCopy.createElement("th");
 
-      th.textContent =
-        gradeType;
+    th.textContent = gradeType;
 
-      th.className =
-        'designee-grade-header';
+    th.className = "designee-grade-header";
 
-      headerRow.insertBefore(
-        th,
-        commentHeader
-      );
-    }
-  );
+    headerRow.insertBefore(th, commentHeader);
+  });
 
   /*
    * Current ACS task list so the printed task code can be connected
    * back to store.grades.
    */
-  const tasks =
-    getCurrentTasks(
-      getCurrentAreas()
-    );
+  const tasks = getCurrentTasks(getCurrentAreas());
 
-  const normalizeCode = value =>
-    String(value || '')
+  const normalizeCode = (value) =>
+    String(value || "")
       .trim()
-      .replaceAll('_', '.');
+      .replaceAll("_", ".");
 
-  const getTaskForPrintedCode =
-    printedCode => {
-      const normalizedPrinted =
-        normalizeCode(
-          printedCode
-        );
+  const getTaskForPrintedCode = (printedCode) => {
+    const normalizedPrinted = normalizeCode(printedCode);
 
-      return tasks.find(task => {
-        const taskCode =
-          normalizeCode(
-            task.code
-          );
+    return (
+      tasks.find((task) => {
+        const taskCode = normalizeCode(task.code);
 
-        const filterCode =
-          normalizeCode(
-            task.filterCode
-          );
+        const filterCode = normalizeCode(task.filterCode);
 
         return (
-          taskCode ===
-            normalizedPrinted ||
-          filterCode ===
-            normalizedPrinted
+          taskCode === normalizedPrinted || filterCode === normalizedPrinted
         );
-      }) || null;
-    };
+      }) || null
+    );
+  };
 
-  const getGrade = (
-    task,
-    printedCode,
-    gradeType
-  ) => {
+  const getGrade = (task, printedCode, gradeType) => {
     const candidates = [
       task?.filterCode,
       task?.code,
       printedCode,
-      String(
-        printedCode || ''
-      ).replaceAll(
-        '.',
-        '_'
-      ),
-      String(
-        printedCode || ''
-      ).replaceAll(
-        '_',
-        '.'
-      )
-    ]
-      .filter(Boolean);
+      String(printedCode || "").replaceAll(".", "_"),
+      String(printedCode || "").replaceAll("_", "."),
+    ].filter(Boolean);
 
-    for (
-      const code of [
-        ...new Set(candidates)
-      ]
-    ) {
-      const value =
-        store.grades?.[
-          `${code}.${gradeType}`
-        ];
+    for (const code of [...new Set(candidates)]) {
+      const value = store.grades?.[`${code}.${gradeType}`];
 
-      if (
-        value !== undefined &&
-        value !== null &&
-        String(value).trim()
-      ) {
+      if (value !== undefined && value !== null && String(value).trim()) {
         return String(value);
       }
     }
 
-    return 'NP';
+    return "NP";
   };
 
-  taskTable
-    .querySelectorAll(
-      'tbody tr'
+  taskTable.querySelectorAll("tbody tr").forEach((row) => {
+    const codeElement = row.querySelector(".task-code-text");
+
+    /*
+     * Fallback in case the Applicant report row does not contain the
+     * task-code span for some future certificate type.
+     */
+    const firstCell = row.querySelector("td");
+
+    const printedCode = String(
+      codeElement?.textContent || firstCell?.textContent || "",
     )
-    .forEach(row => {
-      const codeElement =
-        row.querySelector(
-          '.task-code-text'
-        );
+      .replace(/^[✓×!]\s*/, "")
+      .trim();
 
-      /*
-       * Fallback in case the Applicant report row does not contain the
-       * task-code span for some future certificate type.
-       */
-      const firstCell =
-        row.querySelector('td');
+    const task = getTaskForPrintedCode(printedCode);
 
-      const printedCode =
-        String(
-          codeElement?.textContent ||
-          firstCell?.textContent ||
-          ''
-        )
-          .replace(
-            /^[✓×!]\s*/,
-            ''
-          )
-          .trim();
+    const commentCell = row.lastElementChild;
 
-      const task =
-        getTaskForPrintedCode(
-          printedCode
-        );
+    if (!commentCell) {
+      return;
+    }
 
-      const commentCell =
-        row.lastElementChild;
+    ["K", "R", "S"].forEach((gradeType) => {
+      const td = documentCopy.createElement("td");
 
-      if (!commentCell) {
-        return;
-      }
+      td.className = "designee-grade-cell";
 
-      ['K', 'R', 'S'].forEach(
-        gradeType => {
-          const td =
-            documentCopy.createElement(
-              'td'
-            );
+      td.textContent = getGrade(task, printedCode, gradeType);
 
-          td.className =
-            'designee-grade-cell';
-
-          td.textContent =
-            getGrade(
-              task,
-              printedCode,
-              gradeType
-            );
-
-          row.insertBefore(
-            td,
-            commentCell
-          );
-        }
-      );
+      row.insertBefore(td, commentCell);
     });
+  });
 
   /*
    * Keep the same visual language as the Applicant report but assign
    * sensible widths to the six-column Designee task table.
    */
-  const style =
-    documentCopy.createElement(
-      'style'
-    );
+  const style = documentCopy.createElement("style");
 
   style.textContent = `
     .designee-task-table {
@@ -5853,28 +6857,20 @@ function buildDesigneePracticalTestReportHtml() {
     }
   `;
 
-  documentCopy.head.appendChild(
-    style
-  );
+  documentCopy.head.appendChild(style);
 
-  return (
-    '<!DOCTYPE html>\n' +
-    documentCopy.documentElement
-      .outerHTML
-  );
+  return "<!DOCTYPE html>\n" + documentCopy.documentElement.outerHTML;
 }
 
-function generatePracticalTestReport(reportType = 'applicant') {
+function generatePracticalTestReport(reportType = "applicant") {
   const html =
-    reportType === 'designee'
+    reportType === "designee"
       ? buildDesigneePracticalTestReportHtml()
-      : buildPracticalTestReportHtml(
-          'applicant'
-        );
-  const reportWindow = window.open('', '_blank');
+      : buildPracticalTestReportHtml("applicant");
+  const reportWindow = window.open("", "_blank");
 
   if (!reportWindow) {
-    alert('Popup blocked. Please allow popups for this site.');
+    alert("Popup blocked. Please allow popups for this site.");
     return;
   }
 
@@ -5884,103 +6880,74 @@ function generatePracticalTestReport(reportType = 'applicant') {
 }
 
 async function generateApplicantReportPdfBlob() {
-  if (typeof window.html2pdf !== 'function') {
+  if (typeof window.html2pdf !== "function") {
     throw new Error(
-      'The PDF generator did not load. Refresh the EMS app and try again.'
+      "The PDF generator did not load. Refresh the EMS app and try again.",
     );
   }
 
-  const reportHtml =
-    buildPracticalTestReportHtml('applicant');
+  const reportHtml = buildPracticalTestReportHtml("applicant");
 
-  const frame =
-    document.createElement('iframe');
+  const frame = document.createElement("iframe");
 
-  frame.setAttribute(
-    'aria-hidden',
-    'true'
-  );
+  frame.setAttribute("aria-hidden", "true");
 
-  frame.style.position = 'fixed';
-  frame.style.left = '-100000px';
-  frame.style.top = '0';
-  frame.style.width = '816px';
-  frame.style.height = '1056px';
-  frame.style.border = '0';
-  frame.style.opacity = '0';
-  frame.style.pointerEvents = 'none';
+  frame.style.position = "fixed";
+  frame.style.left = "-100000px";
+  frame.style.top = "0";
+  frame.style.width = "816px";
+  frame.style.height = "1056px";
+  frame.style.border = "0";
+  frame.style.opacity = "0";
+  frame.style.pointerEvents = "none";
 
   document.body.appendChild(frame);
 
   try {
-    const frameDocument =
-      frame.contentDocument;
+    const frameDocument = frame.contentDocument;
 
     if (!frameDocument) {
-      throw new Error(
-        'The temporary report document could not be created.'
-      );
+      throw new Error("The temporary report document could not be created.");
     }
 
     frameDocument.open();
     frameDocument.write(reportHtml);
     frameDocument.close();
 
-    await new Promise(resolve => {
-      const finish = () =>
-        window.setTimeout(resolve, 150);
+    await new Promise((resolve) => {
+      const finish = () => window.setTimeout(resolve, 150);
 
-      if (
-        frame.contentWindow?.document
-          ?.readyState === 'complete'
-      ) {
+      if (frame.contentWindow?.document?.readyState === "complete") {
         finish();
       } else {
-        frame.addEventListener(
-          'load',
-          finish,
-          {
-            once: true
-          }
-        );
+        frame.addEventListener("load", finish, {
+          once: true,
+        });
       }
     });
 
-    if (
-      frameDocument.fonts?.ready
-    ) {
+    if (frameDocument.fonts?.ready) {
       await frameDocument.fonts.ready;
     }
 
-    const images =
-      Array.from(
-        frameDocument.images || []
-      );
+    const images = Array.from(frameDocument.images || []);
 
     await Promise.all(
-      images.map(image => {
+      images.map((image) => {
         if (image.complete) {
           return Promise.resolve();
         }
 
-        return new Promise(resolve => {
-          image.addEventListener(
-            'load',
-            resolve,
-            {
-              once: true
-            }
-          );
+        return new Promise((resolve) => {
+          image.addEventListener("load", resolve, {
+            once: true,
+          });
 
-          image.addEventListener(
-            'error',
-            resolve,
-            {
-              once: true
-            }
-          );
+          image.addEventListener("error", resolve, {
+            once: true,
+          });
         });
-      })
+      }),
     );
 
     /*
@@ -5991,31 +6958,19 @@ async function generateApplicantReportPdfBlob() {
      * The body contains browser-only layout/controls that are not part
      * of the printable report and were corrupting the archived PDFs.
      */
-    frameDocument
-      .querySelector(
-        '.print-controls'
-      )
-      ?.remove();
+    frameDocument.querySelector(".print-controls")?.remove();
 
-    const reportPage =
-      frameDocument.querySelector(
-        '.report-page'
-      );
+    const reportPage = frameDocument.querySelector(".report-page");
 
     if (!reportPage) {
-      throw new Error(
-        'The printable report page could not be found.'
-      );
+      throw new Error("The printable report page could not be found.");
     }
 
     /*
      * html2pdf uses screen CSS, so explicitly apply the layout that the
      * browser uses when printing the good EMT report.
      */
-    const storedPdfStyle =
-      frameDocument.createElement(
-        'style'
-      );
+    const storedPdfStyle = frameDocument.createElement("style");
 
     storedPdfStyle.textContent = `
       html,
@@ -6073,9 +7028,7 @@ async function generateApplicantReportPdfBlob() {
       }
     `;
 
-    frameDocument.head.appendChild(
-      storedPdfStyle
-    );
+    frameDocument.head.appendChild(storedPdfStyle);
 
     /*
      * Force the browser to calculate the final printable dimensions
@@ -6083,48 +7036,35 @@ async function generateApplicantReportPdfBlob() {
      */
     void reportPage.offsetHeight;
 
-    const pdfBlob =
-      await window.html2pdf()
-        .set({
-          margin: 0,
-          filename:
-            'Applicant-Practical-Test-Report.pdf',
-          image: {
-            type: 'jpeg',
-            quality: 0.98
-          },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-          },
-          jsPDF: {
-            unit: 'in',
-            format: 'letter',
-            orientation: 'portrait'
-          },
-          pagebreak: {
-            mode: [
-              'css',
-              'legacy'
-            ]
-          }
-        })
-        .from(
-          reportPage
-        )
-        .outputPdf(
-          'blob'
-        );
+    const pdfBlob = await window
+      .html2pdf()
+      .set({
+        margin: 0,
+        filename: "Applicant-Practical-Test-Report.pdf",
+        image: {
+          type: "jpeg",
+          quality: 0.98,
+        },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+        },
+        jsPDF: {
+          unit: "in",
+          format: "letter",
+          orientation: "portrait",
+        },
+        pagebreak: {
+          mode: ["css", "legacy"],
+        },
+      })
+      .from(reportPage)
+      .outputPdf("blob");
 
-    if (
-      !(pdfBlob instanceof Blob) ||
-      pdfBlob.size === 0
-    ) {
-      throw new Error(
-        'The generated Applicant Report PDF was empty.'
-      );
+    if (!(pdfBlob instanceof Blob) || pdfBlob.size === 0) {
+      throw new Error("The generated Applicant Report PDF was empty.");
     }
 
     return pdfBlob;
@@ -6133,14 +7073,10 @@ async function generateApplicantReportPdfBlob() {
   }
 }
 
-
 async function generateDesigneeReportPdfBlob() {
-  if (
-    typeof window.html2pdf !==
-    'function'
-  ) {
+  if (typeof window.html2pdf !== "function") {
     throw new Error(
-      'The PDF generator did not load. Refresh the EMS app and try again.'
+      "The PDF generator did not load. Refresh the EMS app and try again.",
     );
   }
 
@@ -6148,140 +7084,84 @@ async function generateDesigneeReportPdfBlob() {
    * Use the exact same PDF-generation architecture as the working
    * Applicant Practical Test Report.
    */
-  const reportHtml =
-    buildDesigneePracticalTestReportHtml();
+  const reportHtml = buildDesigneePracticalTestReportHtml();
 
-  const frame =
-    document.createElement(
-      'iframe'
-    );
+  const frame = document.createElement("iframe");
 
-  frame.setAttribute(
-    'aria-hidden',
-    'true'
-  );
+  frame.setAttribute("aria-hidden", "true");
 
-  frame.style.position =
-    'fixed';
+  frame.style.position = "fixed";
 
-  frame.style.left =
-    '-100000px';
+  frame.style.left = "-100000px";
 
-  frame.style.top =
-    '0';
+  frame.style.top = "0";
 
-  frame.style.width =
-    '816px';
+  frame.style.width = "816px";
 
-  frame.style.height =
-    '1056px';
+  frame.style.height = "1056px";
 
-  frame.style.border =
-    '0';
+  frame.style.border = "0";
 
-  frame.style.opacity =
-    '0';
+  frame.style.opacity = "0";
 
-  frame.style.pointerEvents =
-    'none';
+  frame.style.pointerEvents = "none";
 
-  document.body.appendChild(
-    frame
-  );
+  document.body.appendChild(frame);
 
   try {
-    const frameDocument =
-      frame.contentDocument;
+    const frameDocument = frame.contentDocument;
 
     if (!frameDocument) {
       throw new Error(
-        'The temporary Designee Report document could not be created.'
+        "The temporary Designee Report document could not be created.",
       );
     }
 
     frameDocument.open();
-    frameDocument.write(
-      reportHtml
-    );
+    frameDocument.write(reportHtml);
     frameDocument.close();
 
-    await new Promise(resolve => {
-      const finish = () =>
-        window.setTimeout(
-          resolve,
-          150
-        );
+    await new Promise((resolve) => {
+      const finish = () => window.setTimeout(resolve, 150);
 
-      if (
-        frame.contentWindow
-          ?.document
-          ?.readyState ===
-        'complete'
-      ) {
+      if (frame.contentWindow?.document?.readyState === "complete") {
         finish();
       } else {
-        frame.addEventListener(
-          'load',
-          finish,
-          {
-            once: true
-          }
-        );
+        frame.addEventListener("load", finish, {
+          once: true,
+        });
       }
     });
 
-    if (
-      frameDocument.fonts
-        ?.ready
-    ) {
-      await frameDocument
-        .fonts
-        .ready;
+    if (frameDocument.fonts?.ready) {
+      await frameDocument.fonts.ready;
     }
 
-    const images =
-      Array.from(
-        frameDocument.images ||
-        []
-      );
+    const images = Array.from(frameDocument.images || []);
 
     await Promise.all(
-      images.map(image => {
+      images.map((image) => {
         if (image.complete) {
           return Promise.resolve();
         }
 
-        return new Promise(
-          resolve => {
-            image.addEventListener(
-              'load',
-              resolve,
-              {
-                once: true
-              }
-            );
+        return new Promise((resolve) => {
+          image.addEventListener("load", resolve, {
+            once: true,
+          });
 
-            image.addEventListener(
-              'error',
-              resolve,
-              {
-                once: true
-              }
-            );
-          }
-        );
-      })
+          image.addEventListener("error", resolve, {
+            once: true,
+          });
+        });
+      }),
     );
 
     /*
      * Same as Applicant PDF generation: remove interactive browser
      * controls before the PDF is captured.
      */
-    frameDocument
-      .querySelector(
-        '.print-controls'
-      )
-      ?.remove();
+    frameDocument.querySelector(".print-controls")?.remove();
 
     /*
      * IMPORTANT:
@@ -6291,31 +7171,19 @@ async function generateDesigneeReportPdfBlob() {
      * The body contains browser-only layout/controls that are not part
      * of the printable report and were corrupting the archived PDFs.
      */
-    frameDocument
-      .querySelector(
-        '.print-controls'
-      )
-      ?.remove();
+    frameDocument.querySelector(".print-controls")?.remove();
 
-    const reportPage =
-      frameDocument.querySelector(
-        '.report-page'
-      );
+    const reportPage = frameDocument.querySelector(".report-page");
 
     if (!reportPage) {
-      throw new Error(
-        'The printable report page could not be found.'
-      );
+      throw new Error("The printable report page could not be found.");
     }
 
     /*
      * html2pdf uses screen CSS, so explicitly apply the layout that the
      * browser uses when printing the good EMT report.
      */
-    const storedPdfStyle =
-      frameDocument.createElement(
-        'style'
-      );
+    const storedPdfStyle = frameDocument.createElement("style");
 
     storedPdfStyle.textContent = `
       html,
@@ -6373,9 +7241,7 @@ async function generateDesigneeReportPdfBlob() {
       }
     `;
 
-    frameDocument.head.appendChild(
-      storedPdfStyle
-    );
+    frameDocument.head.appendChild(storedPdfStyle);
 
     /*
      * Force the browser to calculate the final printable dimensions
@@ -6383,55 +7249,40 @@ async function generateDesigneeReportPdfBlob() {
      */
     void reportPage.offsetHeight;
 
-    const pdfBlob =
-      await window.html2pdf()
-        .set({
-          margin: 0,
+    const pdfBlob = await window
+      .html2pdf()
+      .set({
+        margin: 0,
 
-          filename:
-            'Designee-Practical-Test-Report.pdf',
+        filename: "Designee-Practical-Test-Report.pdf",
 
-          image: {
-            type: 'jpeg',
-            quality: 0.98
-          },
+        image: {
+          type: "jpeg",
+          quality: 0.98,
+        },
 
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor:
-              '#ffffff'
-          },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+        },
 
-          jsPDF: {
-            unit: 'in',
-            format: 'letter',
-            orientation:
-              'portrait'
-          },
+        jsPDF: {
+          unit: "in",
+          format: "letter",
+          orientation: "portrait",
+        },
 
-          pagebreak: {
-            mode: [
-              'css',
-              'legacy'
-            ]
-          }
-        })
-        .from(
-          reportPage
-        )
-        .outputPdf(
-          'blob'
-        );
+        pagebreak: {
+          mode: ["css", "legacy"],
+        },
+      })
+      .from(reportPage)
+      .outputPdf("blob");
 
-    if (
-      !(pdfBlob instanceof Blob) ||
-      pdfBlob.size === 0
-    ) {
-      throw new Error(
-        'The generated Designee Report PDF was empty.'
-      );
+    if (!(pdfBlob instanceof Blob) || pdfBlob.size === 0) {
+      throw new Error("The generated Designee Report PDF was empty.");
     }
 
     return pdfBlob;
@@ -6441,46 +7292,30 @@ async function generateDesigneeReportPdfBlob() {
 }
 
 async function generateApplicantReportPdfBase64() {
-  const pdfBlob =
-    await generateApplicantReportPdfBlob();
+  const pdfBlob = await generateApplicantReportPdfBlob();
 
-  const bytes =
-    new Uint8Array(
-      await pdfBlob.arrayBuffer()
-    );
+  const bytes = new Uint8Array(await pdfBlob.arrayBuffer());
 
-  let binary = '';
+  let binary = "";
 
-  for (
-    let index = 0;
-    index < bytes.length;
-    index += 0x8000
-  ) {
-    binary += String.fromCharCode(
-      ...bytes.subarray(
-        index,
-        index + 0x8000
-      )
-    );
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
   }
 
   return {
     pdfBase64: window.btoa(binary),
-    reportHtml:
-      buildPracticalTestReportHtml(
-        'applicant'
-      )
+    reportHtml: buildPracticalTestReportHtml("applicant"),
   };
 }
 
 function generateCheckrideReport() {
-  generatePracticalTestReport('designee');
+  generatePracticalTestReport("designee");
 }
 
 function formatDateMMDDYYYY(dateStr) {
-  if (!dateStr) return '';
+  if (!dateStr) return "";
 
-  const parts = dateStr.split('-');
+  const parts = dateStr.split("-");
 
   if (parts.length !== 3) return dateStr;
 
@@ -6489,279 +7324,192 @@ function formatDateMMDDYYYY(dateStr) {
 }
 
 function escapeReport(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-window.updateApplicantDurationFromScenario = function(section, decimalHours) {
+window.updateApplicantDurationFromScenario = function (section, decimalHours) {
   if (!store) return;
 
-  const value = decimalHours ? String(decimalHours) : '';
+  const value = decimalHours ? String(decimalHours) : "";
 
-  if (section === 'oral') {
+  if (section === "oral") {
     store.applicant.appGroundDuration = value;
 
-    const input = document.getElementById('appGroundDuration');
+    const input = document.getElementById("appGroundDuration");
     if (input) input.value = value;
   }
 
-  if (section === 'flight') {
+  if (section === "flight") {
     store.applicant.appFlightDuration = value;
 
-    const input = document.getElementById('appFlightDuration');
+    const input = document.getElementById("appFlightDuration");
     if (input) input.value = value;
   }
 
   saveToLocalStorage();
 };
 
-window.getFlightPortionAreas = function() {
+window.getFlightPortionAreas = function () {
   const areas = getCurrentAreas();
 
-  return areas.filter(area =>
-    String(area.roman || '').trim() !== 'I'
-  );
+  return areas.filter((area) => String(area.roman || "").trim() !== "I");
 };
 
-window.getFlightPortionTasks = function() {
-  return window.getFlightPortionAreas()
-    .flatMap(area => area.tasks);
+window.getFlightPortionTasks = function () {
+  return window.getFlightPortionAreas().flatMap((area) => area.tasks);
 };
 
-window.getFlightPortionAreas = function() {
+window.getFlightPortionAreas = function () {
   const areas = getCurrentAreas();
 
-  return areas.filter(area =>
-    String(area.roman || '').trim() !== 'I'
-  );
+  return areas.filter((area) => String(area.roman || "").trim() !== "I");
 };
 
-window.renderFlightDetailedArea = function(container, area) {
+window.renderFlightDetailedArea = function (container, area) {
   if (!container || !modules.renderDetailed) return;
 
   modules.renderDetailed(container, area, store, {
     onGradeChange: (taskCode, gradeType, value) =>
       modules.setGrade(taskCode, gradeType, value),
 
-    onToggleTask: taskCode =>
-      modules.toggleTask(taskCode),
+    onToggleTask: (taskCode) => modules.toggleTask(taskCode),
 
-    onTaskCheck: (taskCode, checked) =>
-      handleTaskCheck(taskCode, checked),
+    onTaskCheck: (taskCode, checked) => handleTaskCheck(taskCode, checked),
 
     onExaminerNoteChange: (taskCode, note) =>
-      handleExaminerNoteChange(taskCode, note)
+      handleExaminerNoteChange(taskCode, note),
   });
 
   applyAcsCodeHighlights();
 };
 
 function resolveScenarioGradeTarget(rawTaskCode) {
-  const parts = rawTaskCode
-    ? String(rawTaskCode).split('.')
-    : [];
+  const parts = rawTaskCode ? String(rawTaskCode).split(".") : [];
 
   const taskCode =
-    parts.length >= 3
-      ? parts.slice(0, 3).join('.')
-      : rawTaskCode || '';
+    parts.length >= 3 ? parts.slice(0, 3).join(".") : rawTaskCode || "";
 
   const gradeType =
-    parts.length >= 4
-      ? String(parts[3]).charAt(0).toUpperCase()
-      : '';
+    parts.length >= 4 ? String(parts[3]).charAt(0).toUpperCase() : "";
 
-  const tasks = getCurrentTasks(
-    getCurrentAreas()
-  );
+  const tasks = getCurrentTasks(getCurrentAreas());
 
-  const matchingTask = tasks.find(task =>
-    task.code === taskCode ||
-    task.filterCode === taskCode ||
-    task.code === rawTaskCode ||
-    task.filterCode === rawTaskCode
+  const matchingTask = tasks.find(
+    (task) =>
+      task.code === taskCode ||
+      task.filterCode === taskCode ||
+      task.code === rawTaskCode ||
+      task.filterCode === rawTaskCode,
   );
 
   return {
     matchingTask,
-    filterCode:
-      matchingTask?.filterCode || '',
-    gradeType
+    filterCode: matchingTask?.filterCode || "",
+    gradeType,
   };
 }
 
-function updateVisibleRadioGroup(
-  radio,
-  selectedValue
-) {
-  const group = radio.closest(
-    '.grade-radio-group'
-  );
+function updateVisibleRadioGroup(radio, selectedValue) {
+  const group = radio.closest(".grade-radio-group");
 
   if (!group) return;
 
-  group
-    .querySelectorAll(
-      'input[type="radio"]'
-    )
-    .forEach(input => {
-      const selected =
-        String(input.value) ===
-        String(selectedValue);
+  group.querySelectorAll('input[type="radio"]').forEach((input) => {
+    const selected = String(input.value) === String(selectedValue);
 
-      input.checked = selected;
+    input.checked = selected;
 
-      input
-        .closest('.grade-radio-option')
-        ?.classList.toggle(
-          'selected',
-          selected
-        );
-    });
+    input
+      .closest(".grade-radio-option")
+      ?.classList.toggle("selected", selected);
+  });
 }
 
 function getOralQuestionGrade(rawTaskCode) {
   if (!rawTaskCode || !store) {
-    return 'NP';
+    return "NP";
   }
 
-  return (
-    store.oralQuestionGrades?.[
-      rawTaskCode
-    ] || 'NP'
-  );
+  return store.oralQuestionGrades?.[rawTaskCode] || "NP";
 }
 
-function getOralGradesForParent(
-  filterCode,
-  gradeType
-) {
-  if (
-    !filterCode ||
-    !gradeType ||
-    !store?.oralQuestionGrades
-  ) {
+function getOralGradesForParent(filterCode, gradeType) {
+  if (!filterCode || !gradeType || !store?.oralQuestionGrades) {
     return [];
   }
 
-  return Object.entries(
-    store.oralQuestionGrades
-  )
+  return Object.entries(store.oralQuestionGrades)
     .map(([rawTaskCode, value]) => {
-      const resolved =
-        resolveScenarioGradeTarget(
-          rawTaskCode
-        );
+      const resolved = resolveScenarioGradeTarget(rawTaskCode);
 
       return {
-        filterCode:
-          resolved.filterCode,
-        gradeType:
-          resolved.gradeType,
-        value: String(value || 'NP')
+        filterCode: resolved.filterCode,
+        gradeType: resolved.gradeType,
+        value: String(value || "NP"),
       };
     })
-    .filter(item =>
-      item.filterCode === filterCode &&
-      item.gradeType === gradeType
+    .filter(
+      (item) => item.filterCode === filterCode && item.gradeType === gradeType,
     )
-    .map(item => item.value);
+    .map((item) => item.value);
 }
 
-function calculateRoundedOralAverage(
-  filterCode,
-  gradeType
-) {
-  const numericGrades =
-    getOralGradesForParent(
-      filterCode,
-      gradeType
-    )
-      .filter(value =>
-        ['1', '2', '3', '4'].includes(
-          value
-        )
-      )
-      .map(Number);
+function calculateRoundedOralAverage(filterCode, gradeType) {
+  const numericGrades = getOralGradesForParent(filterCode, gradeType)
+    .filter((value) => ["1", "2", "3", "4"].includes(value))
+    .map(Number);
 
   if (!numericGrades.length) {
-    return 'NP';
+    return "NP";
   }
 
-  const total =
-    numericGrades.reduce(
-      (sum, value) => sum + value,
-      0
-    );
+  const total = numericGrades.reduce((sum, value) => sum + value, 0);
 
-  const average =
-    total / numericGrades.length;
+  const average = total / numericGrades.length;
 
   /*
    * Math.round uses conventional rounding:
    * 2.49 -> 2
    * 2.50 -> 3
    */
-  const rounded =
-    Math.round(average);
+  const rounded = Math.round(average);
 
-  return String(
-    Math.max(1, Math.min(4, rounded))
-  );
+  return String(Math.max(1, Math.min(4, rounded)));
 }
 
-function applyOralAverageToDetailed(
-  filterCode,
-  gradeType
-) {
-  if (
-    !filterCode ||
-    !gradeType ||
-    !store
-  ) {
+function applyOralAverageToDetailed(filterCode, gradeType) {
+  if (!filterCode || !gradeType || !store) {
     return;
   }
 
-  const roundedGrade =
-    calculateRoundedOralAverage(
-      filterCode,
-      gradeType
-    );
+  const roundedGrade = calculateRoundedOralAverage(filterCode, gradeType);
 
-  store.grades[
-    `${filterCode}.${gradeType}`
-  ] = roundedGrade;
+  store.grades[`${filterCode}.${gradeType}`] = roundedGrade;
 
-  const hasNumericTaskGrade =
-    ['K', 'R', 'S'].some(type =>
-      ['1', '2', '3', '4'].includes(
-        String(
-          store.grades[
-            `${filterCode}.${type}`
-          ] || 'NP'
-        )
-      )
-    );
+  const hasNumericTaskGrade = ["K", "R", "S"].some((type) =>
+    ["1", "2", "3", "4"].includes(
+      String(store.grades[`${filterCode}.${type}`] || "NP"),
+    ),
+  );
 
-  store.checkedElements[filterCode] =
-    hasNumericTaskGrade;
+  store.checkedElements[filterCode] = hasNumericTaskGrade;
 }
 
-window.getOralQuestionGrade =
-  getOralQuestionGrade;
+window.getOralQuestionGrade = getOralQuestionGrade;
 
 function recalculateAllOralAverages() {
   if (!store?.oralQuestionGrades) {
@@ -6770,33 +7518,18 @@ function recalculateAllOralAverages() {
 
   const parentKeys = new Set();
 
-  Object.keys(
-    store.oralQuestionGrades
-  ).forEach(rawTaskCode => {
-    const {
-      filterCode,
-      gradeType
-    } = resolveScenarioGradeTarget(
-      rawTaskCode
-    );
+  Object.keys(store.oralQuestionGrades).forEach((rawTaskCode) => {
+    const { filterCode, gradeType } = resolveScenarioGradeTarget(rawTaskCode);
 
     if (filterCode && gradeType) {
-      parentKeys.add(
-        `${filterCode}::${gradeType}`
-      );
+      parentKeys.add(`${filterCode}::${gradeType}`);
     }
   });
 
-  parentKeys.forEach(parentKey => {
-    const [
-      filterCode,
-      gradeType
-    ] = parentKey.split('::');
+  parentKeys.forEach((parentKey) => {
+    const [filterCode, gradeType] = parentKey.split("::");
 
-    applyOralAverageToDetailed(
-      filterCode,
-      gradeType
-    );
+    applyOralAverageToDetailed(filterCode, gradeType);
   });
 }
 
@@ -6811,21 +7544,14 @@ function syncScenarioGradesFromStore() {
    */
   document
     .querySelectorAll(
-      '.scenario-question-grade-radios input[type="radio"][data-task-code]'
+      '.scenario-question-grade-radios input[type="radio"][data-task-code]',
     )
-    .forEach(radio => {
-      const rawTaskCode =
-        radio.dataset.taskCode || '';
+    .forEach((radio) => {
+      const rawTaskCode = radio.dataset.taskCode || "";
 
-      const storedGrade =
-        getOralQuestionGrade(
-          rawTaskCode
-        );
+      const storedGrade = getOralQuestionGrade(rawTaskCode);
 
-      updateVisibleRadioGroup(
-        radio,
-        storedGrade
-      );
+      updateVisibleRadioGroup(radio, storedGrade);
     });
 
   /*
@@ -6834,24 +7560,17 @@ function syncScenarioGradesFromStore() {
    * These controls use the task filter code directly.
    */
   document
-    .querySelectorAll(
-      '#viewScenario select[data-grade][data-task-code]'
-    )
-    .forEach(select => {
-      const taskCode =
-        select.dataset.taskCode;
+    .querySelectorAll("#viewScenario select[data-grade][data-task-code]")
+    .forEach((select) => {
+      const taskCode = select.dataset.taskCode;
 
-      const gradeType =
-        select.dataset.grade;
+      const gradeType = select.dataset.grade;
 
       if (!taskCode || !gradeType) {
         return;
       }
 
-      const storedGrade =
-        store.grades[
-          `${taskCode}.${gradeType}`
-        ] || 'NP';
+      const storedGrade = store.grades[`${taskCode}.${gradeType}`] || "NP";
 
       select.value = storedGrade;
 
@@ -6864,28 +7583,20 @@ function syncScenarioGradesFromStore() {
    */
   document
     .querySelectorAll(
-      '#viewScenario input[type="radio"][data-grade][data-task-code]'
+      '#viewScenario input[type="radio"][data-grade][data-task-code]',
     )
-    .forEach(radio => {
-      const taskCode =
-        radio.dataset.taskCode;
+    .forEach((radio) => {
+      const taskCode = radio.dataset.taskCode;
 
-      const gradeType =
-        radio.dataset.grade;
+      const gradeType = radio.dataset.grade;
 
       if (!taskCode || !gradeType) {
         return;
       }
 
-      const storedGrade =
-        store.grades[
-          `${taskCode}.${gradeType}`
-        ] || 'NP';
+      const storedGrade = store.grades[`${taskCode}.${gradeType}`] || "NP";
 
-      updateVisibleRadioGroup(
-        radio,
-        storedGrade
-      );
+      updateVisibleRadioGroup(radio, storedGrade);
     });
 
   /*
@@ -6894,66 +7605,40 @@ function syncScenarioGradesFromStore() {
    * K, R, or S grade.
    */
   document
-    .querySelectorAll(
-      '#viewScenario [data-task-check]'
-    )
-    .forEach(checkbox => {
-      const taskCode =
-        checkbox.dataset.taskCheck;
+    .querySelectorAll("#viewScenario [data-task-check]")
+    .forEach((checkbox) => {
+      const taskCode = checkbox.dataset.taskCheck;
 
       if (!taskCode) return;
 
-      const hasNumericGrade =
-        ['K', 'R', 'S'].some(type =>
-          ['1', '2', '3', '4'].includes(
-            String(
-              store.grades[
-                `${taskCode}.${type}`
-              ] || 'NP'
-            )
-          )
-        );
+      const hasNumericGrade = ["K", "R", "S"].some((type) =>
+        ["1", "2", "3", "4"].includes(
+          String(store.grades[`${taskCode}.${type}`] || "NP"),
+        ),
+      );
 
       checkbox.checked = Boolean(
-        store.checkedElements?.[taskCode] ||
-        hasNumericGrade
+        store.checkedElements?.[taskCode] || hasNumericGrade,
       );
     });
 }
 
-window.setDetailedGradeFromFlight = function(
-  taskCode,
-  gradeType,
-  value
-) {
-  if (
-    !taskCode ||
-    !gradeType ||
-    !store
-  ) {
+window.setDetailedGradeFromFlight = function (taskCode, gradeType, value) {
+  if (!taskCode || !gradeType || !store) {
     return;
   }
 
-  const normalizedValue =
-    value || 'NP';
+  const normalizedValue = value || "NP";
 
-  store.grades[
-    `${taskCode}.${gradeType}`
-  ] = normalizedValue;
+  store.grades[`${taskCode}.${gradeType}`] = normalizedValue;
 
-  const hasNumericGrade =
-    ['K', 'R', 'S'].some(type =>
-      ['1', '2', '3', '4'].includes(
-        String(
-          store.grades[
-            `${taskCode}.${type}`
-          ] || 'NP'
-        )
-      )
-    );
+  const hasNumericGrade = ["K", "R", "S"].some((type) =>
+    ["1", "2", "3", "4"].includes(
+      String(store.grades[`${taskCode}.${type}`] || "NP"),
+    ),
+  );
 
-  store.checkedElements[taskCode] =
-    hasNumericGrade;
+  store.checkedElements[taskCode] = hasNumericGrade;
 
   modules.notify();
   saveToLocalStorage();
@@ -6963,58 +7648,43 @@ window.setDetailedGradeFromFlight = function(
   });
 };
 
-window.setDetailedTaskCheckFromFlight = function(taskCode, checked) {
+window.setDetailedTaskCheckFromFlight = function (taskCode, checked) {
   if (!taskCode || !store) return;
 
   store.checkedElements[taskCode] = checked;
 
   ensureGradeReasonStores();
 
-  const gradeKey =
-    `${taskCode}.S`;
+  const gradeKey = `${taskCode}.S`;
 
   if (checked) {
-    store.grades[gradeKey] = '3';
+    store.grades[gradeKey] = "3";
   } else {
-    store.grades[gradeKey] = 'NP';
+    store.grades[gradeKey] = "NP";
   }
 
-  delete store.gradeReasons[
-    gradeKey
-  ];
+  delete store.gradeReasons[gradeKey];
 
   modules.notify();
   saveToLocalStorage();
 };
 
-window.setDetailedExaminerNoteFromFlight = function(taskCode, note) {
+window.setDetailedExaminerNoteFromFlight = function (taskCode, note) {
   if (!taskCode || !store) return;
 
   handleExaminerNoteChange(taskCode, note);
   saveToLocalStorage();
 };
 
-window.setScenarioGradeFromOral = function(input) {
-  const rawTaskCode =
-    input?.dataset?.taskCode || '';
+window.setScenarioGradeFromOral = function (input) {
+  const rawTaskCode = input?.dataset?.taskCode || "";
 
-  const grade =
-    input?.value || 'NP';
+  const grade = input?.value || "NP";
 
-  const {
-    matchingTask,
-    filterCode,
-    gradeType
-  } = resolveScenarioGradeTarget(
-    rawTaskCode
-  );
+  const { matchingTask, filterCode, gradeType } =
+    resolveScenarioGradeTarget(rawTaskCode);
 
-  if (
-    !matchingTask ||
-    !filterCode ||
-    !gradeType ||
-    !store
-  ) {
+  if (!matchingTask || !filterCode || !gradeType || !store) {
     return;
   }
 
@@ -7024,25 +7694,18 @@ window.setScenarioGradeFromOral = function(input) {
    * Save this question independently. Do not overwrite other questions
    * associated with the same parent task.
    */
-  store.oralQuestionGrades[
-    rawTaskCode
-  ] = grade;
+  store.oralQuestionGrades[rawTaskCode] = grade;
 
   ensureGradeReasonStores();
 
   if (!gradeRequiresReason(grade)) {
-    delete store.oralGradeReasons[
-      rawTaskCode
-    ];
+    delete store.oralGradeReasons[rawTaskCode];
   }
 
   /*
    * Recalculate only the matching parent task and K/R/S grade.
    */
-  applyOralAverageToDetailed(
-    filterCode,
-    gradeType
-  );
+  applyOralAverageToDetailed(filterCode, gradeType);
 
   modules.notify();
   saveToLocalStorage();
@@ -7052,41 +7715,34 @@ window.setScenarioGradeFromOral = function(input) {
   });
 };
 
-window.storeGeneratedScenario = function(payload) {
+window.storeGeneratedScenario = function (payload) {
   if (!store) return;
 
   store.generatedScenario = payload;
 };
 
-window.getStoredGeneratedScenario = function() {
+window.getStoredGeneratedScenario = function () {
   return store?.generatedScenario || null;
 };
 
-window.getScenarioGradeFromDetailedView = function(rawTaskCode) {
-  const parts = rawTaskCode ? rawTaskCode.split('.') : [];
+window.getScenarioGradeFromDetailedView = function (rawTaskCode) {
+  const parts = rawTaskCode ? rawTaskCode.split(".") : [];
 
   const taskCode =
-    parts.length >= 3
-      ? parts.slice(0, 3).join('.')
-      : rawTaskCode || '';
+    parts.length >= 3 ? parts.slice(0, 3).join(".") : rawTaskCode || "";
 
-  const gradeType =
-    parts.length >= 4
-      ? parts[3].charAt(0).toUpperCase()
-      : '';
+  const gradeType = parts.length >= 4 ? parts[3].charAt(0).toUpperCase() : "";
 
-  if (!taskCode || !gradeType || !store) return '';
+  if (!taskCode || !gradeType || !store) return "";
 
   const areas = getCurrentAreas();
   const tasks = getCurrentTasks(areas);
 
-  const matchingTask = tasks.find(task =>
-    task.code === taskCode ||
-    task.filterCode === taskCode
+  const matchingTask = tasks.find(
+    (task) => task.code === taskCode || task.filterCode === taskCode,
   );
 
-  if (!matchingTask) return '';
+  if (!matchingTask) return "";
 
-  return store.grades?.[`${matchingTask.filterCode}.${gradeType}`] || '';
+  return store.grades?.[`${matchingTask.filterCode}.${gradeType}`] || "";
 };
-
