@@ -156,6 +156,10 @@ export const CHECKLIST_DATA = [
         indent: 0
       },
       {
+        text: "Collect Examiner Fee",
+        indent: 0
+      },
+      {
         text: "Then announce the test has begun",
         indent: 1
       }

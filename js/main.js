@@ -278,6 +278,7 @@ const REQUIRED_BRIEFINGS = [
       { text: 'Conditions leading to disapproval', indent: 2 },
 
       { text: 'Any questions before we begin the test?', indent: 0 },
+      { text: 'Collect Examiner Fee', indent: 0 },
       { text: 'Announce: “The test has begun”', indent: 1 }
     ]
   },
@@ -1524,6 +1525,7 @@ function ensureStoreDefaults() {
   store.applicant.appAmelInstrument ??= '';
   store.applicant.appEmail ??= '';
   store.applicant.appInstructorEmail ??= '';
+  store.applicant.feeAmount ??= null;
   store.applicant.practicalTestRequestId ??= '';
   store.applicant.requestNumber ??= '';
   store.applicant.scheduledStartAt ??= '';
@@ -1723,6 +1725,11 @@ async function lookupApplicantByDMS() {
       data.ApplicantEmail,
     appFTN: data.appFTN || data.FTNNumber,
     appDMS: data.appDMS || data.DMSPreapprovalNumber,
+    feeAmount:
+      data.feeAmount ??
+      data.fee_amount ??
+      data.FeeAmount ??
+      null,
     practicalTestRequestId:
       data.practicalTestRequestId || '',
     requestNumber:
@@ -1897,6 +1904,7 @@ function appointmentToApplicantData(appointment) {
     appInstructorEmail: appointment.instructor_email,
     appFTN: appointment.ftn_number,
     appDMS: appointment.dms_preapproval_number,
+    feeAmount: appointment.fee_amount,
     appRetest: appointment.is_retest ? 'Yes' : 'No',
     practicalTestRequestId: appointment.request_id,
     requestNumber: appointment.request_number,
@@ -3408,6 +3416,36 @@ function renderPostFlightOutcomeStatus() {
   `;
 }
 
+function getBriefingItemText(item) {
+  if (item.text !== 'Collect Examiner Fee') {
+    return item.text;
+  }
+
+  const rawFee =
+    store.applicant?.feeAmount ??
+    store.feeAmount ??
+    null;
+
+  if (
+    rawFee === null ||
+    rawFee === undefined ||
+    rawFee === ''
+  ) {
+    return 'Collect Examiner Fee';
+  }
+
+  const fee = Number(rawFee);
+
+  if (!Number.isFinite(fee)) {
+    return 'Collect Examiner Fee';
+  }
+
+  return `Collect Examiner Fee - ${fee.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  })}`;
+}
+
 function renderRequiredBriefings(container) {
   if (!container) return;
 
@@ -3500,7 +3538,7 @@ function renderRequiredBriefings(container) {
                       />
 
                       <label for="briefing_${escapeHtml(itemKey)}">
-                        ${escapeHtml(item.text)}
+                        ${escapeHtml(getBriefingItemText(item))}
                       </label>
                     </div>
                   `;
