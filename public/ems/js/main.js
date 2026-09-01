@@ -408,11 +408,36 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     await loadModules();
+  } catch (error) {
+    console.error("EMT MODULE LOAD FAILED:", error);
+    console.error("Module-load stack:", error?.stack || "(no stack available)");
+
+    alert(
+      `EMT module load failed:
+
+${error?.message || error}
+
+Open Console for the full stack.`,
+    );
+
+    return;
+  }
+
+  try {
     initApp();
   } catch (error) {
-    console.error("EMS failed to fully load:", error);
+    console.error("EMT INIT FAILED:", error);
+    console.error(
+      "Initialization stack:",
+      error?.stack || "(no stack available)",
+    );
+
     alert(
-      "The app shell loaded, but one or more JavaScript modules failed. Open Console for details.",
+      `EMT initialization failed:
+
+${error?.message || error}
+
+Open Console for the full stack.`,
     );
   }
 });
@@ -540,6 +565,7 @@ function initApp() {
   ensureStoreDefaults();
   recalculateAllOralAverages();
 
+  populateCertificateDropdown();
   populateRatingDropdown();
   wireFullAppEvents();
   wireEmtConnectionEvents();
@@ -1265,6 +1291,9 @@ function ensureStoreDefaults() {
   store.applicant.appRating ??= "ASEL";
   store.applicant.appAircraftClassUsed ??= "ASEL";
   store.applicant.appExamType ??= "Initial";
+  store.applicant.knowledgeTestRequired ??=
+    modules.isKnowledgeTestRequired?.(store.applicant.appExamType) ??
+    store.applicant.appExamType !== "Additional";
   store.applicant.appRatingHeld ??= "";
   store.applicant.appAmelInstrument ??= "";
   store.applicant.appEmail ??= "";
@@ -1287,7 +1316,11 @@ function ensureStoreDefaults() {
   store.selectedScenario ??= "Scenario 1";
   store.activeView ??= "detailed";
   store.selectedAcsCodes ??= [];
+  store.aktUploadStatus ??= "";
   store.acsDecoderOpen ??= false;
+
+  store.evaluationMode ??= store.applicant.evaluationMode || "acs";
+  store.applicant.evaluationMode = store.evaluationMode;
 
   store.requiredBriefings ??= {};
   store.expandedBriefings ??= {};
@@ -1302,6 +1335,12 @@ function ensureStoreDefaults() {
   store.ppcLoadError ??= "";
   store.ppcAircraftConfiguration ??= "airplane";
   store.ppcLastSyncedAt ??= "";
+  store.ppcActiveSectionId ??= null;
+  store.ppcActiveView ??= "detailed";
+  store.ppcOutcomeNotes ??= "";
+  store.ppcPracticalTestOutcome ??= "";
+  store.ppcEventCompleted ??= false;
+  store.ppcEventEmailError ??= "";
 }
 
 function formatRatingLabel(rating) {
@@ -1312,9 +1351,46 @@ function formatRatingLabel(rating) {
     AMES: "AMES",
     GLIDER: "Glider",
     "Instrument Airplane": "Instrument Airplane",
+    "Pilot Proficiency Check (61.58)":
+      "Pilot Proficiency Check (61.58)",
+    "Flight Engineer Proficiency Check (91.529)":
+      "Flight Engineer Proficiency Check (91.529)",
+    "Reciprocating Engine Powered": "Reciprocating Engine Powered",
+    "Turbopropeller Powered": "Turbopropeller Powered",
+    "Turbojet Powered": "Turbojet Powered",
   };
 
   return labels[rating] || rating;
+}
+
+function populateCertificateDropdown() {
+  const certificateSelect = $("appCertificate");
+
+  if (!certificateSelect) return;
+
+  const currentCertificate = store.applicant.appCertificate || "Private";
+
+  certificateSelect.innerHTML = Object.entries(modules.CERT_CONFIG || {})
+    .map(
+      ([value, cfg]) =>
+        `<option value="${escapeHtml(value)}">${escapeHtml(cfg.label || value)}</option>`,
+    )
+    .join("");
+
+  if (
+    currentCertificate &&
+    !Object.prototype.hasOwnProperty.call(
+      modules.CERT_CONFIG || {},
+      currentCertificate,
+    )
+  ) {
+    const option = document.createElement("option");
+    option.value = currentCertificate;
+    option.textContent = currentCertificate;
+    certificateSelect.appendChild(option);
+  }
+
+  certificateSelect.value = currentCertificate;
 }
 
 function populateRatingDropdown() {
@@ -1326,103 +1402,164 @@ function populateRatingDropdown() {
 
   ratingSelect.disabled = certificate === "Instrument";
 
-  ratingSelect.innerHTML = cfg.ratings
+  const ratings = modules.getCertificateRatings
+    ? modules.getCertificateRatings(certificate, store.applicant.appRating)
+    : [...cfg.ratings];
+
+  ratingSelect.innerHTML = ratings
     .map(
       (rating) =>
         `<option value="${rating}">${formatRatingLabel(rating)}</option>`,
     )
     .join("");
 
-  if (!cfg.ratings.includes(store.applicant.appRating)) {
-    store.applicant.appRating = cfg.ratings[0];
+  if (!ratings.includes(store.applicant.appRating)) {
+    store.applicant.appRating = ratings[0] || "";
   }
 
   ratingSelect.value = store.applicant.appRating;
 }
 
-async function lookupApplicantByDMS() {
-  const searchValue = $("appDMS")?.value?.trim();
-
-  if (!searchValue) {
-    alert(
-      "Enter a DMS Preapproval Number, request number, or request ID first.",
-    );
-    return;
-  }
-
-  const button = $("btnLookupApplicant");
-  const originalText = button?.innerHTML;
-
-  try {
-    if (button) {
-      button.disabled = true;
-      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Looking up...';
-    }
-
-    let appointments = Array.from(window.emtAppointmentsById?.values?.() || []);
-
-    if (!appointments.length) {
-      appointments = await modules.loadEmtAppointments();
-
-      window.emtAppointmentsById = new Map(
-        appointments.map((appointment) => [
-          appointment.request_id,
-          appointment,
-        ]),
-      );
-    }
-
-    const normalizedSearch = searchValue.toLowerCase();
-
-    const appointment = appointments.find((item) => {
-      const values = [
-        item.dms_preapproval_number,
-        item.request_number,
-        item.request_id,
-      ]
-        .filter(Boolean)
-        .map((value) => String(value).trim().toLowerCase());
-
-      return values.includes(normalizedSearch);
-    });
-
-    if (!appointment) {
-      alert(
-        "No DPE EMT appointment was found for that DMS number, request number, or request ID.",
-      );
-      return;
-    }
-
-    applyApplicantLookupData(appointmentToApplicantData(appointment));
-
-    const select = $("emtAppointmentSelect");
-
-    if (select) {
-      select.value = appointment.request_id;
-    }
-
-    modules.notify();
-
-    setEmtConnectionMessage(
-      `${appointment.request_number || "Appointment"} loaded from Supabase.`,
-    );
-  } catch (error) {
-    console.error("Supabase applicant lookup failed:", error);
-
-    alert(
-      error instanceof Error
-        ? `Applicant lookup failed: ${error.message}`
-        : "Applicant lookup from Supabase failed.",
-    );
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.innerHTML = originalText;
-    }
-  }
-}
-
 function applyApplicantLookupData(data) {
+  /*
+   * Appointment-specific values must replace the prior appointment,
+   * including when the new value is blank.
+   */
+
+  /*
+   * Evaluation durations must never carry from one appointment into
+   * another. A blank value from appointmentToApplicantData is
+   * authoritative and explicitly clears the prior evaluation.
+   */
+  for (const durationField of ["appGroundDuration", "appFlightDuration"]) {
+    if (Object.prototype.hasOwnProperty.call(data, durationField)) {
+      const value = String(data[durationField] || "").trim();
+
+      store.applicant[durationField] = value;
+
+      const input = $(durationField);
+
+      if (input) {
+        input.value = value;
+      }
+    }
+  }
+  for (const durationField of ["appGroundDuration", "appFlightDuration"]) {
+    if (Object.prototype.hasOwnProperty.call(data, durationField)) {
+      const value = String(data[durationField] || "").trim();
+
+      store.applicant[durationField] = value;
+
+      const input = $(durationField);
+
+      if (input) {
+        input.value = value;
+      }
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "appDMS")) {
+    const dms = String(data.appDMS || "").trim();
+
+    store.applicant.appDMS = dms;
+
+    const dmsInput = $("appDMS");
+
+    if (dmsInput) {
+      dmsInput.value = dms;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "appRating")) {
+    const rating = String(data.appRating || "").trim();
+
+    store.applicant.appRating = rating;
+
+    const ratingInput = $("appRating");
+
+    if (ratingInput && rating) {
+      if (
+        ratingInput.tagName === "SELECT" &&
+        !Array.from(ratingInput.options).some(
+          (option) => option.value === rating,
+        )
+      ) {
+        const option = document.createElement("option");
+
+        option.value = rating;
+        option.textContent = rating;
+
+        ratingInput.appendChild(option);
+      }
+
+      ratingInput.value = rating;
+    }
+  }
+
+  /*
+   * Appointment evaluation-family metadata is authoritative.
+   *
+   * PPC and ACS use the same applicant store. Empty PPC values are
+   * meaningful when an ACS appointment is selected: they explicitly
+   * clear the PPC identity from the previously loaded appointment.
+   *
+   * Do this before the normal field map because that map intentionally
+   * ignores empty strings for ordinary form fields.
+   */
+  if (Object.prototype.hasOwnProperty.call(data, "evaluationMode")) {
+    setEvaluationMode(data.evaluationMode || "acs");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "ppcType")) {
+    store.applicant.ppcType = data.ppcType || "";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "knowledgeTestRequired")) {
+    store.applicant.knowledgeTestRequired = data.knowledgeTestRequired;
+  }
+
+  /*
+   * A normal ACS appointment must completely sever itself from any
+   * previously loaded PPC state.
+   */
+  if (!isCurrentEmtPpc()) {
+    store.applicant.ppcType = "";
+    store.applicant.ppcTypeRatingDesignation = "";
+    store.applicant.ppcAircraftTypeCertificateHolder = "";
+    store.applicant.ppcAircraftCivilModelDesignation = "";
+
+    store.ppcPacket = null;
+    store.ppcGrades = {};
+    store.ppcExpandedTasks = {};
+    store.ppcAircraftConfiguration = null;
+    store.ppcLastSyncedAt = null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "ppcTypeRatingDesignation")) {
+    store.applicant.ppcTypeRatingDesignation =
+      data.ppcTypeRatingDesignation || "";
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      data,
+      "ppcAircraftTypeCertificateHolder",
+    )
+  ) {
+    store.applicant.ppcAircraftTypeCertificateHolder =
+      data.ppcAircraftTypeCertificateHolder || "";
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      data,
+      "ppcAircraftCivilModelDesignation",
+    )
+  ) {
+    store.applicant.ppcAircraftCivilModelDesignation =
+      data.ppcAircraftCivilModelDesignation || "";
+  }
+
   const certificateValue =
     data.appCertificate ||
     (data.RatingSought?.Value === "Instrument"
@@ -1436,13 +1573,9 @@ function applyApplicantLookupData(data) {
         }[data.GradeofCertificateSought?.Value] ||
         data.GradeofCertificateSought?.Value);
 
-  const examTypeValue =
-    data.appExamType ||
-    {
-      "Original Issuance": "Initial",
-      "Additional Rating": "Additional",
-    }[data.IssuanceType?.Value] ||
-    data.IssuanceType?.Value;
+  const examTypeValue = normalizeEmtExamType(
+    data.appExamType || data.IssuanceType?.Value || data.IssuanceType,
+  );
 
   const fieldMap = {
     appName: data.appName || data.Name,
@@ -1506,6 +1639,16 @@ function applyApplicantLookupData(data) {
   });
 
   populateRatingDropdown();
+
+  /*
+   * Data application ends here.
+   * loadAppointmentIntoEmt() exclusively owns rendering.
+   */
+  if (!isCurrentEmtPpc()) {
+    store.activeAreaId = null;
+    scenarioRendered = false;
+    restoreAcsChrome();
+  }
 }
 
 function normalizeEmtCertificate(value) {
@@ -1522,9 +1665,34 @@ function normalizeEmtCertificate(value) {
     "Airline Transport Pilot": "ATP",
     CFI: "CFI",
     "Flight Instructor": "CFI",
+    "Proficiency Check": "Proficiency Check",
+    "Pilot Proficiency Check (61.58)": "Proficiency Check",
+    "Flight Engineer Proficiency Check (91.529)": "Proficiency Check",
+    "Type Rating": "Type Rating",
+    "Flight Engineer": "Flight Engineer",
   };
 
   return map[normalized] || normalized;
+}
+
+function getAppointmentDmsPreapprovalNumber(appointment) {
+  const candidates = [
+    appointment?.dms_preapproval_number,
+    appointment?.dms_preapproval,
+    appointment?.dms_number,
+    appointment?.dms_preapproval_no,
+    appointment?.dms_preapproval_code,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
 }
 
 function normalizeEmtRating(appointment) {
@@ -1532,47 +1700,84 @@ function normalizeEmtRating(appointment) {
     appointment.class_sought,
     appointment.rating_sought,
     appointment.category_sought,
+    appointment.practical_test_type_name,
+    appointment.practical_test_display_name,
   ]
     .filter(Boolean)
     .map((value) => String(value).trim());
 
-  const joined = values.join(" ").toLowerCase();
+  /*
+   * EMS may describe the same rating several ways:
+   *
+   *   Airplane — Single-Engine Sea
+   *   Airplane - Single Engine Sea
+   *   Single-Engine Sea
+   *   ASES
+   *
+   * Normalize punctuation before matching so they all resolve to the
+   * EMT rating codes used by the ACS datasets.
+   */
+  const joined = values
+    .join(" ")
+    .toLowerCase()
+    .replace(/[—–-]+/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (
-    joined.includes("airplane single engine land") ||
-    joined.includes("asel")
-  ) {
-    return "ASEL";
-  }
-
-  if (
-    joined.includes("airplane multiengine land") ||
-    joined.includes("airplane multi-engine land") ||
-    joined.includes("amel")
-  ) {
-    return "AMEL";
-  }
-
-  if (
-    joined.includes("airplane single engine sea") ||
-    joined.includes("ases")
-  ) {
+  if (joined.includes("ases") || joined.includes("single engine sea")) {
     return "ASES";
   }
 
   if (
-    joined.includes("airplane multiengine sea") ||
-    joined.includes("airplane multi-engine sea") ||
-    joined.includes("ames")
+    joined.includes("ames") ||
+    joined.includes("multi engine sea") ||
+    joined.includes("multiengine sea")
   ) {
     return "AMES";
+  }
+
+  if (
+    joined.includes("amel") ||
+    joined.includes("multi engine land") ||
+    joined.includes("multiengine land")
+  ) {
+    return "AMEL";
+  }
+
+  if (joined.includes("asel") || joined.includes("single engine land")) {
+    return "ASEL";
   }
 
   if (joined.includes("instrument airplane")) {
     return "Instrument Airplane";
   }
 
-  return appointment.class_sought || appointment.rating_sought || "ASEL";
+  return appointment.class_sought || appointment.rating_sought || "";
+}
+
+function normalizeEmtExamType(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (
+    normalized === "additional" ||
+    normalized === "additional_rating" ||
+    normalized.includes("additional_rating")
+  ) {
+    return "Additional";
+  }
+
+  /*
+   * The EMT form has two ACS choices: Initial and Additional.
+   * Supabase stores original issuances as `original`; older payloads
+   * may use Initial or Original Issuance. PPC remains in its separate
+   * evaluation mode and uses Initial for this shared informational field.
+   */
+  return "Initial";
 }
 
 function formatEmtAppointmentLabel(appointment) {
@@ -1684,16 +1889,28 @@ function isEmtPpcAppointment(appointment) {
 }
 
 function appointmentToApplicantData(appointment) {
-  if (isEmtPpcAppointment(appointment)) {
-    window.setTimeout(() => {
-      launchEmtPpcEvaluation(appointment);
-    }, 0);
-  }
+  /*
+   * Pure appointment -> EMT applicant mapping.
+   * Evaluation routing/rendering happens elsewhere.
+   */
+  const appointmentIsPpc = isEmtPpcAppointment(appointment);
 
   const aircraftType = [appointment.aircraft_make, appointment.aircraft_model]
     .filter(Boolean)
     .join(" ")
     .trim();
+
+  const examType = normalizeEmtExamType(
+    appointment.issuance_type ||
+      appointment.issuance_name ||
+      appointment.issuance_code,
+  );
+
+  const explicitKnowledgeTestRequirement =
+    appointment.knowledge_test_required ??
+    appointment.requires_knowledge_test ??
+    appointment.airman_knowledge_test_required ??
+    null;
 
   return {
     appName: appointment.applicant_name,
@@ -1702,18 +1919,41 @@ function appointmentToApplicantData(appointment) {
       appointment.scheduled_start_at?.slice(0, 10) ||
       new Date().toISOString().slice(0, 10),
     appSchool: appointment.flight_school_name,
-    appCertificate: normalizeEmtCertificate(appointment.certificate_sought),
-    appRating: normalizeEmtRating(appointment),
-    appExamType:
-      appointment.issuance_type === "Additional Rating"
-        ? "Additional"
-        : "Initial",
+    appCertificate: appointmentIsPpc
+      ? "Proficiency Check"
+      : normalizeEmtCertificate(appointment.certificate_sought),
+    appRating: appointmentIsPpc
+      ? getEmtPpcType(appointment) === "flight_engineer"
+        ? "Flight Engineer Proficiency Check (91.529)"
+        : "Pilot Proficiency Check (61.58)"
+      : normalizeEmtRating(appointment),
+    appExamType: examType,
+    knowledgeTestRequired:
+      modules.isKnowledgeTestRequired?.(
+        examType,
+        explicitKnowledgeTestRequirement,
+      ) ?? examType !== "Additional",
     appAircraftType: aircraftType || appointment.aircraft_description,
     appNNumber: appointment.aircraft_registration,
     appInstructor: appointment.instructor_name,
     appInstructorEmail: appointment.instructor_email,
     appFTN: appointment.ftn_number,
-    appDMS: appointment.dms_preapproval_number,
+    appDMS: getAppointmentDmsPreapprovalNumber(appointment),
+
+    /*
+     * Durations are evaluation-specific. Do not carry them from the
+     * previously selected applicant into a new appointment.
+     */
+    appGroundDuration: "",
+    appFlightDuration: "",
+
+    /*
+     * Ground and flight duration belong to the selected evaluation,
+     * not to the next appointment. Explicitly clear them whenever a
+     * different EMS appointment is loaded so values cannot bleed
+     * between applicants.
+     */
+
     feeAmount: appointment.fee_amount,
     appRetest: appointment.is_retest ? "Yes" : "No",
     practicalTestRequestId: appointment.request_id,
@@ -1722,9 +1962,9 @@ function appointmentToApplicantData(appointment) {
     scheduledEndAt: appointment.scheduled_end_at,
     scheduledLocation: appointment.scheduled_location,
 
-    evaluationMode: isEmtPpcAppointment(appointment) ? "ppc_8410_1" : "acs",
+    evaluationMode: appointmentIsPpc ? "ppc_8410_1" : "acs",
 
-    ppcType: getEmtPpcType(appointment),
+    ppcType: appointmentIsPpc ? getEmtPpcType(appointment) : "",
 
     ppcTypeRatingDesignation:
       appointment.ppc_type_rating_designation ||
@@ -1737,6 +1977,134 @@ function appointmentToApplicantData(appointment) {
     ppcAircraftCivilModelDesignation:
       appointment.ppc_aircraft_civil_model_designation || "",
   };
+}
+async function loadAppointmentIntoEmt(appointment) {
+  if (!appointment?.request_id) {
+    throw new Error("A valid EMT appointment is required.");
+  }
+
+  /*
+   * Every appointment change gets a new generation number.
+   * If an older PPC request finishes later, it is stale and must not
+   * become authoritative again.
+   */
+  window.emtAppointmentLoadGeneration =
+    (window.emtAppointmentLoadGeneration || 0) + 1;
+
+  const generation = window.emtAppointmentLoadGeneration;
+  const isPpc = isEmtPpcAppointment(appointment);
+
+  /*
+   * AKTR deficiencies belong to one applicant/evaluation only. Never let
+   * codes or upload feedback carry into the next selected appointment.
+   */
+  store.selectedAcsCodes = [];
+  store.aktUploadStatus = "";
+  store.ppc8410AirmanName = "";
+  store.ppc8410EmployedBy = "";
+  store.ppc8410BasedAt = "";
+  store.ppc8410Remarks = null;
+  store.ppc8410Region = "";
+  store.ppc8410DistrictOffice = "";
+  store.ppc8410SignatureDataUrl = "";
+  store.ppcEventCompleted = false;
+  store.ppcEventEmailError = "";
+
+  if (isPpc) {
+    /*
+     * Explicitly enter PPC before anything can render.
+     */
+    setEvaluationMode("ppc_8410_1");
+    store.applicant.ppcType = getEmtPpcType(appointment);
+
+    store.ppcPacket = null;
+    store.ppcGrades = {};
+    store.ppcExpandedTasks = {};
+    store.ppcAircraftConfiguration = null;
+    store.ppcLastSyncedAt = null;
+    store.ppcLoading = true;
+    store.ppcActiveSectionId = null;
+    store.ppcActiveView = "detailed";
+    store.ppcOutcomeNotes = "";
+    store.ppcPracticalTestOutcome = "";
+
+    store.activeAreaId = null;
+    scenarioRendered = false;
+
+    const applicantData = appointmentToApplicantData(appointment);
+    applyApplicantLookupData(applicantData);
+
+    /*
+     * Show PPC loading state.
+     */
+    renderApp();
+
+    await loadPpcEvaluationIntoEmt(appointment.request_id, generation);
+
+    /*
+     * Another appointment may have been selected while the PPC RPC
+     * was running. Never allow this old response to own the UI again.
+     */
+    if (generation !== window.emtAppointmentLoadGeneration) {
+      return;
+    }
+
+    setEvaluationMode("ppc_8410_1");
+    store.ppcLoading = false;
+
+    renderApp();
+    return;
+  }
+
+  /*
+   * Explicitly enter ACS FIRST.
+   *
+   * This happens before applicant mapping or rendering so no remaining
+   * PPC packet/type/async callback can route renderApp() back to PPC.
+   */
+  setEvaluationMode("acs");
+  store.applicant.ppcType = "";
+
+  exitPpcModeForAcsAppointment();
+
+  const applicantData = appointmentToApplicantData(appointment);
+
+  /*
+   * Force the mapped appointment to remain ACS regardless of any old
+   * PPC fields that may exist in persisted state.
+   */
+  applicantData.evaluationMode = "acs";
+  applicantData.ppcType = "";
+
+  applyApplicantLookupData(applicantData);
+
+  /*
+   * Reassert ACS after application as a hard boundary.
+   */
+  setEvaluationMode("acs");
+  store.applicant.ppcType = "";
+
+  store.ppcPacket = null;
+  store.ppcGrades = {};
+  store.ppcExpandedTasks = {};
+  store.ppcAircraftConfiguration = null;
+  store.ppcLastSyncedAt = null;
+  store.ppcLoading = false;
+  store.ppcLoadError = "";
+  store.ppcActiveSectionId = null;
+  store.ppcActiveView = "detailed";
+  store.ppcOutcomeNotes = "";
+  store.ppcPracticalTestOutcome = "";
+
+  store.activeAreaId = null;
+  scenarioRendered = false;
+
+  restoreAcsChrome();
+
+  /*
+   * Exactly one normal ACS render.
+   */
+  renderApp();
 }
 
 function setEmtConnectionMessage(message, isError = false) {
@@ -1913,22 +2281,7 @@ async function refreshEmtAppointments() {
       if (requestedAppointment) {
         select.value = requestedRequestId;
 
-        const applicantData = appointmentToApplicantData(requestedAppointment);
-
-        applyApplicantLookupData(applicantData);
-
-        if (applicantData.evaluationMode === "ppc_8410_1") {
-          store.ppcPacket = null;
-          store.ppcGrades = {};
-          store.ppcExpandedTasks = {};
-          store.activeAreaId = null;
-        }
-
-        modules.notify();
-
-        if (applicantData.evaluationMode === "ppc_8410_1") {
-          await loadPpcEvaluationIntoEmt(requestedAppointment.request_id);
-        }
+        await loadAppointmentIntoEmt(requestedAppointment);
 
         setEmtConnectionMessage(
           `${
@@ -2089,25 +2442,7 @@ function wireEmtConnectionEvents() {
       return;
     }
 
-    const applicantData = appointmentToApplicantData(appointment);
-
-    applyApplicantLookupData(applicantData);
-
-    /*
-     * Never carry another appointment's PPC task state into this check.
-     */
-    if (applicantData.evaluationMode === "ppc_8410_1") {
-      store.ppcPacket = null;
-      store.ppcGrades = {};
-      store.ppcExpandedTasks = {};
-      store.activeAreaId = null;
-    }
-
-    modules.notify();
-
-    if (applicantData.evaluationMode === "ppc_8410_1") {
-      await loadPpcEvaluationIntoEmt(appointment.request_id);
-    }
+    await loadAppointmentIntoEmt(appointment);
 
     setEmtConnectionMessage(
       `${appointment.request_number || "Appointment"} loaded into the gradesheet.`,
@@ -2121,7 +2456,7 @@ function handleApplicantChange(field, value) {
 
     if (cfg) {
       store.applicant.appCertificate = value;
-      store.applicant.appRating = cfg.ratings[0];
+      store.applicant.appRating = cfg.ratings[0] || "";
       store.applicant.appRatingHeld = "";
       populateRatingDropdown();
     }
@@ -2134,6 +2469,8 @@ function handleApplicantChange(field, value) {
 
   if (field === "appExamType") {
     store.applicant.appExamType = value;
+    store.applicant.knowledgeTestRequired =
+      modules.isKnowledgeTestRequired?.(value) ?? value !== "Additional";
     store.applicant.appRatingHeld = "";
 
     // NEW
@@ -2148,10 +2485,55 @@ function handleApplicantChange(field, value) {
 }
 
 function isCurrentEmtPpc() {
-  return (
-    store?.applicant?.evaluationMode === "ppc_8410_1" ||
-    Boolean(store?.applicant?.ppcType)
-  );
+  /*
+   * One source of truth for evaluation family.
+   *
+   * Do NOT infer PPC from:
+   * - selected appointment DOM
+   * - old PPC packet
+   * - old ppcType
+   * - previously selected request
+   *
+   * The appointment loader explicitly sets evaluationMode.
+   */
+  return store?.evaluationMode === "ppc_8410_1";
+}
+
+function setEvaluationMode(mode) {
+  const normalizedMode = mode === "ppc_8410_1" ? "ppc_8410_1" : "acs";
+
+  store.evaluationMode = normalizedMode;
+  store.applicant ??= {};
+  store.applicant.evaluationMode = normalizedMode;
+}
+
+function syncEvaluationModeFieldVisibility() {
+  const evaluationMode = isCurrentEmtPpc() ? "ppc_8410_1" : "acs";
+
+  document.querySelectorAll("[data-hide-evaluation-mode]").forEach((field) => {
+    const hiddenModes = String(field.dataset.hideEvaluationMode || "")
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const shouldHide = hiddenModes.includes(evaluationMode);
+
+    /*
+     * .form-group has an explicit display rule in the EMT stylesheet,
+     * so the HTML hidden attribute alone is not authoritative here.
+     *
+     * Set display directly for evaluation-mode fields and remove the
+     * inline override when returning to ACS so the normal stylesheet
+     * resumes control.
+     */
+    field.hidden = shouldHide;
+    field.classList.toggle("hidden", shouldHide);
+
+    if (shouldHide) {
+      field.style.setProperty("display", "none", "important");
+    } else {
+      field.style.removeProperty("display");
+    }
+  });
 }
 
 function buildPpcGradePayload() {
@@ -2202,18 +2584,36 @@ function seedPpcGradesFromPacket(packet) {
   }
 }
 
-async function loadPpcEvaluationIntoEmt(practicalTestRequestId) {
+async function loadPpcEvaluationIntoEmt(
+  practicalTestRequestId,
+  expectedGeneration = window.emtAppointmentLoadGeneration,
+) {
   if (!practicalTestRequestId) {
-    return;
+    return false;
   }
 
+  /*
+   * DATA LOADER ONLY.
+   *
+   * Do not notify or render from here. Appointment routing owns the UI.
+   */
   store.ppcLoading = true;
   store.ppcLoadError = "";
 
-  modules.notify();
-
   try {
     const packet = await modules.loadPpcEvaluation(practicalTestRequestId);
+
+    /*
+     * Discard a PPC result if another appointment was selected while
+     * the request was running.
+     */
+    if (
+      expectedGeneration !== window.emtAppointmentLoadGeneration ||
+      !isCurrentEmtPpc() ||
+      store.applicant.practicalTestRequestId !== practicalTestRequestId
+    ) {
+      return false;
+    }
 
     store.ppcPacket = packet;
 
@@ -2223,9 +2623,6 @@ async function loadPpcEvaluationIntoEmt(practicalTestRequestId) {
 
     seedPpcGradesFromPacket(packet);
 
-    /*
-     * Use the authoritative PPC family returned by Supabase.
-     */
     if (packet?.certificate_code === "FLIGHT_ENGINEER_PPC_91529") {
       store.applicant.ppcType = "flight_engineer";
     } else if (packet?.certificate_code === "PILOT_PPC_6158") {
@@ -2242,29 +2639,33 @@ async function loadPpcEvaluationIntoEmt(practicalTestRequestId) {
     const sections = modules.getPpcSections?.(packet) || [];
 
     if (
-      !store.activeAreaId ||
-      !sections.some((section) => section.id === store.activeAreaId)
+      !store.ppcActiveSectionId ||
+      !sections.some((section) => section.id === store.ppcActiveSectionId)
     ) {
-      store.activeAreaId = sections[0]?.id || null;
+      store.ppcActiveSectionId = sections[0]?.id || null;
     }
-
-    modules.notify();
 
     setEmtConnectionMessage(
       `${store.applicant.requestNumber || "PPC"} loaded in FAA 8410-1 grading mode.`,
     );
+
+    return true;
   } catch (error) {
     console.error("Unable to load PPC evaluation:", error);
 
     /*
-     * If tasks were previously cached locally, retain them for
-     * offline use. Otherwise show a clear loading error.
+     * A stale PPC request must not modify a newer ACS appointment.
      */
+    if (
+      expectedGeneration !== window.emtAppointmentLoadGeneration ||
+      !isCurrentEmtPpc()
+    ) {
+      return false;
+    }
+
     store.ppcLoading = false;
     store.ppcLoadError =
       error instanceof Error ? error.message : "Unable to load PPC evaluation.";
-
-    modules.notify();
 
     setEmtConnectionMessage(
       store.ppcPacket?.tasks?.length
@@ -2272,10 +2673,10 @@ async function loadPpcEvaluationIntoEmt(practicalTestRequestId) {
         : store.ppcLoadError,
       !store.ppcPacket?.tasks?.length,
     );
+
+    return false;
   }
 }
-
-let ppcDraftSaveTimer = null;
 
 function queuePpcDraftSync() {
   if (!isCurrentEmtPpc()) {
@@ -2310,7 +2711,7 @@ function queuePpcDraftSync() {
           store.ppcPacket?.aircraft_used ||
           null,
 
-        examinerNotes: store.outcomeNotes || null,
+        examinerNotes: store.ppcOutcomeNotes || null,
 
         aircraftConfiguration:
           store.applicant?.ppcType === "pilot"
@@ -2336,6 +2737,11 @@ function queuePpcDraftSync() {
 }
 
 function setPpcTaskGrade(taskId, grade) {
+  /* PPC MUTATION GUARD */
+  if (!isCurrentEmtPpc()) {
+    return;
+  }
+
   const task = store.ppcPacket?.tasks?.find((item) => item.id === taskId);
 
   if (!task) {
@@ -2362,6 +2768,11 @@ function setPpcTaskGrade(taskId, grade) {
 }
 
 function setPpcTaskRemarks(taskId, remarks) {
+  /* PPC MUTATION GUARD */
+  if (!isCurrentEmtPpc()) {
+    return;
+  }
+
   store.ppcGrades ??= {};
 
   const task = store.ppcPacket?.tasks?.find((item) => item.id === taskId);
@@ -2384,6 +2795,11 @@ function setPpcTaskRemarks(taskId, remarks) {
 }
 
 function togglePpcTask(taskId) {
+  /* PPC MUTATION GUARD */
+  if (!isCurrentEmtPpc()) {
+    return;
+  }
+
   store.ppcExpandedTasks ??= {};
 
   store.ppcExpandedTasks[taskId] = !store.ppcExpandedTasks[taskId];
@@ -2392,6 +2808,13 @@ function togglePpcTask(taskId) {
 }
 
 function configurePpcChrome(summary) {
+  /*
+   * Never allow PPC chrome to be re-applied during an ACS evaluation.
+   */
+  if (!isCurrentEmtPpc()) {
+    return;
+  }
+
   document.body.classList.add("emt-ppc-mode");
 
   const packet = store.ppcPacket;
@@ -2460,8 +2883,233 @@ function configurePpcChrome(summary) {
   modules.renderPpcStats?.(summary);
 }
 
+function exitPpcModeForAcsAppointment() {
+  /*
+   * Tear down PPC state only.
+   *
+   * Do not destroy shared sidebar or grading DOM. The ACS renderer
+   * immediately replaces PPC content after appointment data is loaded.
+   */
+  store.ppcPacket = null;
+  store.ppcGrades = {};
+  store.ppcExpandedTasks = {};
+  store.ppcAircraftConfiguration = null;
+  store.ppcLastSyncedAt = null;
+  store.ppcLoading = false;
+
+  setEvaluationMode("acs");
+  store.applicant.ppcType = "";
+  store.applicant.ppcTypeRatingDesignation = "";
+  store.applicant.ppcAircraftTypeCertificateHolder = "";
+  store.applicant.ppcAircraftCivilModelDesignation = "";
+
+  store.activeAreaId = null;
+  scenarioRendered = false;
+
+  restoreAcsChrome();
+}
+
 function restoreAcsChrome() {
   document.body.classList.remove("emt-ppc-mode");
+
+  /*
+   * PPC presents different summary fields and therefore replaces the
+   * contents of the shared summary bar. The original ACS stats renderer
+   * expects every one of these IDs to exist. Recreate the original ACS
+   * structure before renderStats() runs so an ACS appointment can finish
+   * its render instead of stopping with PPC sidebar/task DOM still visible.
+   */
+  const gradeSummaryBar = document.getElementById("gradeSummaryBar");
+
+  if (
+    gradeSummaryBar &&
+    [
+      "summOverall",
+      "summPassed",
+      "summFailed",
+      "summAvgK",
+      "summAvgR",
+      "summAvgS",
+    ].some((id) => !document.getElementById(id))
+  ) {
+    gradeSummaryBar.innerHTML = `
+      <div class="summary-item">
+        <span>Overall:</span>
+        <span class="summary-badge badge-incomplete" id="summOverall">
+          INCOMPLETE
+        </span>
+      </div>
+      <div class="summary-item">
+        <span>Passed:</span> <span id="summPassed">0</span>
+      </div>
+      <div class="summary-item">
+        <span>Failed:</span> <span id="summFailed">0</span>
+      </div>
+      <div class="summary-item">
+        <span>Avg K:</span> <span id="summAvgK">--</span>
+      </div>
+      <div class="summary-item">
+        <span>Avg R:</span> <span id="summAvgR">--</span>
+      </div>
+      <div class="summary-item">
+        <span>Avg S:</span> <span id="summAvgS">--</span>
+      </div>
+    `;
+  }
+
+  /*
+   * PPC replaces the normal 1–4 / NP legend with S/U/W.
+   * Restore the original ACS legend whenever normal ACS mode renders.
+   */
+  document.querySelectorAll(".grade-scale-bar").forEach((element) => {
+    element.innerHTML = `
+      <div class="grade-chip g1">1 Unsatisfactory</div>
+      <div class="grade-chip g2">2 Standard w/ Debrief</div>
+      <div class="grade-chip g3">3 Meets Standard</div>
+      <div class="grade-chip g4">4 Above Standard</div>
+      <div class="grade-chip gnp">NP Not Performed</div>
+    `;
+  });
+
+  /*
+   * A finalized PPC replaces the normal outcome actions with its 8410
+   * review action. Restore the original ACS controls as part of the same
+   * boundary teardown.
+   */
+  const outcomeActions = document.getElementById("outcomeOnlyActions");
+
+  if (
+    outcomeActions &&
+    (!document.getElementById("btnSaveHTML") ||
+      !document.getElementById("btnSaveEvaluation"))
+  ) {
+    outcomeActions.innerHTML = `
+      <button class="btn" id="btnSaveHTML">
+        <i class="fas fa-file-pdf"></i> Save/Print Checkride Report
+      </button>
+
+      <button
+        class="btn btn-accent"
+        id="btnSaveEvaluation"
+        type="button"
+        title="Save the evaluation and mark the scheduling request completed"
+      >
+        <i class="fas fa-database"></i>
+        Submit Practical Test to Database
+      </button>
+    `;
+
+    document
+      .getElementById("btnSaveHTML")
+      ?.addEventListener("click", generateCheckrideReport);
+
+    document
+      .getElementById("btnSaveEvaluation")
+      ?.addEventListener("click", submitPracticalTestToDatabase);
+  }
+
+  /*
+   * PPC owns a different Outcome view and replaces this container in full.
+   * The original ACS outcome renderer updates the controls already present;
+   * it does not recreate them. Restore the source-of-truth ACS structure
+   * before renderOutcome() runs.
+   */
+  const outcomeView = document.getElementById("viewOutcome");
+
+  if (
+    outcomeView &&
+    (!document.getElementById("outcomeButtons") ||
+      !document.getElementById("incompleteTasksContent") ||
+      !document.getElementById("testReportActions") ||
+      !document.getElementById("outcomeNotes"))
+  ) {
+    outcomeView.innerHTML = `
+      <div class="outcome-section">
+        <h3 style="font-family:var(--font-mono);margin-bottom:4px;">
+          Practical Test Outcome
+        </h3>
+
+        <p
+          id="outcomeAutoLabel"
+          style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);margin:0 0 14px;"
+        >
+          <i class="fas fa-sync-alt"></i> Auto-selected from Overall Grade
+        </p>
+
+        <div class="outcome-buttons" id="outcomeButtons">
+          <button class="outcome-btn" data-outcome="satisfactory">
+            <i class="fas fa-check-circle"></i> Satisfactory
+          </button>
+
+          <button class="outcome-btn" data-outcome="unsatisfactory">
+            <i class="fas fa-times-circle"></i> Unsatisfactory
+          </button>
+
+          <button class="outcome-btn" data-outcome="discontinuance">
+            <i class="fas fa-pause-circle"></i> Discontinuance
+          </button>
+        </div>
+
+        <div class="outcome-notes">
+          <label>Outcome Notes</label>
+          <textarea
+            id="outcomeNotes"
+            placeholder="Enter outcome notes, letters of discontinuance details, areas for retest, etc."
+          ></textarea>
+        </div>
+
+        <div class="incomplete-tasks-list" id="incompleteTasksList">
+          <h4>
+            <i class="fas fa-exclamation-triangle"></i>
+            Incomplete / Failed Tasks
+          </h4>
+          <div id="incompleteTasksContent"></div>
+        </div>
+
+        <div id="testReportActionsContainer">
+          <div id="testReportActions" class="report-actions-grid">
+            <div class="report-action-card">
+              <h3><i class="fas fa-user"></i> Applicant Report</h3>
+
+              <button id="printApplicantReportBtn" class="btn">
+                <i class="fas fa-file-pdf"></i>
+                Save / Print Applicant Test Report
+              </button>
+
+              <button id="emailApplicantReportBtn" class="btn">
+                <i class="fas fa-envelope"></i>
+                Email Applicant Test Report
+              </button>
+            </div>
+
+            <div class="report-action-card">
+              <h3><i class="fas fa-user-tie"></i> Designee Report</h3>
+
+              <button id="printDesigneeReportBtn" class="btn">
+                <i class="fas fa-file-pdf"></i>
+                Save / Print Designee Test Report
+              </button>
+
+              <button
+                id="regenerateStoredReportsBtn"
+                type="button"
+                class="btn btn-secondary"
+                style="margin-left:8px;"
+              >
+                <i class="fas fa-rotate"></i>
+                Regenerate Stored Reports
+              </button>
+
+              <button id="emailDesigneeReportBtn" class="btn">
+                <i class="fas fa-envelope"></i>
+                Email Designee Test Report
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   const saveButton = document.getElementById("btnSaveEvaluation");
 
@@ -2633,7 +3281,7 @@ function renderPpcOutcome(summary) {
         <textarea
           id="outcomeNotes"
           placeholder="Enter PPC outcome notes..."
-        >${escapeHtml(store.outcomeNotes || "")}</textarea>
+        >${escapeHtml(store.ppcOutcomeNotes || "")}</textarea>
       </div>
     </div>
   `;
@@ -2642,7 +3290,7 @@ function renderPpcOutcome(summary) {
 
   if (notes) {
     notes.addEventListener("input", () => {
-      store.outcomeNotes = notes.value;
+      store.ppcOutcomeNotes = notes.value;
 
       saveToLocalStorage();
       queuePpcDraftSync();
@@ -2651,6 +3299,16 @@ function renderPpcOutcome(summary) {
 }
 
 function renderPpcApp() {
+  /*
+   * HARD PPC RENDER BOUNDARY
+   *
+   * A stale PPC callback is never allowed to modify shared EMT DOM
+   * after the examiner has selected a normal ACS appointment.
+   */
+  if (!isCurrentEmtPpc()) {
+    return;
+  }
+
   const packet = store.ppcPacket;
 
   if (store.ppcLoading && !packet) {
@@ -2725,10 +3383,10 @@ function renderPpcApp() {
   const sections = modules.getPpcSections(packet);
 
   if (
-    !store.activeAreaId ||
-    !sections.some((section) => section.id === store.activeAreaId)
+    !store.ppcActiveSectionId ||
+    !sections.some((section) => section.id === store.ppcActiveSectionId)
   ) {
-    store.activeAreaId = sections[0]?.id || null;
+    store.ppcActiveSectionId = sections[0]?.id || null;
   }
 
   const summary = modules.summarizePpc(packet, store.ppcGrades);
@@ -2738,10 +3396,13 @@ function renderPpcApp() {
   modules.renderPpcSidebar(
     sections,
     summary,
-    store.activeAreaId,
+    store.ppcActiveSectionId,
     (sectionId) => {
-      store.activeAreaId = sectionId;
+      if (!isCurrentEmtPpc()) {
+        return;
+      }
 
+      store.ppcActiveSectionId = sectionId;
       modules.notify();
     },
     store.ppcGrades,
@@ -2750,7 +3411,7 @@ function renderPpcApp() {
   syncActiveView();
 
   const activeSection = sections.find(
-    (section) => section.id === store.activeAreaId,
+    (section) => section.id === store.ppcActiveSectionId,
   );
 
   modules.renderPpcDetailed(
@@ -2826,7 +3487,7 @@ function renderPpcApp() {
 
   renderPpcOutcome(summary);
 
-  store.practicalTestOutcome =
+  store.ppcPracticalTestOutcome =
     summary.overall === "SATISFACTORY" || summary.overall === "UNSATISFACTORY"
       ? summary.overall
       : "";
@@ -2843,21 +3504,25 @@ function renderPpcApp() {
     store,
   );
 
-  const saveButton = document.getElementById("btnSaveEvaluation");
+  if (["finalized", "completed"].includes(packet.evaluation_status)) {
+    renderCompletedPpcActions();
+  } else {
+    const saveButton = document.getElementById("btnSaveEvaluation");
 
-  if (saveButton) {
-    saveButton.innerHTML = `
-      <i class="fas fa-file-signature"></i>
-      Complete PPC
-    `;
+    if (saveButton) {
+      saveButton.innerHTML = `
+        <i class="fas fa-file-signature"></i>
+        Complete PPC
+      `;
 
-    saveButton.title = "Finalize the PPC grades in EMT";
-  }
+      saveButton.title = "Finalize the PPC grades in EMT";
+    }
 
-  const reportButton = document.getElementById("btnSaveHTML");
+    const reportButton = document.getElementById("btnSaveHTML");
 
-  if (reportButton) {
-    reportButton.style.display = "none";
+    if (reportButton) {
+      reportButton.style.display = "none";
+    }
   }
 }
 
@@ -2989,7 +3654,38 @@ function ensurePpc8410ReviewOverlay() {
           background:#f8fafc;
         "
       >
+
         <label
+          style="
+            grid-column:1 / -1;
+            display:flex;
+            flex-direction:column;
+            gap:5px;
+            font-size:.78rem;
+            font-weight:700;
+            color:#334155;
+          "
+        >
+          Name of Airman
+
+          <input
+            id="emtPpc8410AirmanName"
+            type="text"
+            autocomplete="off"
+            placeholder="Last Name, First Name, Middle Initial"
+            style="
+              width:100%;
+              box-sizing:border-box;
+              padding:8px 10px;
+              border:1px solid #cbd5e1;
+              border-radius:6px;
+              font:inherit;
+              font-weight:400;
+            "
+          />
+        </label>
+
+<label
           style="
             display:flex;
             flex-direction:column;
@@ -3071,6 +3767,128 @@ function ensurePpc8410ReviewOverlay() {
             "
           ></textarea>
         </label>
+
+        <label
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:5px;
+            font-size:.78rem;
+            font-weight:700;
+            color:#334155;
+          "
+        >
+          Region
+
+          <input
+            id="emtPpc8410Region"
+            type="text"
+            autocomplete="off"
+            placeholder="FAA Region"
+            style="
+              padding:8px 10px;
+              border:1px solid #cbd5e1;
+              border-radius:6px;
+              font:inherit;
+              font-weight:400;
+            "
+          />
+        </label>
+
+        <label
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:5px;
+            font-size:.78rem;
+            font-weight:700;
+            color:#334155;
+          "
+        >
+          District Office
+
+          <input
+            id="emtPpc8410DistrictOffice"
+            type="text"
+            autocomplete="off"
+            placeholder="FAA District Office"
+            style="
+              padding:8px 10px;
+              border:1px solid #cbd5e1;
+              border-radius:6px;
+              font:inherit;
+              font-weight:400;
+            "
+          />
+        </label>
+
+        <div
+          style="
+            grid-column:1 / -1;
+            display:flex;
+            flex-direction:column;
+            gap:7px;
+          "
+        >
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:10px;
+            "
+          >
+            <strong
+              style="
+                font-size:.78rem;
+                color:#334155;
+              "
+            >
+              Inspector's Signature
+            </strong>
+
+            <button
+              type="button"
+              id="emtPpc8410ClearSignature"
+              style="
+                border:1px solid #cbd5e1;
+                background:white;
+                border-radius:6px;
+                padding:6px 10px;
+                cursor:pointer;
+                font-weight:700;
+                color:#334155;
+              "
+            >
+              Clear Signature
+            </button>
+          </div>
+
+          <canvas
+            id="emtPpc8410Signature"
+            width="900"
+            height="180"
+            style="
+              display:block;
+              width:100%;
+              height:135px;
+              background:white;
+              border:1px solid #94a3b8;
+              border-radius:8px;
+              touch-action:none;
+              cursor:crosshair;
+            "
+          ></canvas>
+
+          <div
+            style="
+              font-size:.72rem;
+              color:#64748b;
+            "
+          >
+            Sign above using your finger, Apple Pencil, stylus, or mouse.
+          </div>
+        </div>
       </div>
 
       <div
@@ -3095,6 +3913,37 @@ function ensurePpc8410ReviewOverlay() {
   });
 
   return overlay;
+}
+
+function formatPpc8410AirmanName(value) {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return "";
+  }
+
+  // Preserve manually corrected FAA-style names.
+  if (raw.includes(",")) {
+    return raw;
+  }
+
+  const parts = raw.split(/\s+/).filter(Boolean);
+
+  if (parts.length === 1) {
+    return parts[0];
+  }
+
+  if (parts.length === 2) {
+    return `${parts[1]}, ${parts[0]}`;
+  }
+
+  const firstName = parts[0];
+  const lastName = parts[parts.length - 1];
+  const middleName = parts.slice(1, -1)[0] || "";
+
+  const middleInitial = middleName ? middleName.charAt(0).toUpperCase() : "";
+
+  return `${lastName}, ${firstName}${middleInitial ? ` ${middleInitial}` : ""}`;
 }
 
 function getPpc8410GradeMap() {
@@ -3123,8 +3972,8 @@ function getPpc8410Remarks() {
     }
   }
 
-  if (String(store.outcomeNotes || "").trim()) {
-    lines.push(String(store.outcomeNotes).trim());
+  if (String(store.ppcOutcomeNotes || "").trim()) {
+    lines.push(String(store.ppcOutcomeNotes).trim());
   }
 
   return lines.join("\n");
@@ -3179,6 +4028,52 @@ function formatPpc8410Date(value) {
   return text;
 }
 
+function getPpc8410ReviewFields() {
+  const applicant = store.applicant || {};
+  const designeeProfile = store.ppcExaminerDesigneeProfile || {};
+  const isFlightEngineer =
+    applicant.ppcType === "flight_engineer" ||
+    store.ppcPacket?.certificate_code === "FLIGHT_ENGINEER_PPC_91529";
+
+  const examinerName =
+    designeeProfile.designeeName || applicant.appExaminer || "";
+  const designationNumber = designeeProfile.designationNumber || "";
+
+  return {
+    date_of_check: formatPpc8410Date(
+      applicant.appDate || new Date().toISOString().slice(0, 10),
+    ),
+    location: applicant.scheduledLocation || "",
+    name_of_airman:
+      store.ppc8410AirmanName ||
+      formatPpc8410AirmanName(applicant.appName || ""),
+    type_of_check: isFlightEngineer
+      ? "Flight Engineer Proficiency Check (91.529)"
+      : "Pilot Proficiency Check (61.58)",
+    employed_by: store.ppc8410EmployedBy || "",
+    based_at: store.ppc8410BasedAt || "",
+    type_aircraft_simulator_used: [
+      applicant.ppcTypeRatingDesignation || applicant.appAircraftType || "",
+      applicant.appNNumber || "",
+    ]
+      .filter(Boolean)
+      .join(" / "),
+    name_of_check_airman: [
+      examinerName,
+      designationNumber ? `DPE ${designationNumber}` : "",
+    ]
+      .filter(Boolean)
+      .join(" - "),
+    block_time: applicant.appBlockTime || applicant.appFlightDuration || "",
+    remarks: String(
+      store.ppc8410Remarks ?? getPpc8410Remarks() ?? "",
+    ).trim(),
+    check_airman_performance: "",
+    region: store.ppc8410Region || "",
+    district_office: store.ppc8410DistrictOffice || "",
+  };
+}
+
 async function generatePpc8410PdfBlob() {
   if (!window.PDFLib) {
     throw new Error("PDF library did not load.");
@@ -3189,28 +4084,6 @@ async function generatePpc8410PdfBlob() {
   }
 
   const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
-
-  const response = await fetch("/forms/faa-form-8410-1.pdf");
-
-  if (!response.ok) {
-    throw new Error("FAA Form 8410-1 template could not be loaded.");
-  }
-
-  const template = await response.arrayBuffer();
-
-  const pdf = await PDFDocument.load(template);
-
-  const page = pdf.getPages()[0];
-
-  if (!page) {
-    throw new Error("FAA Form 8410-1 template contains no page.");
-  }
-
-  const { width, height } = page.getSize();
-
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
   /*
    * The original form is calibrated against
@@ -3236,48 +4109,128 @@ async function generatePpc8410PdfBlob() {
     });
   };
 
+  /*
+   * Center text inside a rectangular area expressed in the
+   * same 768 x 1024 reference coordinates used by the form.
+   *
+   * Font size is automatically reduced when necessary so
+   * longer values stay inside their FAA form cell.
+   */
+  const drawCenteredInBox = (
+    value,
+    left,
+    right,
+    top,
+    bottom,
+    maxSize = 7,
+    options = {},
+  ) => {
+    const text = String(value || "").trim();
+
+    if (!text) {
+      return;
+    }
+
+    const selectedFont = options.bold ? bold : font;
+
+    const leftPt = X(left);
+    const rightPt = X(right);
+
+    const boxWidth = rightPt - leftPt - X(options.horizontalPadding ?? 8) * 2;
+
+    let size = maxSize;
+
+    while (size > 5 && selectedFont.widthOfTextAtSize(text, size) > boxWidth) {
+      size -= 0.25;
+    }
+
+    const textWidth = selectedFont.widthOfTextAtSize(text, size);
+
+    const x = leftPt + (rightPt - leftPt - textWidth) / 2;
+
+    /*
+     * PDF-Lib positions text from its baseline.
+     * Use the font's ascent/descent geometry to visually
+     * center the glyphs within the usable portion of the cell.
+     */
+    const topPt = Y(top);
+    const bottomPt = Y(bottom);
+
+    const boxCenterY = (topPt + bottomPt) / 2;
+
+    const textHeight = selectedFont.heightAtSize(size, {
+      descender: true,
+    });
+
+    const y = boxCenterY - textHeight / 2 + size * 0.18;
+
+    page.drawText(text, {
+      x,
+      y,
+      size,
+      font: selectedFont,
+      color: rgb(0, 0, 0),
+    });
+  };
+
   const applicant = store.applicant || {};
 
   const isFlightEngineer =
     applicant.ppcType === "flight_engineer" ||
     store.ppcPacket?.certificate_code === "FLIGHT_ENGINEER_PPC_91529";
 
+  /*
+   * Select the appropriate FAA Form 8410-1 base form.
+   *
+   * Pilot 61.58:
+   *   Flight Engineer side crossed out.
+   *
+   * Flight Engineer 91.529:
+   *   Pilot side crossed out.
+   */
+  const templatePath = isFlightEngineer
+    ? "/forms/faa-form-8410-1-flight-engineer.pdf"
+    : "/forms/faa-form-8410-1-pilot.pdf";
+
+  const response = await fetch(`${templatePath}?v=20260831-dual-8410-v2`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `${
+        isFlightEngineer ? "Flight Engineer" : "Pilot"
+      } FAA Form 8410-1 template could not be loaded.`,
+    );
+  }
+
+  const template = await response.arrayBuffer();
+
+  const pdf = await PDFDocument.load(template);
+
+  const page = pdf.getPages()[0];
+
+  if (!page) {
+    throw new Error("FAA Form 8410-1 template contains no page.");
+  }
+
+  const { width, height } = page.getSize();
+
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
   const checkLabel = isFlightEngineer
     ? "FE Proficiency Check"
     : "Pilot Proficiency Check";
 
   /*
-   * FAA Form 8410-1 already contains native AcroForm fields.
+   * FAA Form 8410-1 is used as a fixed background.
    *
-   * Use those fields for the header instead of stamping text at
-   * manually-calibrated coordinates. This preserves the FAA layout
-   * and avoids text overlapping the printed field labels.
+   * All evaluation data is stamped directly onto the page.
+   * This deliberately avoids AcroForm fields and PDF widgets,
+   * which caused duplicate appearances and inconsistent layout.
    */
-  const form = pdf.getForm();
-
-  const set8410Field = (fieldName, value, fontSize = 8) => {
-    try {
-      const field = form.getTextField(fieldName);
-
-      field.setText(String(value || "").trim());
-
-      try {
-        field.setFontSize(fontSize);
-      } catch {
-        /*
-         * Some original FAA field appearances control their own
-         * font sizing. Text is still populated if sizing cannot
-         * be overridden.
-         */
-      }
-    } catch (error) {
-      console.warn(
-        `FAA 8410-1 field "${fieldName}" could not be populated.`,
-        error,
-      );
-    }
-  };
-
   const date = formatPpc8410Date(
     applicant.appDate || new Date().toISOString().slice(0, 10),
   );
@@ -3347,37 +4300,100 @@ async function generatePpc8410PdfBlob() {
 
   const basedAt = String(store.ppc8410BasedAt || "").trim();
 
-  set8410Field("DATE OF CHECK", date);
+  /*
+   * ==========================================================
+   * FAA FORM 8410-1 HEADER DATA
+   * ==========================================================
+   *
+   * Placement calibrated directly from the examiner-approved
+   * "resset" reference PDF.
+   *
+   * Values sit below the printed FAA field labels rather than
+   * being centered in the entire cell.
+   */
 
-  set8410Field("LOCATION", location);
+  // DATE OF CHECK
+  drawText(date, 495, 61, 7, { bold: true });
 
-  set8410Field("NAME OF AIRMAN", applicant.appName || "");
+  // LOCATION
+  drawText(location, 495, 92, 7);
 
-  set8410Field("TYPE OF CHECK", typeOfCheck);
+  // NAME OF AIRMAN
+  const airmanNameFor8410 = String(
+    store.ppc8410AirmanName || formatPpc8410AirmanName(applicant.appName || ""),
+  ).trim();
+
+  drawText(airmanNameFor8410, 62, 124, 7);
+
+  // TYPE OF CHECK
+  drawText(typeOfCheck, 495, 124, 7, { bold: true });
+
+  // EMPLOYED BY
+  drawText(employedBy, 62, 155, 7);
+
+  // BASED AT
+  drawText(basedAt, 270, 155, 7);
+
+  // TYPE AIRCRAFT / SIMULATOR USED
+  drawText(aircraftAndTail, 495, 155, 7);
+
+  // NAME OF CHECK AIRMAN
+  drawText(checkAirman, 62, 186, 7);
+
+  // BLOCK TIME
+  drawText(blockTime, 495, 186, 7);
 
   /*
-   * These two fields intentionally remain examiner-editable.
+   * ==========================================================
+   * REMARKS
+   * ==========================================================
    */
-  set8410Field("EMPLOYED BY", employedBy);
 
-  set8410Field("BASED AT", basedAt);
-
-  set8410Field("TYPE AIRCRAFTSIMULATOR USED", aircraftAndTail);
-
-  set8410Field("NAME OF CHECK AIRMAN", checkAirman);
-
-  set8410Field("BLOCK TIME", blockTime);
-
-  /*
-   * REMARKS is an actual multiline field in FAA Form 8410-1.
-   * The review-screen value overrides automatically assembled
-   * task remarks when the examiner edits it.
-   */
   const formRemarks = String(
     store.ppc8410Remarks ?? getPpc8410Remarks() ?? "",
   ).trim();
 
-  set8410Field("REMARKS", formRemarks, 7);
+  const wrap8410Remarks = (value, maxCharacters = 54) => {
+    const paragraphs = String(value || "")
+      .replace(/\r/g, "")
+      .split("\n");
+
+    const lines = [];
+
+    for (const paragraph of paragraphs) {
+      const words = paragraph.trim().split(/\s+/).filter(Boolean);
+
+      if (!words.length) {
+        lines.push("");
+        continue;
+      }
+
+      let line = "";
+
+      for (const word of words) {
+        const candidate = line ? `${line} ${word}` : word;
+
+        if (!line || candidate.length <= maxCharacters) {
+          line = candidate;
+        } else {
+          lines.push(line);
+          line = word;
+        }
+      }
+
+      if (line) {
+        lines.push(line);
+      }
+    }
+
+    return lines;
+  };
+
+  const remarkLines = wrap8410Remarks(formRemarks, 54).slice(0, 18);
+
+  remarkLines.forEach((line, index) => {
+    drawText(line, 409, 665 + index * 11, 6.5);
+  });
 
   const gradeMap = getPpc8410GradeMap();
 
@@ -3429,40 +4445,53 @@ async function generatePpc8410PdfBlob() {
     32: 832.5,
   };
 
+  /*
+   * FAA Form 8410-1 Flight Engineer grade-row centers.
+   *
+   * These values were measured directly from the current
+   * Flight Engineer base PDF and converted into the generator's
+   * 768 x 1024 reference coordinate system.
+   *
+   * Do not replace this with a constant interval: the printed
+   * row geometry varies slightly from row to row.
+   */
   const feY = {
-    1: 258,
-    2: 276,
-    3: 294,
-    4: 311,
-    5: 329,
-    6: 347,
-    7: 365,
-    8: 382,
-    9: 400,
-    10: 417,
-    11: 435,
-    12: 452,
-    13: 470,
-    14: 488,
-    15: 505,
-    16: 523,
-    17: 540,
-    18: 558,
-    19: 576,
-    20: 593,
-    21: 611,
-    22: 628,
+    1: 260.525,
+    2: 276.040,
+    3: 291.879,
+    4: 307.394,
+    5: 322.586,
+    6: 338.101,
+    7: 353.616,
+    8: 369.131,
+    9: 384.646,
+    10: 399.838,
+    11: 415.030,
+    12: 430.545,
+    13: 446.061,
+    14: 461.576,
+    15: 477.091,
+    16: 492.606,
+    17: 508.121,
+    18: 523.636,
+    19: 539.152,
+    20: 554.667,
+    21: 570.182,
+    22: 585.374,
   };
 
   const yMap = isFlightEngineer ? feY : pilotY;
 
   const gradeX = isFlightEngineer
     ? {
-        S: 714,
-        U: 739,
-        W: 726,
+        // Centers of the printed Flight Engineer grade columns
+        // on the current 768px FAA 8410-1 FE template.
+        S: 681,
+        U: 705,
+        W: 693,
       }
     : {
+        // Center of the printed Pilot S / U columns.
         S: 352,
         U: 386,
         W: 369,
@@ -3472,22 +4501,52 @@ async function generatePpc8410PdfBlob() {
     const y = yMap[number];
 
     if (!isFlightEngineer) {
-      const configuration =
-        store.ppcAircraftConfiguration ||
+      /*
+       * FAA Form 8410-1 Pilot PPC task applicability:
+       *
+       * Airplane:
+       *   Tasks 1-29
+       *
+       * Multi-engine helicopter:
+       *   Tasks 1-31
+       *
+       * Single-engine helicopter:
+       *   Tasks 1-32
+       *
+       * The current evaluation packet takes precedence over
+       * locally cached state so an older evaluation cannot
+       * contaminate the aircraft configuration.
+       */
+      const rawConfiguration = String(
         store.ppcPacket?.aircraft_configuration ||
-        "airplane";
+          store.ppcAircraftConfiguration ||
+          "airplane",
+      )
+        .trim()
+        .toLowerCase()
+        .replace(/[\\s-]+/g, "_");
+
+      let configuration = "airplane";
+
+      if (
+        rawConfiguration === "helicopter_single" ||
+        rawConfiguration === "single_engine_helicopter" ||
+        (rawConfiguration.includes("helicopter") &&
+          rawConfiguration.includes("single"))
+      ) {
+        configuration = "helicopter_single";
+      } else if (
+        rawConfiguration === "helicopter_multi" ||
+        rawConfiguration === "multi_engine_helicopter" ||
+        rawConfiguration.includes("helicopter")
+      ) {
+        configuration = "helicopter_multi";
+      }
 
       /*
-       * FAA Form 8410-1 Pilot applicability:
-       *
-       * 30 Hovering Maneuvers:
-       *    helicopter only
-       *
-       * 31 Rapid Decelerations:
-       *    helicopter only
-       *
-       * 32 Autorotations:
-       *    single-engine helicopter only
+       * 30 Hovering Maneuvers
+       * 31 Rapid Decelerations
+       * 32 Autorotations
        */
       if (configuration === "airplane" && number >= 30) {
         continue;
@@ -3502,20 +4561,104 @@ async function generatePpc8410PdfBlob() {
       continue;
     }
 
-    drawText(grade === "W" ? "W" : "X", gradeX[grade], y + 3, 8, {
-      bold: true,
+    const gradeText = String(grade);
+    const gradeSize = 8;
+    const gradeWidth = bold.widthOfTextAtSize(gradeText, gradeSize);
+
+    /*
+     * FE grade rows are calibrated correctly, but the rendered
+     * glyph sits slightly high because PDF text uses a baseline.
+     *
+     * Lower FE grades 4 reference pixels while leaving the
+     * already-calibrated Pilot grade placement unchanged.
+     */
+    const gradeY = isFlightEngineer ? y + 4 : y + 3;
+
+    page.drawText(gradeText, {
+      x: X(gradeX[grade]) - gradeWidth / 2,
+      y: Y(gradeY),
+      size: gradeSize,
+      font: bold,
+      color: rgb(0, 0, 0),
     });
   }
 
-  const overall = String(store.practicalTestOutcome || "").toUpperCase();
+  /*
+   * FAA Form 8410-1 — Pilot Airplane PPC
+   *
+   * Tasks 30, 31, and 32 are helicopter-only.
+   * For an Airplane check, explicitly identify them as N/A.
+   *
+   * This is PDF presentation only; it does not create grades
+   * for these non-applicable tasks.
+   */
+  if (!isFlightEngineer) {
+    const naRawConfiguration = String(
+      store.ppcPacket?.aircraft_configuration ||
+        store.ppcAircraftConfiguration ||
+        "airplane",
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
+
+    const isAirplanePpc =
+      !naRawConfiguration.includes("helicopter") &&
+      !naRawConfiguration.includes("rotorcraft");
+
+    if (isAirplanePpc) {
+      for (const number of [30, 31, 32]) {
+        const y = pilotY[number];
+
+        if (!y) {
+          continue;
+        }
+
+        /*
+         * Center N/A across the S/U grade area for the
+         * non-applicable helicopter task.
+         */
+        /*
+         * Center N/A on the same horizontal centerline used
+         * by the Pilot S grade. Because N/A is wider than S,
+         * calculate its actual width instead of using the
+         * normal grade's left-edge coordinate.
+         */
+        const naText = "N/A";
+        const naSize = 8;
+        const naWidth = bold.widthOfTextAtSize(naText, naSize);
+
+        page.drawText(naText, {
+          x: X(350) - naWidth / 2,
+          y: Y(y + 3),
+          size: naSize,
+          font: bold,
+          color: rgb(0, 0, 0),
+        });
+      }
+    }
+  }
+
+  const overall = String(store.ppcPracticalTestOutcome || "").toUpperCase();
 
   /*
-   * RESULT OF CHECK uses the FAA template's actual fields rather
-   * than manually positioned X marks.
+   * ----------------------------------------------------------
+   * RESULT OF CHECK
+   * ----------------------------------------------------------
+   *
+   * Mark only the airman's result.
+   * CHECK AIRMAN'S PERFORMANCE remains intentionally blank.
    */
-  set8410Field("APPROVED", overall === "SATISFACTORY" ? "X" : "", 8);
 
-  set8410Field("DISAPPROVED", overall === "UNSATISFACTORY" ? "X" : "", 8);
+  if (overall === "SATISFACTORY") {
+    drawText("X", 197, 887, 8, {
+      bold: true,
+    });
+  } else if (overall === "UNSATISFACTORY") {
+    drawText("X", 197, 903, 8, {
+      bold: true,
+    });
+  }
 
   /*
    * We intentionally do NOT auto-mark
@@ -3524,6 +4667,96 @@ async function generatePpc8410PdfBlob() {
    * That field is separate from the airman's PPC
    * result and should not simply mirror the check result.
    */
+
+  /*
+   * ----------------------------------------------------------
+   * REGION / DISTRICT OFFICE / INSPECTOR SIGNATURE
+   * ----------------------------------------------------------
+   */
+
+  const region = String(store.ppc8410Region || "").trim();
+
+  const districtOffice = String(store.ppc8410DistrictOffice || "").trim();
+
+  /*
+   * Center Region and District Office in their FAA 8410-1
+   * value areas using 12 pt text.
+   *
+   * Coordinates use the existing 768 x 1024 reference system.
+   */
+  const drawBottomFieldCentered = (value, left, right, top, bottom) => {
+    const text = String(value || "").trim();
+
+    if (!text) {
+      return;
+    }
+
+    const size = 12;
+    const textWidth = font.widthOfTextAtSize(text, size);
+
+    const leftPt = X(left);
+    const rightPt = X(right);
+
+    const x = leftPt + (rightPt - leftPt - textWidth) / 2;
+
+    const topPt = Y(top);
+    const bottomPt = Y(bottom);
+
+    const fieldCenterY = (topPt + bottomPt) / 2;
+
+    const textHeight = font.heightAtSize(size, {
+      descender: true,
+    });
+
+    const y = fieldCenterY - textHeight / 2 + size * 0.18;
+
+    page.drawText(text, {
+      x,
+      y,
+      size,
+      font,
+      color: rgb(0, 0, 0),
+    });
+  };
+
+  if (region) {
+    drawBottomFieldCentered(region, 21, 205, 914, 958);
+  }
+
+  if (districtOffice) {
+    drawBottomFieldCentered(districtOffice, 205, 391, 914, 958);
+  }
+
+  if (store.ppc8410SignatureDataUrl) {
+    try {
+      const signatureBytes = await fetch(store.ppc8410SignatureDataUrl).then(
+        (response) => response.arrayBuffer(),
+      );
+
+      const signatureImage = await pdf.embedPng(signatureBytes);
+
+      const originalWidth = signatureImage.width;
+      const originalHeight = signatureImage.height;
+
+      const targetWidth = X(210);
+      const targetHeight = (originalHeight / originalWidth) * targetWidth;
+
+      const maxHeight = 28;
+
+      const renderedHeight = Math.min(targetHeight, maxHeight);
+
+      const renderedWidth = (originalWidth / originalHeight) * renderedHeight;
+
+      page.drawImage(signatureImage, {
+        x: X(410),
+        y: Y(930) - renderedHeight / 2,
+        width: renderedWidth,
+        height: renderedHeight,
+      });
+    } catch (error) {
+      console.error("FAA 8410-1 signature stamping failed:", error);
+    }
+  }
 
   const bytes = await pdf.save();
 
@@ -3545,11 +4778,40 @@ async function reviewPpc8410InsideEmt() {
 
   overlay.classList.add("show");
 
+  const airmanNameInput = document.getElementById("emtPpc8410AirmanName");
+
   const employedByInput = document.getElementById("emtPpc8410EmployedBy");
 
   const basedAtInput = document.getElementById("emtPpc8410BasedAt");
 
   const remarksInput = document.getElementById("emtPpc8410Remarks");
+
+  const regionInput = document.getElementById("emtPpc8410Region");
+
+  const districtOfficeInput = document.getElementById(
+    "emtPpc8410DistrictOffice",
+  );
+
+  const signatureCanvas = document.getElementById("emtPpc8410Signature");
+
+  const clearSignatureButton = document.getElementById(
+    "emtPpc8410ClearSignature",
+  );
+
+  if (airmanNameInput) {
+    if (!String(store.ppc8410AirmanName || "").trim()) {
+      store.ppc8410AirmanName = formatPpc8410AirmanName(
+        store.applicant?.appName || "",
+      );
+    }
+
+    airmanNameInput.value = store.ppc8410AirmanName || "";
+
+    airmanNameInput.oninput = (event) => {
+      store.ppc8410AirmanName = event.target.value;
+      saveToLocalStorage();
+    };
+  }
 
   if (employedByInput) {
     employedByInput.value = store.ppc8410EmployedBy || "";
@@ -3571,6 +4833,24 @@ async function reviewPpc8410InsideEmt() {
     };
   }
 
+  if (regionInput) {
+    regionInput.value = store.ppc8410Region || "";
+
+    regionInput.oninput = (event) => {
+      store.ppc8410Region = event.target.value;
+      saveToLocalStorage();
+    };
+  }
+
+  if (districtOfficeInput) {
+    districtOfficeInput.value = store.ppc8410DistrictOffice || "";
+
+    districtOfficeInput.oninput = (event) => {
+      store.ppc8410DistrictOffice = event.target.value;
+      saveToLocalStorage();
+    };
+  }
+
   if (remarksInput) {
     if (store.ppc8410Remarks === undefined || store.ppc8410Remarks === null) {
       store.ppc8410Remarks = getPpc8410Remarks() || "";
@@ -3583,6 +4863,118 @@ async function reviewPpc8410InsideEmt() {
 
       saveToLocalStorage();
     };
+  }
+
+  if (signatureCanvas) {
+    const context = signatureCanvas.getContext("2d");
+
+    if (context) {
+      context.lineWidth = 3;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.strokeStyle = "#000000";
+
+      const restoreSignature = () => {
+        context.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+
+        if (!store.ppc8410SignatureDataUrl) {
+          return;
+        }
+
+        const image = new Image();
+
+        image.onload = () => {
+          context.drawImage(
+            image,
+            0,
+            0,
+            signatureCanvas.width,
+            signatureCanvas.height,
+          );
+        };
+
+        image.src = store.ppc8410SignatureDataUrl;
+      };
+
+      restoreSignature();
+
+      let drawing = false;
+
+      const pointFromEvent = (event) => {
+        const rect = signatureCanvas.getBoundingClientRect();
+
+        return {
+          x: ((event.clientX - rect.left) / rect.width) * signatureCanvas.width,
+          y:
+            ((event.clientY - rect.top) / rect.height) * signatureCanvas.height,
+        };
+      };
+
+      signatureCanvas.onpointerdown = (event) => {
+        event.preventDefault();
+
+        drawing = true;
+
+        signatureCanvas.setPointerCapture?.(event.pointerId);
+
+        const point = pointFromEvent(event);
+
+        context.beginPath();
+        context.moveTo(point.x, point.y);
+      };
+
+      signatureCanvas.onpointermove = (event) => {
+        if (!drawing) {
+          return;
+        }
+
+        event.preventDefault();
+
+        const point = pointFromEvent(event);
+
+        context.lineTo(point.x, point.y);
+        context.stroke();
+      };
+
+      const finishSignature = async (event) => {
+        if (!drawing) {
+          return;
+        }
+
+        event?.preventDefault?.();
+
+        drawing = false;
+
+        context.closePath();
+
+        store.ppc8410SignatureDataUrl = signatureCanvas.toDataURL("image/png");
+
+        saveToLocalStorage();
+      };
+
+      signatureCanvas.onpointerup = finishSignature;
+      signatureCanvas.onpointercancel = finishSignature;
+      signatureCanvas.onpointerleave = (event) => {
+        if (drawing && event.buttons === 0) {
+          finishSignature(event);
+        }
+      };
+
+      if (clearSignatureButton) {
+        clearSignatureButton.onclick = async () => {
+          context.clearRect(
+            0,
+            0,
+            signatureCanvas.width,
+            signatureCanvas.height,
+          );
+
+          store.ppc8410SignatureDataUrl = "";
+
+          saveToLocalStorage();
+        };
+      }
+    }
   }
 
   if (status) {
@@ -3650,6 +5042,10 @@ async function reviewPpc8410InsideEmt() {
       }
     };
 
+    if (airmanNameInput) {
+      airmanNameInput.onchange = regenerateFromEditableFields;
+    }
+
     if (employedByInput) {
       employedByInput.onchange = regenerateFromEditableFields;
     }
@@ -3660,6 +5056,30 @@ async function reviewPpc8410InsideEmt() {
 
     if (remarksInput) {
       remarksInput.onchange = regenerateFromEditableFields;
+    }
+
+    if (regionInput) {
+      regionInput.onchange = regenerateFromEditableFields;
+    }
+
+    if (districtOfficeInput) {
+      districtOfficeInput.onchange = regenerateFromEditableFields;
+    }
+
+    if (signatureCanvas) {
+      signatureCanvas.addEventListener(
+        "pointerup",
+        regenerateFromEditableFields,
+        { once: false },
+      );
+    }
+
+    if (clearSignatureButton) {
+      clearSignatureButton.addEventListener(
+        "click",
+        regenerateFromEditableFields,
+        { once: false },
+      );
     }
   } catch (error) {
     console.error("FAA 8410-1 generation failed:", error);
@@ -3697,11 +5117,180 @@ function renderCompletedPpcActions() {
       <i class="fas fa-file-signature"></i>
       Review FAA 8410-1
     </button>
+
+    <button
+      class="btn"
+      id="btnCompletePpcEvent"
+      type="button"
+      ${store.ppcEventCompleted ? "disabled" : ""}
+    >
+      <i class="fas fa-check-circle"></i>
+      ${store.ppcEventCompleted ? "Event Completed" : "Complete Event"}
+    </button>
   `;
 
   document
     .getElementById("btnReviewPpc8410")
     ?.addEventListener("click", reviewPpc8410InsideEmt);
+
+  document
+    .getElementById("btnCompletePpcEvent")
+    ?.addEventListener("click", completePpcEventInEmt);
+}
+
+async function completePpcEventInEmt() {
+  const requestId = store.applicant?.practicalTestRequestId || "";
+  const packet = store.ppcPacket;
+
+  if (!requestId || !packet?.practical_test_id) {
+    alert("The finalized PPC practical-test record is unavailable.");
+    return;
+  }
+
+  if (!["finalized", "completed"].includes(packet.evaluation_status)) {
+    alert("Complete the PPC grading before completing the event.");
+    return;
+  }
+
+  /*
+   * The PDF currently reviewed and signed in EMT is authoritative.
+   *
+   * Do not reuse an older archived 8410 simply because one exists.
+   * Until the event itself is completed, the examiner may refresh the
+   * archived document with the current reviewed/signed version.
+   */
+  if (!String(store.ppc8410SignatureDataUrl || "").trim()) {
+    alert(
+      "Open Review FAA 8410-1 and add the examiner signature before completing the event.",
+    );
+    return;
+  }
+
+  const requestNumber = store.applicant?.requestNumber || "this PPC";
+  const confirmed = window.confirm(
+    `Complete ${requestNumber}?\n\nThis will archive the signed FAA Form 8410-1, mark the practical-test request Completed, and email the PDF to the applicant.`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const button = document.getElementById("btnCompletePpcEvent");
+  const originalHtml = button?.innerHTML || "";
+  let completionData = null;
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        Archiving FAA 8410-1
+      `;
+    }
+
+    /*
+     * Always archive the exact PDF currently being reviewed in EMT.
+     * The database prevents replacement after the event is completed.
+     */
+    const pdfBlob = await generatePpc8410PdfBlob();
+
+    await modules.archiveFinalizedPpc8410({
+      practicalTestRequestId: requestId,
+      requestNumber,
+      pdfBlob,
+      reviewFields: getPpc8410ReviewFields(),
+      signatureDataUrl: store.ppc8410SignatureDataUrl,
+    });
+
+    if (button) {
+      button.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        Completing Event
+      `;
+    }
+
+    completionData = await modules.completePpcEvent(requestId);
+
+    if (
+      completionData?.request_status !== "completed" ||
+      completionData?.evaluation_status !== "completed"
+    ) {
+      throw new Error("Supabase did not return a completed PPC event status.");
+    }
+
+    store.ppcPacket = {
+      ...packet,
+      evaluation_status: "completed",
+    };
+    store.ppcEventCompleted = true;
+    store.ppcEventEmailError = "";
+
+    if (button) {
+      button.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        Emailing Applicant
+      `;
+    }
+
+    const emailResult = await modules.emailCompletedPpc8410(requestId);
+
+    store.databaseSubmission = {
+      ...(store.databaseSubmission || {}),
+      practicalTestId: completionData.practical_test_id,
+      status: "completed",
+      completedAt: completionData.completed_at || new Date().toISOString(),
+      ppc8410EmailSent: Boolean(emailResult?.sent || emailResult?.skipped),
+    };
+
+    saveToLocalStorage();
+
+    setEmtConnectionMessage(
+      `${requestNumber} was completed and the signed FAA 8410-1 was emailed to the applicant.`,
+    );
+
+    alert(
+      `${requestNumber} was completed successfully.\n\nThe PPC data and signed FAA Form 8410-1 were saved, the practical-test request was marked Completed, and the PDF was emailed to the applicant.`,
+    );
+
+    modules.notify();
+    await refreshEmtAppointments();
+  } catch (error) {
+    console.error("PPC event completion failed:", error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "The PPC event could not be completed.";
+
+    if (completionData?.request_status === "completed") {
+      store.ppcPacket = {
+        ...packet,
+        evaluation_status: "completed",
+      };
+      store.ppcEventEmailError = message;
+      store.ppcEventCompleted = false;
+      saveToLocalStorage();
+
+      setEmtConnectionMessage(
+        `${requestNumber} was completed, but the applicant email failed: ${message}`,
+        true,
+      );
+
+      alert(
+        `${requestNumber} was saved and marked Completed, but the applicant email failed.\n\n${message}\n\nUse Complete Event again to retry the email without duplicating the event.`,
+      );
+    } else {
+      setEmtConnectionMessage(message, true);
+      alert(`PPC event completion failed: ${message}`);
+    }
+
+    modules.notify();
+  } finally {
+    if (button?.isConnected && !store.ppcEventCompleted) {
+      button.disabled = false;
+      button.innerHTML = originalHtml;
+    }
+  }
 }
 
 async function finalizePpcEvaluationInEmt() {
@@ -3760,7 +5349,7 @@ async function finalizePpcEvaluationInEmt() {
       aircraftUsed:
         store.applicant?.appAircraftType || packet.aircraft_used || null,
 
-      examinerNotes: store.outcomeNotes || null,
+      examinerNotes: store.ppcOutcomeNotes || null,
 
       aircraftConfiguration:
         store.applicant?.ppcType === "pilot"
@@ -3848,13 +5437,24 @@ function getCurrentTasks(areas = getCurrentAreas()) {
 }
 
 function renderApp() {
+  /*
+   * PPC / ACS HARD ROUTING BOUNDARY
+   *
+   * PPC uses the FAA 8410-1 renderer.
+   * Every other evaluation uses the original EMT ACS render engine.
+   */
   ensureStoreDefaults();
+  syncEvaluationModeFieldVisibility();
 
   if (isCurrentEmtPpc()) {
     renderPpcApp();
     return;
   }
 
+  /*
+   * Remove PPC-only chrome before the original ACS renderer owns
+   * the page again.
+   */
   restoreAcsChrome();
 
   // Show Aircraft Class ONLY for Instrument
@@ -3875,7 +5475,6 @@ function renderApp() {
   }
 
   modules.renderHeader?.(store);
-  renderTestingCompleteCheckbox();
 
   const flatTasks = getCurrentTasks(areas);
   renderAcsCodeDecoder(flatTasks);
@@ -3966,22 +5565,26 @@ function renderApp() {
 }
 
 function syncActiveView() {
+  const activeView = isCurrentEmtPpc()
+    ? store.ppcActiveView || "detailed"
+    : store.activeView || "detailed";
+
   document.querySelectorAll(".view-tab").forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.view === store.activeView);
+    tab.classList.toggle("active", tab.dataset.view === activeView);
   });
 
   document.querySelectorAll(".view-content").forEach((view) => {
     view.classList.remove("active");
   });
 
-  const activeId = `view${store.activeView[0].toUpperCase()}${store.activeView.slice(1)}`;
+  const activeId = `view${activeView[0].toUpperCase()}${activeView.slice(1)}`;
   $(activeId)?.classList.add("active");
 
   const outcomeOnlyActions = $("outcomeOnlyActions");
 
   if (outcomeOnlyActions) {
     outcomeOnlyActions.style.display =
-      store.activeView === "outcome" ? "flex" : "none";
+      activeView === "outcome" ? "flex" : "none";
   }
 }
 
@@ -4008,7 +5611,13 @@ function wireFullAppEvents() {
   document.querySelectorAll(".view-tab").forEach((tab) => {
     tab.onclick = () => {
       scenarioRendered = false;
-      modules.setActiveView(tab.dataset.view);
+
+      if (isCurrentEmtPpc()) {
+        store.ppcActiveView = tab.dataset.view;
+        modules.notify();
+      } else {
+        modules.setActiveView(tab.dataset.view);
+      }
     };
   });
 
@@ -4033,8 +5642,6 @@ function wireFullAppEvents() {
     updatePostFlightOutcomeGroups(document);
     modules.notify();
   });
-
-  $("btnLookupApplicant")?.addEventListener("click", lookupApplicantByDMS);
 
   document.addEventListener("click", () => {
     setTimeout(() => {
@@ -5007,80 +6614,6 @@ function updatePostFlightOutcomeGroups(container = document) {
   });
 }
 
-function renderTestingCompleteCheckbox() {
-  const applicantBox =
-    document.querySelector(".applicant-info-card") ||
-    document.querySelector(".applicant-card") ||
-    document.querySelector(".applicant-info") ||
-    document.querySelector("#applicantInfo") ||
-    document.querySelector("#applicantInfoBox");
-
-  if (!applicantBox) return;
-
-  if (document.getElementById("testingCompleteBox")) return;
-
-  const testingBox = document.createElement("div");
-  testingBox.id = "testingCompleteBox";
-  testingBox.style.marginTop = "12px";
-  testingBox.style.padding = "12px";
-  testingBox.style.border = "1px solid #d0d7de";
-  testingBox.style.borderRadius = "10px";
-  testingBox.style.background = "#fffbe6";
-
-  testingBox.innerHTML = `
-    <label style="display:flex; align-items:center; gap:10px; font-weight:700; cursor:pointer;">
-      <input type="checkbox" id="markAllCompleteForTesting" />
-      Mark all items complete for testing
-    </label>
-    <div style="font-size:0.85rem; color:#6b7280; margin-top:4px;">
-      Testing shortcut only — checks all ACS tasks and Required Briefings.
-    </div>
-  `;
-
-  applicantBox.insertAdjacentElement("afterend", testingBox);
-
-  document
-    .getElementById("markAllCompleteForTesting")
-    ?.addEventListener("change", (event) => {
-      if (event.target.checked) {
-        markAllItemsCompleteForTesting();
-      }
-    });
-}
-
-function markAllItemsCompleteForTesting() {
-  const areas = getCurrentAreas();
-  const tasks = getCurrentTasks(areas);
-
-  tasks.forEach((task) => {
-    store.checkedElements[task.filterCode] = true;
-
-    ["K", "R", "S"].forEach((type) => {
-      store.grades[`${task.filterCode}.${type}`] = "3";
-    });
-  });
-
-  REQUIRED_BRIEFINGS.forEach((section) => {
-    store.requiredBriefings[section.id] ??= {};
-
-    (section.items || []).forEach((_, index) => {
-      store.requiredBriefings[section.id][index] = true;
-    });
-
-    (section.groups || []).forEach((group) => {
-      const groupKey = `${section.id}.${group.id}`;
-      store.requiredBriefings[groupKey] ??= {};
-
-      group.items.forEach((_, index) => {
-        store.requiredBriefings[groupKey][index] = true;
-      });
-    });
-  });
-
-  updatePostFlightOutcomeGroups();
-  modules.notify();
-}
-
 function renderAcsCodeDecoder(tasks) {
   let container = document.getElementById("acsCodeDecoder");
 
@@ -5099,6 +6632,29 @@ function renderAcsCodeDecoder(tasks) {
 
     applicantBox.insertAdjacentElement("afterend", container);
   }
+
+  const isAdditionalExam =
+    normalizeEmtExamType(store.applicant.appExamType) === "Additional";
+
+  const knowledgeTestRequired =
+    modules.isKnowledgeTestRequired?.(
+      store.applicant.appExamType,
+      store.applicant.knowledgeTestRequired,
+    ) ?? !isAdditionalExam;
+
+  /*
+   * Additional ratings do not require the ACS Code Decoder.
+   * This is an explicit EMT UI rule and takes precedence over
+   * any previously stored knowledgeTestRequired value.
+   */
+  if (isAdditionalExam || !knowledgeTestRequired) {
+    container.style.display = "none";
+    store.selectedAcsCodes = [];
+    store.aktUploadStatus = "";
+    return;
+  }
+
+  container.style.display = "";
 
   const codes = [
     ...new Set(tasks.map((task) => task.code).filter(Boolean)),
@@ -5148,21 +6704,63 @@ function renderAcsCodeDecoder(tasks) {
         border-radius:8px;
         color:#000000;
       ">
-        <label style="
+        <div style="
           font-weight:600;
           display:block;
           margin-bottom:6px;
           color:#000000;
         ">
-          Upload Airman Knowledge Test Report
-        </label>
+          Add Airman Knowledge Test Report
+        </div>
 
-        <input
-          type="file"
-          id="aktReportUpload"
-          accept=".pdf,.txt"
-          style="color:#000000;"
-        >
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          <label for="aktReportUpload" style="
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            padding:7px 10px;
+            border:1px solid #cbd5e1;
+            border-radius:6px;
+            background:#ffffff;
+            cursor:pointer;
+            color:#000000;
+          ">
+            <i class="fas fa-file-arrow-up"></i>
+            Choose File
+          </label>
+          <input
+            type="file"
+            id="aktReportUpload"
+            accept=".pdf,.txt,image/*"
+            style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);"
+          >
+
+          <label for="aktReportCamera" style="
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            padding:7px 10px;
+            border:1px solid #cbd5e1;
+            border-radius:6px;
+            background:#ffffff;
+            cursor:pointer;
+            color:#000000;
+          ">
+            <i class="fas fa-camera"></i>
+            Take Picture
+          </label>
+          <input
+            type="file"
+            id="aktReportCamera"
+            accept="image/*"
+            capture="environment"
+            style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);"
+          >
+        </div>
+
+        <div style="margin-top:6px;font-size:0.8rem;color:#475569;">
+          PDF, text, or image. Review the matched ACS codes below and uncheck any that were read incorrectly.
+        </div>
 
         <div
           id="aktUploadStatus"
@@ -5171,7 +6769,7 @@ function renderAcsCodeDecoder(tasks) {
             font-size:0.85rem;
             color:#000000;
           "
-        ></div>
+        >${escapeHtml(store.aktUploadStatus || "")}</div>
       </div>
 
       <div
@@ -5237,6 +6835,10 @@ function renderAcsCodeDecoder(tasks) {
   container
     .querySelector("#aktReportUpload")
     ?.addEventListener("change", handleAKTReportUpload);
+
+  container
+    .querySelector("#aktReportCamera")
+    ?.addEventListener("change", handleAKTReportUpload);
 }
 
 async function handleAKTReportUpload(event) {
@@ -5244,7 +6846,7 @@ async function handleAKTReportUpload(event) {
   if (!file) return;
 
   const status = document.getElementById("aktUploadStatus");
-  status.textContent = "Reading report...";
+  setAktUploadStatus("Reading report...", status);
 
   try {
     let text = "";
@@ -5254,6 +6856,11 @@ async function handleAKTReportUpload(event) {
       file.name.toLowerCase().endsWith(".pdf")
     ) {
       text = await extractPdfText(file);
+    } else if (
+      file.type.startsWith("image/") ||
+      /\.(?:jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(file.name)
+    ) {
+      text = await extractImageText(file);
     } else {
       text = await file.text();
     }
@@ -5261,8 +6868,10 @@ async function handleAKTReportUpload(event) {
     const matches = extractAcsCodesFromText(text);
 
     if (!matches.length) {
-      status.textContent =
-        "No ACS codes found. The report may need clearer OCR.";
+      setAktUploadStatus(
+        "No ACS codes found. Try a clearer, closer picture with the full codes visible.",
+        status,
+      );
       return;
     }
 
@@ -5270,13 +6879,44 @@ async function handleAKTReportUpload(event) {
       ...new Set([...(store.selectedAcsCodes || []), ...matches]),
     ];
 
-    status.textContent = `Selected ${matches.length} ACS code(s): ${matches.join(", ")}`;
+    setAktUploadStatus(
+      `Found and selected ${matches.length} ACS code(s): ${matches.join(", ")}. Review the selections below.`,
+      status,
+    );
 
     modules.notify();
   } catch (err) {
     console.error(err);
-    status.textContent = "Unable to read Airman Knowledge Test Report.";
+    setAktUploadStatus("Unable to read Airman Knowledge Test Report.", status);
   }
+}
+
+function setAktUploadStatus(message, statusElement = null) {
+  store.aktUploadStatus = String(message || "");
+
+  const status = statusElement || document.getElementById("aktUploadStatus");
+  if (status) status.textContent = store.aktUploadStatus;
+}
+
+async function extractImageText(file) {
+  if (!window.Tesseract) {
+    throw new Error("Tesseract OCR is not loaded.");
+  }
+
+  const result = await Tesseract.recognize(file, "eng", {
+    logger: (message) => {
+      if (
+        message.status === "recognizing text" &&
+        typeof message.progress === "number"
+      ) {
+        setAktUploadStatus(
+          `OCR reading report... ${Math.round(message.progress * 100)}%`,
+        );
+      }
+    },
+  });
+
+  return result.data.text;
 }
 
 function extractAcsCodesFromText(text) {
