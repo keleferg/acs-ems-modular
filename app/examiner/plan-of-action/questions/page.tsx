@@ -25,6 +25,8 @@ import {
   createClient,
 } from "@/lib/supabase/client";
 
+import QuestionTypeRatingManager from "@/components/poa/question-type-rating-manager";
+
 
 type QuestionType =
   | "knowledge"
@@ -1435,6 +1437,13 @@ export default function PoaQuestionLibraryPage() {
 
         <div className="flex flex-wrap gap-2">
           <Link
+            href="/examiner/plan-of-action/type-rating"
+            className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-100"
+          >
+            Type Rating POA
+          </Link>
+
+          <Link
             href="/examiner/plan-of-action"
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
@@ -1462,6 +1471,57 @@ export default function PoaQuestionLibraryPage() {
         </div>
       </div>
 
+
+      <div className="mt-8 border-b border-slate-200">
+        <nav
+          className="flex flex-wrap items-end gap-1"
+          aria-label="Plan of Action Library Views"
+        >
+          <Link
+            href="/examiner/plan-of-action/questions"
+            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-300 bg-white px-6 py-4 text-base font-bold text-amber-800 shadow-sm transition"
+          >
+            <span
+              aria-hidden="true"
+              className="text-2xl leading-none"
+            >
+              ?
+            </span>
+
+            <span>Questions</span>
+
+            <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
+          </Link>
+
+          <Link
+            href="/examiner/plan-of-action/scenarios"
+            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
+          >
+            <span
+              aria-hidden="true"
+              className="text-2xl leading-none"
+            >
+              ✈
+            </span>
+
+            <span>Scenarios</span>
+          </Link>
+
+          <Link
+            href="/examiner/plan-of-action/triggers"
+            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
+          >
+            <span
+              aria-hidden="true"
+              className="text-2xl leading-none"
+            >
+              ⚡
+            </span>
+
+            <span>Triggers</span>
+          </Link>
+        </nav>
+      </div>
 
       {message ? (
         <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">
@@ -2203,7 +2263,9 @@ export default function PoaQuestionLibraryPage() {
                                     </div>
 
 
-                                    <div className="mt-6 flex justify-end gap-3">
+                                                          <QuestionTypeRatingManager questionId={question.id} />
+
+<div className="mt-6 flex justify-end gap-3">
                                       <button
                                         type="button"
                                         onClick={() =>
