@@ -1,16 +1,15 @@
 import { redirect } from "next/navigation";
 
 /*
- * DPE EMT WEB ROOT
+ * DPE EMS PUBLIC ROOT
  *
- * The DPE EMT web application is the Evaluation Management System
- * grading application located at /ems/index.html.
+ * EMS is the Evaluation Management System. It owns scheduling,
+ * applicant/examiner/admin portals, the POA question library,
+ * scenario/trigger management, POA generation/editing, and PDF export.
  *
- * Applicant, examiner scheduling, administration, and other portal
- * routes may continue to exist elsewhere in this Next.js project,
- * but they must not replace the DPE EMT grading application as the
- * public root experience.
+ * EMT is the grading application only. The EMT grading experience remains
+ * available at /ems/index.html and consumes the frozen POA created in EMS.
  */
 export default function HomePage() {
-  redirect("/ems/index.html");
+  redirect("/auth/login");
 }
