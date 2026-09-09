@@ -24,7 +24,7 @@ export function renderScenarioEngine(containerId) {
     <div class="scenario-engine">
       <h2>Oral / Flight Portion</h2>
       <p>
-        Generate a chronological oral exam from one of your uploaded Plans of Action. The Flight Portion uses the Detailed View task layout, excludes AOA I, and records Skill grades only.
+        Generate a chronological oral exam from one of your uploaded or generated Plans of Action. The Flight Portion uses the Detailed View task layout, excludes AOA I, and records Skill grades only.
       </p>
 
       <div class="scenario-controls">
@@ -39,7 +39,7 @@ export function renderScenarioEngine(containerId) {
 
         <label>
           <span id="scenarioCountLabel">
-            Scenario (0)
+            Plan of Action (0)
           </span>
           <select id="scenarioPlan">
             <option value="">
@@ -125,21 +125,29 @@ async function initializeDatabaseScenarioControls() {
       '../services/supabaseService.js'
     );
 
-    const [offerings, plans] =
+    const [offerings, uploadedPlans, generatedPlans] =
       await Promise.all([
         service.loadEmtPracticalTestOfferings(),
-        service.loadEmtReadyPlanOfActions()
+        service.loadEmtReadyPlanOfActions(),
+        service.loadEmtReadyGeneratedPlanOfActions()
       ]);
+
+    const normalizedUploadedPlans =
+      (Array.isArray(uploadedPlans) ? uploadedPlans : [])
+        .map(plan => ({
+          ...plan,
+          poa_source: plan?.poa_source || 'uploaded'
+        }));
 
     examinerScenarioCatalog = {
       offerings:
         Array.isArray(offerings)
           ? offerings
           : [],
-      plans:
-        Array.isArray(plans)
-          ? plans
-          : []
+      plans: [
+        ...(Array.isArray(generatedPlans) ? generatedPlans : []),
+        ...normalizedUploadedPlans
+      ]
     };
 
     if (!examinerScenarioCatalog.offerings.length) {
@@ -268,7 +276,7 @@ function updateDatabaseScenarioOptions() {
   if (!plans.length) {
     scenarioSelect.innerHTML = `
       <option value="">
-        No Scenario Ready POAs
+        No Ready Plans of Action
       </option>
     `;
 
@@ -285,9 +293,11 @@ function updateDatabaseScenarioOptions() {
           value="${escapeHtml(plan.id)}"
         >
           ${escapeHtml(
-            plan.scenario_name ||
-            plan.title ||
-            `Scenario ${index + 1}`
+            `${plan.poa_source === 'generated' ? '[Generated] ' : '[Uploaded] '}${
+              plan.scenario_name ||
+              plan.title ||
+              `Plan of Action ${index + 1}`
+            }`
           )}
         </option>
       `)
@@ -318,7 +328,7 @@ function setScenarioCount(count) {
 
   if (label) {
     label.textContent =
-      `Scenario (${Number(count) || 0})`;
+      `Plan of Action (${Number(count) || 0})`;
   }
 }
 
@@ -592,6 +602,125 @@ function findBestMatchingPracticalTestId(
   return best?.id || '';
 }
 
+function getAcsTaskCode(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/^([A-Z]+\.[IVX]+\.[A-Z]+)/i);
+  return match ? match[1].toUpperCase() : 'UNASSIGNED';
+}
+
+function adaptGeneratedPlanToScenario(plan) {
+  const questions =
+    Array.isArray(plan?.generated_questions)
+      ? [...plan.generated_questions].sort(
+          (a, b) =>
+            Number(a?.sort_order || 999999) -
+            Number(b?.sort_order || 999999)
+        )
+      : [];
+
+  const grouped = [];
+  const groupsByTask = new Map();
+
+  for (const question of questions) {
+    const acsCode =
+      String(question?.acs_reference_snapshot || '').trim();
+    const taskCode = getAcsTaskCode(acsCode);
+
+    let group = groupsByTask.get(taskCode);
+
+    if (!group) {
+      group = {
+        taskCode,
+        taskName:
+          String(question?.task_name_snapshot || '').trim(),
+        questions: []
+      };
+      groupsByTask.set(taskCode, group);
+      grouped.push(group);
+    }
+
+    group.questions.push(question);
+  }
+
+  const scenario = {
+    Scenario_ID:
+      `GENERATED-POA-${plan.id}`,
+    Scenario_Name:
+      plan.scenario_name ||
+      plan.title ||
+      'Generated Plan of Action',
+    Scenario_Brief:
+      plan.notes ||
+      'Generated from the EMT Question Library.',
+    Description:
+      plan.notes || '',
+    Source_Revision: '',
+    Practical_Test_Type_ID:
+      plan.practical_test_type_id,
+    Plan_Of_Action_ID:
+      plan.id,
+    Database_POA:
+      true,
+    Generated_POA:
+      true,
+    Flight_Task_Order: []
+  };
+
+  const generatedSegments =
+    grouped.map((group, sectionIndex) => ({
+      phase: {
+        Phase_ID:
+          `GENERATED-PHASE-${sectionIndex + 1}`,
+        Phase_Name:
+          group.taskCode === 'UNASSIGNED'
+            ? 'Oral Questions'
+            : `${group.taskCode}${group.taskName ? ` — ${group.taskName}` : ''}`
+      },
+      flows: [
+        {
+          flow: {
+            Flow_Type: 'Question_Block',
+            Title: '',
+            Narrative: ''
+          },
+          items: group.questions.map(question => {
+            const answerParts = [];
+            const answer =
+              String(question?.answer_snapshot || '').trim();
+            const reference =
+              String(question?.reference_snapshot || '').trim();
+
+            if (answer) {
+              answerParts.push(answer);
+            }
+
+            if (reference) {
+              answerParts.push(`Reference: ${reference}`);
+            }
+
+            return {
+              Question_ID:
+                question?.id ||
+                `GENERATED-${plan.id}-${question?.sort_order || ''}`,
+              Question:
+                question?.question_snapshot || '',
+              Answer:
+                answerParts.join(' — '),
+              ACS_Code:
+                question?.acs_reference_snapshot || '',
+              Applicable_Rating: 'ALL'
+            };
+          })
+        }
+      ]
+    }));
+
+  return {
+    scenario,
+    generatedSegments
+  };
+}
+
 function adaptDatabasePlanToScenario(plan) {
   const data =
     plan?.scenario_data &&
@@ -822,7 +951,7 @@ async function generateScenario() {
       <div class="scenario-card">
         <h4>No Scenario Available</h4>
         <p>
-          Upload and parse a Plan of Action for this practical test in the Examiner Portal.
+          Generate a Plan of Action in the Examiner Portal or upload and parse one for this practical test.
         </p>
       </div>
     `;
@@ -854,9 +983,9 @@ async function generateScenario() {
       scenario,
       generatedSegments
     } =
-      adaptDatabasePlanToScenario(
-        plan
-      );
+      plan.poa_source === 'generated'
+        ? adaptGeneratedPlanToScenario(plan)
+        : adaptDatabasePlanToScenario(plan);
 
     window.storeGeneratedScenario?.({
       scenario,

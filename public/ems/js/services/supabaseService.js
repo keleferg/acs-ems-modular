@@ -403,6 +403,90 @@ export async function loadEmtReadyPlanOfActions() {
   return Array.isArray(data) ? data : [];
 }
 
+
+export async function loadEmtReadyGeneratedPlanOfActions() {
+  const { data: plans, error: planError } = await supabase
+    .from("generated_plan_of_actions")
+    .select(
+      `
+      id,
+      practical_test_type_id,
+      source_plan_of_action_id,
+      scenario_name,
+      title,
+      selection_method,
+      status,
+      notes,
+      created_at,
+      updated_at
+    `,
+    )
+    .eq("status", "ready")
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (planError) {
+    throw planError;
+  }
+
+  const readyPlans = Array.isArray(plans) ? plans : [];
+
+  if (!readyPlans.length) {
+    return [];
+  }
+
+  const planIds = readyPlans
+    .map((plan) => plan?.id)
+    .filter(Boolean);
+
+  const { data: questions, error: questionError } = await supabase
+    .from("generated_plan_of_action_questions")
+    .select(
+      `
+      id,
+      generated_plan_of_action_id,
+      question_library_id,
+      acs_reference_snapshot,
+      question_snapshot,
+      answer_snapshot,
+      reference_snapshot,
+      topic_snapshot,
+      task_name_snapshot,
+      question_type_snapshot,
+      sort_order,
+      created_at
+    `,
+    )
+    .in("generated_plan_of_action_id", planIds)
+    .order("sort_order", {
+      ascending: true,
+    });
+
+  if (questionError) {
+    throw questionError;
+  }
+
+  const questionsByPlan = new Map();
+
+  for (const question of Array.isArray(questions) ? questions : []) {
+    const planId = question?.generated_plan_of_action_id;
+    if (!planId) continue;
+
+    if (!questionsByPlan.has(planId)) {
+      questionsByPlan.set(planId, []);
+    }
+
+    questionsByPlan.get(planId).push(question);
+  }
+
+  return readyPlans.map((plan) => ({
+    ...plan,
+    generated_questions: questionsByPlan.get(plan.id) || [],
+    poa_source: "generated",
+  }));
+}
+
 /* ============================================================
    EMT NATIVE PPC / FAA 8410-1
    ============================================================ */
@@ -457,6 +541,160 @@ export async function savePpcEvaluation({
   }
 
   return data;
+}
+
+export async function loadPpc8410Packet(practicalTestRequestId) {
+  if (!practicalTestRequestId) {
+    throw new Error("A practical-test request ID is required for FAA 8410-1.");
+  }
+
+  const { data, error } = await supabase.rpc("examiner_get_ppc_8410_packet", {
+    p_practical_test_request_id: practicalTestRequestId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function archiveFinalizedPpc8410({
+  practicalTestRequestId,
+  requestNumber,
+  pdfBlob,
+  reviewFields,
+  signatureDataUrl,
+}) {
+  if (!(pdfBlob instanceof Blob) || pdfBlob.size === 0) {
+    throw new Error("The signed FAA Form 8410-1 PDF is empty or invalid.");
+  }
+
+  if (!String(signatureDataUrl || "").trim()) {
+    throw new Error("The examiner signature is required.");
+  }
+
+  const packet = await loadPpc8410Packet(practicalTestRequestId);
+
+  /*
+   * Do not return an older archived document here.
+   *
+   * The current EMT-generated PDF is authoritative until the PPC event
+   * itself is completed. The finalize RPC enforces immutability after
+   * completion.
+   */
+
+  if (!packet?.practical_test_id) {
+    throw new Error("The finalized PPC practical-test record is unavailable.");
+  }
+
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    await pdfBlob.arrayBuffer(),
+  );
+
+  const sha256 = Array.from(new Uint8Array(digest))
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+
+  const safeRequestNumber = sanitizeReportFilePart(requestNumber, "PPC");
+  const fileName = `${safeRequestNumber}-FAA-8410-1.pdf`;
+  const storagePath = `${packet.practical_test_id}/${Date.now()}-${fileName}`;
+  const bucket = "ppc-8410-documents";
+
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(storagePath, pdfBlob, {
+      contentType: "application/pdf",
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(
+      `FAA Form 8410-1 could not be archived: ${uploadError.message}`,
+    );
+  }
+
+  const { data, error } = await supabase.rpc("examiner_finalize_ppc_8410", {
+    p_practical_test_request_id: practicalTestRequestId,
+    p_review_fields: reviewFields || {},
+    p_signature_svg: signatureDataUrl,
+    p_finalized_pdf_path: storagePath,
+    p_finalized_pdf_sha256: sha256,
+  });
+
+  if (error) {
+    const { error: cleanupError } = await supabase.storage
+      .from(bucket)
+      .remove([storagePath]);
+
+    if (cleanupError) {
+      console.error("FAA 8410-1 archive cleanup failed:", cleanupError);
+    }
+
+    throw error;
+  }
+
+  return data;
+}
+
+export async function completePpcEvent(practicalTestRequestId) {
+  if (!practicalTestRequestId) {
+    throw new Error("A practical-test request ID is required to complete PPC.");
+  }
+
+  const { data, error } = await supabase.rpc("examiner_complete_ppc_event", {
+    p_practical_test_request_id: practicalTestRequestId,
+  });
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        error.details ||
+        error.hint ||
+        "The PPC event could not be completed in Supabase.",
+    );
+  }
+
+  return data;
+}
+
+export async function emailCompletedPpc8410(practicalTestRequestId) {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  if (!session?.access_token) {
+    throw new Error("Examiner sign-in is required to email FAA Form 8410-1.");
+  }
+
+  const response = await fetch("/api/email/practical-test", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      eventType: "ppc_completed_applicant",
+      requestId: practicalTestRequestId,
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(
+      result?.error || "The applicant FAA 8410-1 email could not be sent.",
+    );
+  }
+
+  return result;
 }
 
 export async function loadCurrentExaminerDesigneeProfile() {

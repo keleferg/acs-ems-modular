@@ -4,6 +4,8 @@ import {
   FileCheck2,
   FileUp,
   Loader2,
+  Pencil,
+  Printer,
   RefreshCw,
   Trash2,
 } from "lucide-react";
@@ -35,19 +37,29 @@ type PlanOfAction = {
   practical_test_type_id: string;
   title: string;
   scenario_name: string | null;
-  source_filename: string;
-  source_mime_type: string | null;
-  source_size_bytes: number | null;
-  storage_bucket: string;
-  storage_path: string | null;
-  parse_status:
+
+  source_kind: "uploaded" | "generated";
+
+  source_filename?: string | null;
+  source_mime_type?: string | null;
+  source_size_bytes?: number | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+
+  parse_status?:
     | "uploaded"
     | "processing"
     | "ready"
     | "error";
-  parse_error: string | null;
-  is_active: boolean;
-  sort_order: number;
+
+  parse_error?: string | null;
+  is_active?: boolean;
+  sort_order?: number;
+
+  selection_method?: string | null;
+  status?: string | null;
+  notes?: string | null;
+
   created_at: string;
 };
 
@@ -60,18 +72,16 @@ function sanitizeFilename(value: string) {
 }
 
 function statusLabel(plan: PlanOfAction) {
-  if (plan.parse_status === "ready") {
-    return "Scenario Ready";
+  if (plan.source_kind === "generated") {
+    if (plan.status === "ready") return "Generated Ready";
+    if (plan.status === "used") return "Generated Used";
+    if (plan.status === "archived") return "Archived";
+    return "Generated";
   }
 
-  if (plan.parse_status === "processing") {
-    return "Processing";
-  }
-
-  if (plan.parse_status === "error") {
-    return "Parse Error";
-  }
-
+  if (plan.parse_status === "ready") return "Scenario Ready";
+  if (plan.parse_status === "processing") return "Processing";
+  if (plan.parse_status === "error") return "Parse Error";
   return "Uploaded";
 }
 
@@ -114,7 +124,7 @@ export default function ExaminerPlanOfActionPage() {
       return;
     }
 
-    const [typesResult, plansResult] =
+    const [typesResult, plansResult, generatedPlansResult] =
       await Promise.all([
         supabase.rpc(
           "examiner_get_practical_test_offerings",
@@ -141,12 +151,25 @@ export default function ExaminerPlanOfActionPage() {
           `)
           .eq("examiner_profile_id", user.id)
           .eq("is_active", true)
-          .order("sort_order", {
-            ascending: true,
-          })
-          .order("created_at", {
-            ascending: true,
-          }),
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true }),
+
+        supabase
+          .from("generated_plan_of_actions")
+          .select(`
+            id,
+            examiner_profile_id,
+            practical_test_type_id,
+            title,
+            scenario_name,
+            selection_method,
+            status,
+            notes,
+            created_at
+          `)
+          .eq("examiner_profile_id", user.id)
+          .neq("status", "archived")
+          .order("created_at", { ascending: false }),
       ]);
 
     if (typesResult.error) {
@@ -165,6 +188,14 @@ export default function ExaminerPlanOfActionPage() {
       return;
     }
 
+    if (generatedPlansResult.error) {
+      setErrorMessage(
+        `Generated Plans of Action could not be loaded: ${generatedPlansResult.error.message}`,
+      );
+      setLoading(false);
+      return;
+    }
+
     setTestTypes(
       (
         (typesResult.data ?? []) as PracticalTestType[]
@@ -175,9 +206,20 @@ export default function ExaminerPlanOfActionPage() {
       ),
     );
 
-    setPlans(
-      (plansResult.data ?? []) as PlanOfAction[],
-    );
+    const uploadedPlans = (plansResult.data ?? []).map((plan) => ({
+      ...plan,
+      source_kind: "uploaded" as const,
+    }));
+
+    const generatedPlans = (generatedPlansResult.data ?? []).map((plan) => ({
+      ...plan,
+      source_kind: "generated" as const,
+    }));
+
+    setPlans([
+      ...generatedPlans,
+      ...uploadedPlans,
+    ] as PlanOfAction[]);
 
     setLoading(false);
   }, []);
@@ -212,7 +254,9 @@ export default function ExaminerPlanOfActionPage() {
     plan: PlanOfAction,
   ) {
     const confirmed = window.confirm(
-      `Delete "${plan.scenario_name || plan.title}"?\n\nThis will permanently remove the Plan of Action, generated scenario, and uploaded source file.`,
+      plan.source_kind === "generated"
+        ? `Delete "${plan.scenario_name || plan.title}"?\n\nThis will permanently remove the generated Plan of Action and its frozen question snapshots.`
+        : `Delete "${plan.scenario_name || plan.title}"?\n\nThis will permanently remove the uploaded Plan of Action, generated scenario, and uploaded source file.`,
     );
 
     if (!confirmed) {
@@ -226,7 +270,10 @@ export default function ExaminerPlanOfActionPage() {
     const supabase = createClient();
 
     try {
-      if (plan.storage_path) {
+      if (
+        plan.source_kind === "uploaded" &&
+        plan.storage_path
+      ) {
         const { error: storageError } =
           await supabase.storage
             .from(
@@ -247,7 +294,9 @@ export default function ExaminerPlanOfActionPage() {
       const { error: deleteError } =
         await supabase
           .from(
-            "examiner_plan_of_actions",
+            plan.source_kind === "generated"
+              ? "generated_plan_of_actions"
+              : "examiner_plan_of_actions",
           )
           .delete()
           .eq("id", plan.id);
@@ -482,10 +531,10 @@ export default function ExaminerPlanOfActionPage() {
           </h1>
 
           <p className="mt-2 max-w-3xl text-slate-600">
-            Manage Plans of Action for the
-            practical tests you offer. Each uploaded
-            POA will become a selectable Oral / Flight
-            scenario after it is parsed.
+            Manage uploaded and generated Plans of Action
+            for the practical tests you offer. Generated POAs
+            are immediately available to the Oral / Flight
+            portion; uploaded POAs become available after parsing.
           </p>
         </div>
 
@@ -548,10 +597,21 @@ export default function ExaminerPlanOfActionPage() {
             const testPlans =
               plansByTest.get(testType.id) ?? [];
 
-            const readyCount =
+            const uploadedCount =
               testPlans.filter(
-                (plan) =>
-                  plan.parse_status === "ready",
+                (plan) => plan.source_kind === "uploaded",
+              ).length;
+
+            const generatedCount =
+              testPlans.filter(
+                (plan) => plan.source_kind === "generated",
+              ).length;
+
+            const readyCount =
+              testPlans.filter((plan) =>
+                plan.source_kind === "generated"
+                  ? plan.status === "ready"
+                  : plan.parse_status === "ready",
               ).length;
 
             const uploading =
@@ -575,17 +635,11 @@ export default function ExaminerPlanOfActionPage() {
                     </p>
 
                     <p className="mt-2 text-sm font-semibold text-slate-700">
-                      {testPlans.length} POA
-                      {testPlans.length === 1
-                        ? ""
-                        : "s"}{" "}
-                      uploaded
+                      {uploadedCount} uploaded
                       {" • "}
-                      {readyCount} scenario
-                      {readyCount === 1
-                        ? ""
-                        : "s"}{" "}
-                      ready
+                      {generatedCount} generated
+                      {" • "}
+                      {readyCount} ready
                     </p>
                   </div>
 
@@ -634,9 +688,8 @@ export default function ExaminerPlanOfActionPage() {
                 <div className="p-6">
                   {testPlans.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                      No Plan of Action has been
-                      uploaded for this practical
-                      test.
+                      No uploaded or generated Plan of Action
+                      is available for this practical test.
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -661,7 +714,9 @@ export default function ExaminerPlanOfActionPage() {
 
                               <div className="min-w-0">
                                 <p className="font-semibold text-slate-900">
-                                  Scenario{" "}
+                                  {plan.source_kind === "generated"
+                                    ? "Generated POA"
+                                    : "Uploaded Scenario"}{" "}
                                   {index + 1}
                                   {" — "}
                                   {plan.scenario_name ||
@@ -669,9 +724,9 @@ export default function ExaminerPlanOfActionPage() {
                                 </p>
 
                                 <p className="mt-1 truncate text-sm text-slate-500">
-                                  {
-                                    plan.source_filename
-                                  }
+                                  {plan.source_kind === "generated"
+                                    ? `Question Library • ${plan.selection_method || "generated"}`
+                                    : plan.source_filename}
                                 </p>
 
                                 {plan.parse_error ? (
@@ -685,7 +740,8 @@ export default function ExaminerPlanOfActionPage() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {(plan.parse_status === "uploaded" ||
+                              {plan.source_kind === "uploaded" &&
+                              (plan.parse_status === "uploaded" ||
                                 plan.parse_status === "error") ? (
                                 <button
                                   type="button"
@@ -696,7 +752,7 @@ export default function ExaminerPlanOfActionPage() {
                                   onClick={() =>
                                     void parsePlan(
                                       plan.id,
-                                      plan.source_filename,
+                                      plan.source_filename || "",
                                     )
                                   }
                                   className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -705,6 +761,27 @@ export default function ExaminerPlanOfActionPage() {
                                     ? "Parsing…"
                                     : "Parse / Reparse"}
                                 </button>
+                              ) : null}
+
+                              {plan.source_kind === "generated" ? (
+                                <Link
+                                  href={`/examiner/plan-of-action/generated/${encodeURIComponent(plan.id)}/edit`}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-100"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Edit POA
+                                </Link>
+                              ) : null}
+
+                              {plan.source_kind === "generated" ? (
+                                <Link
+                                  href={`/examiner/plan-of-action/generated/${encodeURIComponent(plan.id)}/print`}
+                                  target="_blank"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-50"
+                                >
+                                  <Printer className="h-3.5 w-3.5" />
+                                  Print / Export PDF
+                                </Link>
                               ) : null}
 
                               <button
