@@ -608,6 +608,7 @@ function getAcsTaskCode(value) {
   return match ? match[1].toUpperCase() : 'UNASSIGNED';
 }
 
+
 function adaptGeneratedPlanToScenario(plan) {
   const questions =
     Array.isArray(plan?.generated_questions)
@@ -618,106 +619,131 @@ function adaptGeneratedPlanToScenario(plan) {
         )
       : [];
 
-  const grouped = [];
-  const groupsByTask = new Map();
+  const flightTasks =
+    Array.isArray(plan?.generated_flight_tasks)
+      ? [...plan.generated_flight_tasks]
+          .filter(task => task?.is_required !== false)
+          .sort(
+            (a, b) =>
+              Number(a?.sort_order || 999999) -
+              Number(b?.sort_order || 999999)
+          )
+      : [];
 
-  for (const question of questions) {
-    const acsCode =
-      String(question?.acs_reference_snapshot || '').trim();
-    const taskCode = getAcsTaskCode(acsCode);
+  const triggers =
+    Array.isArray(plan?.generated_triggers)
+      ? [...plan.generated_triggers].sort(
+          (a, b) =>
+            Number(a?.sort_order || 999999) -
+            Number(b?.sort_order || 999999)
+        )
+      : [];
 
-    let group = groupsByTask.get(taskCode);
+  const oralTimeline = [
+    ...questions.map(question => ({
+      kind: 'question',
+      sortOrder: Number(question?.sort_order || 999999),
+      question
+    })),
+    ...triggers
+      .filter(trigger => trigger?.placement_section !== 'flight')
+      .map(trigger => ({
+        kind: 'trigger',
+        sortOrder: Number(trigger?.sort_order || 999999),
+        trigger
+      }))
+  ].sort(
+    (a, b) =>
+      a.sortOrder - b.sortOrder ||
+      (a.kind === 'trigger' ? -1 : 1)
+  );
 
-    if (!group) {
-      group = {
-        taskCode,
-        taskName:
-          String(question?.task_name_snapshot || '').trim(),
-        questions: []
+  const flows = oralTimeline.map((entry, index) => {
+    if (entry.kind === 'trigger') {
+      return {
+        flow: {
+          Flow_Type: 'Trigger',
+          Title:
+            entry.trigger?.trigger_text_snapshot ||
+            'Scenario Trigger',
+          Narrative:
+            entry.trigger?.trigger_narrative_snapshot || ''
+        },
+        items: []
       };
-      groupsByTask.set(taskCode, group);
-      grouped.push(group);
     }
 
-    group.questions.push(question);
-  }
+    const question = entry.question;
+    const answerParts = [];
+    const answer = String(question?.answer_snapshot || '').trim();
+    const reference = String(question?.reference_snapshot || '').trim();
+
+    if (answer) answerParts.push(answer);
+    if (reference) answerParts.push(`Reference: ${reference}`);
+
+    return {
+      flow: {
+        Flow_Type: 'Question_Block',
+        Title: '',
+        Narrative: ''
+      },
+      items: [{
+        Question_ID:
+          question?.id ||
+          `GENERATED-${plan.id}-${index + 1}`,
+        Question: question?.question_snapshot || '',
+        Answer: answerParts.join(' — '),
+        ACS_Code: question?.acs_reference_snapshot || '',
+        Applicable_Rating: 'ALL'
+      }]
+    };
+  });
 
   const scenario = {
-    Scenario_ID:
-      `GENERATED-POA-${plan.id}`,
+    Scenario_ID: `GENERATED-POA-${plan.id}`,
     Scenario_Name:
       plan.scenario_name ||
       plan.title ||
       'Generated Plan of Action',
     Scenario_Brief:
       plan.notes ||
-      'Generated from the EMT Question Library.',
-    Description:
-      plan.notes || '',
+      'Plan of Action generated in EMS.',
+    Description: plan.notes || '',
     Source_Revision: '',
-    Practical_Test_Type_ID:
-      plan.practical_test_type_id,
-    Plan_Of_Action_ID:
-      plan.id,
-    Database_POA:
-      true,
-    Generated_POA:
-      true,
-    Flight_Task_Order: []
+    Practical_Test_Type_ID: plan.practical_test_type_id,
+    Plan_Of_Action_ID: plan.id,
+    Database_POA: true,
+    Generated_POA: true,
+    Flight_Task_Order:
+      flightTasks
+        .map(task =>
+          String(task?.acs_task_code_snapshot || '').trim()
+        )
+        .filter(Boolean),
+    Flight_Triggers:
+      triggers
+        .filter(trigger => trigger?.placement_section === 'flight')
+        .map(trigger => ({
+          id: trigger?.id || '',
+          title:
+            trigger?.trigger_text_snapshot ||
+            'Scenario Trigger',
+          narrative:
+            trigger?.trigger_narrative_snapshot || '',
+          sort_order:
+            Number(trigger?.sort_order || 999999)
+        }))
   };
-
-  const generatedSegments =
-    grouped.map((group, sectionIndex) => ({
-      phase: {
-        Phase_ID:
-          `GENERATED-PHASE-${sectionIndex + 1}`,
-        Phase_Name:
-          group.taskCode === 'UNASSIGNED'
-            ? 'Oral Questions'
-            : `${group.taskCode}${group.taskName ? ` — ${group.taskName}` : ''}`
-      },
-      flows: [
-        {
-          flow: {
-            Flow_Type: 'Question_Block',
-            Title: '',
-            Narrative: ''
-          },
-          items: group.questions.map(question => {
-            const answerParts = [];
-            const answer =
-              String(question?.answer_snapshot || '').trim();
-            const reference =
-              String(question?.reference_snapshot || '').trim();
-
-            if (answer) {
-              answerParts.push(answer);
-            }
-
-            if (reference) {
-              answerParts.push(`Reference: ${reference}`);
-            }
-
-            return {
-              Question_ID:
-                question?.id ||
-                `GENERATED-${plan.id}-${question?.sort_order || ''}`,
-              Question:
-                question?.question_snapshot || '',
-              Answer:
-                answerParts.join(' — '),
-              ACS_Code:
-                question?.acs_reference_snapshot || '',
-              Applicable_Rating: 'ALL'
-            };
-          })
-        }
-      ]
-    }));
 
   return {
     scenario,
-    generatedSegments
+    generatedSegments: [{
+      phase: {
+        Phase_ID: 'GENERATED-PHASE-CHRONOLOGICAL',
+        Phase_Name: 'Chronological Oral / Ground'
+      },
+      flows
+    }]
   };
 }
 
@@ -1588,6 +1614,38 @@ function resolveScenarioFlightTasks(
   return resolved;
 }
 
+
+function buildEmtFlightTriggerCard(trigger) {
+  const card = document.createElement('div');
+
+  card.className = 'scenario-flight-trigger';
+  card.dataset.poaTrigger = 'true';
+  card.style.marginBottom = '10px';
+  card.style.padding = '12px 14px';
+  card.style.borderLeft = '4px solid #f59e0b';
+  card.style.background = '#fffbeb';
+  card.style.borderRadius = '8px';
+
+  card.innerHTML = `
+    <div style="
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-bottom:6px;
+    ">
+      <strong style="color:#92400e;">TRIGGER</strong>
+      <strong>${escapeHtml(trigger?.title || 'Scenario Trigger')}</strong>
+    </div>
+
+    <div style="line-height:1.5;color:#334155;">
+      ${escapeHtml(trigger?.narrative || '')}
+    </div>
+  `;
+
+  return card;
+}
+
 function renderFlightPortionDetailed() {
   const container = document.getElementById('flightDetailedContainer');
   if (!container) return;
@@ -1602,6 +1660,16 @@ function renderFlightPortionDetailed() {
     storedScenario?.Flight_Task_Order
   )
     ? storedScenario.Flight_Task_Order
+    : [];
+
+  const flightTriggers = Array.isArray(
+    storedScenario?.Flight_Triggers
+  )
+    ? [...storedScenario.Flight_Triggers].sort(
+        (a, b) =>
+          Number(a?.sort_order || 999999) -
+          Number(b?.sort_order || 999999)
+      )
     : [];
 
   const resolvedScenarioTasks =
@@ -1643,7 +1711,25 @@ function renderFlightPortionDetailed() {
 
   const list = document.getElementById('flightTaskSortableList');
 
-  orderedTasks.forEach(task => {
+  let nextFlightTriggerIndex = 0;
+
+  orderedTasks.forEach((task, taskIndex) => {
+    const taskSortOrder = (taskIndex + 1) * 10;
+
+    while (
+      nextFlightTriggerIndex < flightTriggers.length &&
+      Number(
+        flightTriggers[nextFlightTriggerIndex]?.sort_order || 999999
+      ) < taskSortOrder
+    ) {
+      list.appendChild(
+        buildEmtFlightTriggerCard(
+          flightTriggers[nextFlightTriggerIndex]
+        )
+      );
+      nextFlightTriggerIndex += 1;
+    }
+
     const temp = document.createElement('div');
 
     window.renderFlightDetailedArea?.(temp, {
@@ -1678,6 +1764,17 @@ function renderFlightPortionDetailed() {
 
     list.appendChild(taskCard);
   });
+
+  while (
+    nextFlightTriggerIndex < flightTriggers.length
+  ) {
+    list.appendChild(
+      buildEmtFlightTriggerCard(
+        flightTriggers[nextFlightTriggerIndex]
+      )
+    );
+    nextFlightTriggerIndex += 1;
+  }
 
   simplifyFlightTaskCardsToSkillOnly();
   wireFlightTaskCardEvents();

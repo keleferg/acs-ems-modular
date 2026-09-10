@@ -18,6 +18,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
+import {
+  deriveAllFlightTasksFromAcsCatalog,
+  filterFlightTasksByParentCodes,
+  normalizeAdditionalMapCodes,
+} from "@/lib/poa/flight-tasks";
+
+import { ADDITIONAL_MAPS } from "@/public/ems/js/config/config.js";
 
 function acsPrefix(reference: string) {
   const cleaned = reference.trim().toUpperCase();
@@ -218,6 +225,13 @@ function complianceParentCode(reference: string) {
   return match?.[1] ?? null;
 }
 
+type SavedGeneratedPoa = {
+  id: string;
+  title: string;
+  status: string | null;
+  created_at: string;
+};
+
 type PracticalTestType = {
   id: string;
 
@@ -417,6 +431,18 @@ export default function GeneratePoaPage() {
 
   const [generatedPoaId, setGeneratedPoaId] = useState("");
 
+  const [savedPoaVersions, setSavedPoaVersions] =
+    useState<SavedGeneratedPoa[]>([]);
+
+  const [loadingPoaVersions, setLoadingPoaVersions] =
+    useState(false);
+
+  const [selectedPoaVersionId, setSelectedPoaVersionId] =
+    useState("new");
+
+  const [additionalRatingHeld, setAdditionalRatingHeld] =
+    useState("");
+
   useEffect(() => {
     let cancelled = false;
 
@@ -596,6 +622,124 @@ export default function GeneratePoaPage() {
     }
   }, [loadPage, testTypeId]);
 
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSavedPoaVersions() {
+      if (!testTypeId) {
+        setSavedPoaVersions([]);
+        setSelectedPoaVersionId("new");
+        return;
+      }
+
+      setLoadingPoaVersions(true);
+
+      const supabase = createClient();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        if (!cancelled) {
+          setSavedPoaVersions([]);
+          setLoadingPoaVersions(false);
+        }
+
+        return;
+      }
+
+      const { data, error } =
+        await supabase
+          .from("generated_plan_of_actions")
+          .select(`
+            id,
+            title,
+            status,
+            created_at
+          `)
+          .eq(
+            "examiner_profile_id",
+            user.id,
+          )
+          .eq(
+            "practical_test_type_id",
+            testTypeId,
+          )
+          .order("created_at", {
+            ascending: true,
+          });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        setSavedPoaVersions([]);
+        setLoadingPoaVersions(false);
+        return;
+      }
+
+      setSavedPoaVersions(
+        (data ?? []) as SavedGeneratedPoa[],
+      );
+
+      setLoadingPoaVersions(false);
+    }
+
+    void loadSavedPoaVersions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [testTypeId]);
+
+  function formatSavedPoaVersion(
+    poa: SavedGeneratedPoa,
+    index: number,
+  ) {
+    const created =
+      new Date(poa.created_at);
+
+    const dateText =
+      Number.isNaN(created.getTime())
+        ? ""
+        : created.toLocaleString(
+            undefined,
+            {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            },
+          );
+
+    return `Version ${index + 1}${
+      dateText
+        ? ` — ${dateText}`
+        : ""
+    }`;
+  }
+
+  function selectPoaVersion(
+    value: string,
+  ) {
+    setSelectedPoaVersionId(
+      value,
+    );
+
+    if (value === "new") {
+      return;
+    }
+
+    window.location.href =
+      `/examiner/plan-of-action/generated/${encodeURIComponent(
+        value,
+      )}/edit`;
+  }
+
   function selectPracticalTest(nextTestTypeId: string) {
     setTestTypeId(nextTestTypeId);
 
@@ -609,6 +753,7 @@ export default function GeneratePoaPage() {
     setMessage("");
     setErrorMessage("");
     setGeneratedPoaId("");
+    setAdditionalRatingHeld("");
 
     const url = new URL(window.location.href);
 
@@ -636,6 +781,127 @@ export default function GeneratePoaPage() {
       ),
     ];
   }
+
+  const isAdditionalIssuance = useMemo(() => {
+    if (!testType) {
+      return false;
+    }
+
+    const code =
+      (testType.issuance_code ?? "")
+        .trim()
+        .toUpperCase();
+
+    const name =
+      (testType.issuance_name ?? "")
+        .trim()
+        .toLowerCase();
+
+    return (
+      code === "ADDITIONAL" ||
+      name.includes("additional")
+    );
+  }, [testType]);
+
+  const additionalMapCertificateKey =
+    useMemo(() => {
+      if (!testType) {
+        return "";
+      }
+
+      const certificate =
+        testType.certificate_name
+          .trim()
+          .toLowerCase();
+
+      if (certificate.includes("private")) {
+        return "Private";
+      }
+
+      if (certificate.includes("commercial")) {
+        return "Commercial";
+      }
+
+      if (certificate.includes("instrument")) {
+        return "Instrument";
+      }
+
+      if (certificate.includes("airline transport")) {
+        return "ATP";
+      }
+
+      if (certificate.includes("flight instructor")) {
+        return "CFI";
+      }
+
+      return "";
+    }, [testType]);
+
+  const additionalTargetRatingKey =
+    useMemo(() => {
+      if (!testType) {
+        return "";
+      }
+
+      const classCode =
+        (testType.class_code ?? "")
+          .trim()
+          .toUpperCase();
+
+      if (
+        ["ASEL", "AMEL", "ASES", "AMES"].includes(
+          classCode,
+        )
+      ) {
+        return classCode;
+      }
+
+      return testType.rating_name.trim();
+    }, [testType]);
+
+  const additionalHeldOptions =
+    useMemo(() => {
+      if (
+        !isAdditionalIssuance ||
+        !additionalMapCertificateKey ||
+        !additionalTargetRatingKey
+      ) {
+        return [];
+      }
+
+      const certificateMaps =
+        (
+          ADDITIONAL_MAPS as Record<
+            string,
+            Record<string, unknown>
+          >
+        )[additionalMapCertificateKey] ?? {};
+
+      const prefix =
+        `${additionalTargetRatingKey}_from_`;
+
+      return Object.keys(certificateMaps)
+        .filter((key) =>
+          key.startsWith(prefix),
+        )
+        .map((key) =>
+          key.slice(prefix.length),
+        )
+        .sort((a, b) =>
+          a.localeCompare(
+            b,
+            undefined,
+            {
+              numeric: true,
+              sensitivity: "base",
+            },
+          ),
+        );
+    }, [
+      additionalMapCertificateKey,
+      additionalTargetRatingKey,
+      isAdditionalIssuance,
+    ]);
 
   const filteredQuestions = useMemo(() => {
     const search = searchText.trim().toLowerCase();
@@ -1123,6 +1389,131 @@ export default function GeneratePoaPage() {
         return a.question.localeCompare(b.question);
       });
 
+      let generatedFlightTasks =
+        deriveAllFlightTasksFromAcsCatalog(
+          complianceAcsPrefixes,
+        );
+
+      if (isAdditionalIssuance) {
+        if (!additionalRatingHeld) {
+          throw new Error(
+            "Select the rating already held before generating an Additional Rating POA.",
+          );
+        }
+
+        const certificateMaps =
+          (
+            ADDITIONAL_MAPS as Record<
+              string,
+              Record<string, unknown>
+            >
+          )[additionalMapCertificateKey] ?? {};
+
+        const mapKey =
+          `${additionalTargetRatingKey}_from_${additionalRatingHeld}`;
+
+        const parentCodes =
+          normalizeAdditionalMapCodes(
+            certificateMaps[mapKey],
+            complianceAcsPrefixes[0] ?? "",
+          );
+
+        if (parentCodes.length === 0) {
+          throw new Error(
+            `No Additional Rating ACS task map was found for ${mapKey}.`,
+          );
+        }
+
+        generatedFlightTasks =
+          filterFlightTasksByParentCodes(
+            generatedFlightTasks,
+            parentCodes,
+          );
+      }
+
+      const commercialSingleEngineOriginal =
+        (testType.certificate_code ?? "")
+          .toUpperCase() === "COMMERCIAL" &&
+        (testType.category_code ?? "")
+          .toUpperCase() === "AIRPLANE" &&
+        ["ASEL", "ASES"].includes(
+          (testType.class_code ?? "")
+            .toUpperCase(),
+        ) &&
+        isOriginalIssuance(testType);
+
+      if (commercialSingleEngineOriginal) {
+        const selectedParents = new Set(
+          selectedQuestions.flatMap(
+            (question) =>
+              acsReferencesForQuestion(question)
+                .map((reference) =>
+                  taskParentFromReference(reference),
+                )
+                .filter(
+                  (value): value is string =>
+                    Boolean(value),
+                ),
+          ),
+        );
+
+        const chooseFromPair = (
+          first: string,
+          second: string,
+        ) => {
+          if (
+            selectedParents.has(first) &&
+            !selectedParents.has(second)
+          ) {
+            return first;
+          }
+
+          if (
+            selectedParents.has(second) &&
+            !selectedParents.has(first)
+          ) {
+            return second;
+          }
+
+          return first;
+        };
+
+        const firstChoice =
+          chooseFromPair(
+            "CA.V.A",
+            "CA.V.B",
+          );
+
+        const secondChoice =
+          chooseFromPair(
+            "CA.V.C",
+            "CA.V.D",
+          );
+
+        generatedFlightTasks =
+          generatedFlightTasks
+            .filter(
+              (task) =>
+                ![
+                  "CA.V.A",
+                  "CA.V.B",
+                  "CA.V.C",
+                  "CA.V.D",
+                ].includes(
+                  task.acs_task_code_snapshot,
+                ) ||
+                task.acs_task_code_snapshot ===
+                  firstChoice ||
+                task.acs_task_code_snapshot ===
+                  secondChoice,
+            )
+            .map((task, index) => ({
+              ...task,
+              sort_order:
+                (index + 1) * 10,
+            }));
+      }
+
       const snapshots = orderedSelected.map((question, index) => ({
         generated_plan_of_action_id: generated.id,
 
@@ -1160,11 +1551,35 @@ export default function GeneratePoaPage() {
         );
       }
 
+      const {
+        error: flightTaskError,
+      } = await supabase.rpc(
+        "examiner_replace_generated_poa_flight_tasks",
+        {
+          p_generated_plan_of_action_id:
+            generated.id,
+          p_tasks: generatedFlightTasks,
+        },
+      );
+
+      if (flightTaskError) {
+        await supabase
+          .from("generated_plan_of_actions")
+          .delete()
+          .eq("id", generated.id);
+
+        throw new Error(
+          `Flight task snapshots could not be saved: ${flightTaskError.message}`,
+        );
+      }
+
       setGeneratedPoaId(generated.id);
 
       setMessage(
         `${title.trim()} generated successfully with ${selectedQuestions.length} question${
           selectedQuestions.length === 1 ? "" : "s"
+        } and ${generatedFlightTasks.length} flight task${
+          generatedFlightTasks.length === 1 ? "" : "s"
         }.`,
       );
     } catch (error) {
@@ -1263,6 +1678,48 @@ export default function GeneratePoaPage() {
         </div>
       </section>
 
+      {testType && isAdditionalIssuance ? (
+        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
+            <div>
+              <p className="text-sm font-bold text-slate-900">
+                Rating Already Held
+              </p>
+
+              <p className="mt-1 text-xs text-slate-600">
+                Required to determine the correct FAA
+                Additional Rating flight-task matrix.
+              </p>
+            </div>
+
+            <select
+              value={additionalRatingHeld}
+              onChange={(event) =>
+                setAdditionalRatingHeld(
+                  event.target.value,
+                )
+              }
+              className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
+            >
+              <option value="">
+                Select rating already held
+              </option>
+
+              {additionalHeldOptions.map(
+                (held) => (
+                  <option
+                    key={held}
+                    value={held}
+                  >
+                    {held}
+                  </option>
+                ),
+              )}
+            </select>
+          </div>
+        </section>
+      ) : null}
+
       {message ? (
         <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">
           <div className="flex items-start gap-3">
@@ -1297,17 +1754,58 @@ export default function GeneratePoaPage() {
         <>
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
-              <label>
+              <div>
                 <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  POA Title
+                  POA Version
                 </span>
 
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
-                />
-              </label>
+                <select
+                  value={selectedPoaVersionId}
+                  onChange={(event) =>
+                    selectPoaVersion(
+                      event.target.value,
+                    )
+                  }
+                  disabled={loadingPoaVersions}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
+                >
+                  <option value="new">
+                    {loadingPoaVersions
+                      ? "Loading saved POAs…"
+                      : `New POA — ${testType.display_name}`}
+                  </option>
+
+                  {savedPoaVersions.map(
+                    (poa, index) => (
+                      <option
+                        key={poa.id}
+                        value={poa.id}
+                      >
+                        {formatSavedPoaVersion(
+                          poa,
+                          index,
+                        )}
+                      </option>
+                    ),
+                  )}
+                </select>
+
+                <label className="mt-4 block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">
+                    New POA Title
+                  </span>
+
+                  <input
+                    value={title}
+                    onChange={(event) =>
+                      setTitle(
+                        event.target.value,
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
+                  />
+                </label>
+              </div>
 
               <div>
                 <p className="mb-2 text-sm font-semibold text-slate-700">

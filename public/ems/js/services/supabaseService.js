@@ -467,6 +467,68 @@ export async function loadEmtReadyGeneratedPlanOfActions() {
     throw questionError;
   }
 
+
+  const [
+    { data: flightTasks, error: flightTaskError },
+    { data: generatedTriggers, error: generatedTriggerError }
+  ] = await Promise.all([
+    supabase
+      .from("generated_plan_of_action_flight_tasks")
+      .select(`
+        id,
+        generated_plan_of_action_id,
+        acs_task_code_snapshot,
+        area_name_snapshot,
+        task_name_snapshot,
+        skill_elements_snapshot,
+        examiner_notes,
+        is_required,
+        sort_order
+      `)
+      .in("generated_plan_of_action_id", planIds)
+      .order("sort_order", { ascending: true }),
+
+    supabase
+      .from("generated_plan_of_action_triggers")
+      .select(`
+        id,
+        generated_plan_of_action_id,
+        trigger_library_id,
+        placement_section,
+        category_snapshot,
+        trigger_text_snapshot,
+        trigger_narrative_snapshot,
+        sort_order
+      `)
+      .in("generated_plan_of_action_id", planIds)
+      .order("sort_order", { ascending: true })
+  ]);
+
+  if (flightTaskError) throw flightTaskError;
+  if (generatedTriggerError) throw generatedTriggerError;
+
+  const flightTasksByPlan = new Map();
+
+  for (const task of Array.isArray(flightTasks) ? flightTasks : []) {
+    const planId = task?.generated_plan_of_action_id;
+    if (!planId) continue;
+    if (!flightTasksByPlan.has(planId)) {
+      flightTasksByPlan.set(planId, []);
+    }
+    flightTasksByPlan.get(planId).push(task);
+  }
+
+  const triggersByPlan = new Map();
+
+  for (const trigger of Array.isArray(generatedTriggers) ? generatedTriggers : []) {
+    const planId = trigger?.generated_plan_of_action_id;
+    if (!planId) continue;
+    if (!triggersByPlan.has(planId)) {
+      triggersByPlan.set(planId, []);
+    }
+    triggersByPlan.get(planId).push(trigger);
+  }
+
   const questionsByPlan = new Map();
 
   for (const question of Array.isArray(questions) ? questions : []) {
@@ -483,6 +545,8 @@ export async function loadEmtReadyGeneratedPlanOfActions() {
   return readyPlans.map((plan) => ({
     ...plan,
     generated_questions: questionsByPlan.get(plan.id) || [],
+    generated_flight_tasks: flightTasksByPlan.get(plan.id) || [],
+    generated_triggers: triggersByPlan.get(plan.id) || [],
     poa_source: "generated",
   }));
 }

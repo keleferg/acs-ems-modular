@@ -34,6 +34,30 @@ type GeneratedQuestion = {
   sort_order: number | null;
 };
 
+type GeneratedPoaTrigger = {
+  id: string;
+  placement_section: "oral" | "flight";
+  category_snapshot: string | null;
+  trigger_text_snapshot: string;
+  trigger_narrative_snapshot: string;
+  sort_order: number;
+};
+
+
+type GeneratedFlightTask = {
+  id: string;
+  acs_task_code_snapshot: string;
+  area_name_snapshot: string | null;
+  task_name_snapshot: string;
+  skill_elements_snapshot: Array<{
+    code: string;
+    label: string;
+  }>;
+  examiner_notes: string | null;
+  is_required: boolean;
+  sort_order: number;
+};
+
 type PracticalTestType = {
   id: string;
   display_name: string;
@@ -226,6 +250,13 @@ function GeneratedPoaPrintContent() {
   const [questions, setQuestions] =
     useState<GeneratedQuestion[]>([]);
 
+
+  const [poaTriggers, setPoaTriggers] =
+    useState<GeneratedPoaTrigger[]>([]);
+
+  const [flightTasks, setFlightTasks] =
+    useState<GeneratedFlightTask[]>([]);
+
   const [testType, setTestType] =
     useState<PracticalTestType | null>(null);
 
@@ -234,6 +265,42 @@ function GeneratedPoaPrintContent() {
 
   const [errorMessage, setErrorMessage] =
     useState("");
+
+
+  useEffect(() => {
+    if (!id) return;
+
+    let cancelled = false;
+
+    async function loadFrozenPoaTriggers() {
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from("generated_plan_of_action_triggers")
+        .select(`
+          id,
+          placement_section,
+          category_snapshot,
+          trigger_text_snapshot,
+          trigger_narrative_snapshot,
+          sort_order
+        `)
+        .eq("generated_plan_of_action_id", id)
+        .order("sort_order", { ascending: true });
+
+      if (cancelled || error) return;
+
+      setPoaTriggers(
+        (data ?? []) as GeneratedPoaTrigger[],
+      );
+    }
+
+    void loadFrozenPoaTriggers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!id) {
@@ -340,6 +407,40 @@ function GeneratedPoaPrintContent() {
           .single(),
       ]);
 
+      const flightTaskResult =
+        await supabase
+          .from(
+            "generated_plan_of_action_flight_tasks",
+          )
+          .select(`
+            id,
+            acs_task_code_snapshot,
+            area_name_snapshot,
+            task_name_snapshot,
+            skill_elements_snapshot,
+            examiner_notes,
+            is_required,
+            sort_order
+          `)
+          .eq(
+            "generated_plan_of_action_id",
+            id,
+          )
+          .order("sort_order", {
+            ascending: true,
+          });
+
+      if (flightTaskResult.error) {
+        if (!cancelled) {
+          setErrorMessage(
+            `Flight tasks could not be loaded: ${flightTaskResult.error.message}`,
+          );
+          setLoading(false);
+        }
+
+        return;
+      }
+
       if (questionResult.error) {
         if (!cancelled) {
           setErrorMessage(
@@ -357,6 +458,20 @@ function GeneratedPoaPrintContent() {
         setQuestions(
           (questionResult.data ??
             []) as GeneratedQuestion[],
+        );
+
+        setFlightTasks(
+          (flightTaskResult.data ?? []).map(
+            (task) => ({
+              ...task,
+              skill_elements_snapshot:
+                Array.isArray(
+                  task.skill_elements_snapshot,
+                )
+                  ? task.skill_elements_snapshot
+                  : [],
+            }),
+          ) as GeneratedFlightTask[],
         );
 
         setTestType(
@@ -429,6 +544,69 @@ function GeneratedPoaPrintContent() {
     return [...areas.entries()];
   }, [taskGroups]);
 
+  const chronologicalOralTimeline =
+    useMemo(() => {
+      return [
+        ...questions.map((question) => ({
+          kind: "question" as const,
+          sortOrder: Number(
+            question.sort_order ?? 999999,
+          ),
+          question,
+        })),
+        ...poaTriggers
+          .filter(
+            (trigger) =>
+              trigger.placement_section === "oral",
+          )
+          .map((trigger) => ({
+            kind: "trigger" as const,
+            sortOrder: Number(
+              trigger.sort_order ?? 999999,
+            ),
+            trigger,
+          })),
+      ].sort(
+        (a, b) =>
+          a.sortOrder - b.sortOrder ||
+          (a.kind === "trigger" ? -1 : 1),
+      );
+    }, [questions, poaTriggers]);
+
+  const chronologicalFlightTimeline =
+    useMemo(() => {
+      return [
+        ...flightTasks
+          .filter(
+            (task) =>
+              task.is_required !== false,
+          )
+          .map((task) => ({
+            kind: "task" as const,
+            sortOrder: Number(
+              task.sort_order ?? 999999,
+            ),
+            task,
+          })),
+        ...poaTriggers
+          .filter(
+            (trigger) =>
+              trigger.placement_section === "flight",
+          )
+          .map((trigger) => ({
+            kind: "trigger" as const,
+            sortOrder: Number(
+              trigger.sort_order ?? 999999,
+            ),
+            trigger,
+          })),
+      ].sort(
+        (a, b) =>
+          a.sortOrder - b.sortOrder ||
+          (a.kind === "trigger" ? -1 : 1),
+      );
+    }, [flightTasks, poaTriggers]);
+
   if (loading) {
     return (
       <main className="loading">
@@ -464,7 +642,8 @@ function GeneratedPoaPrintContent() {
         </button>
 
         <span>
-          {questions.length} questions
+          {questions.length} oral questions •{" "}
+          {flightTasks.length} flight tasks
         </span>
       </div>
 
@@ -787,7 +966,89 @@ function GeneratedPoaPrintContent() {
             SECTION I — ORAL / GROUND PORTION
           </h2>
 
-          {groupedAreas.map(
+
+          {/* POA-CHRONOLOGICAL-ORAL-START */}
+          <div className="chronological-poa">
+            {chronologicalOralTimeline.map((entry, index) => {
+              if (entry.kind === "trigger") {
+                return (
+                  <article
+                    key={`oral-trigger-${entry.trigger.id}-${index}`}
+                    style={{
+                      margin: "16px 0",
+                      padding: "14px 16px",
+                      borderLeft: "5px solid #f59e0b",
+                      background: "#fffbeb",
+                      borderRadius: "8px",
+                      breakInside: "avoid",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        color: "#92400e",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      TRIGGER —{" "}
+                      {entry.trigger.trigger_text_snapshot}
+                    </div>
+
+                    <div>
+                      {entry.trigger.trigger_narrative_snapshot}
+                    </div>
+                  </article>
+                );
+              }
+
+              const question = entry.question;
+
+              return (
+                <article
+                  key={question.id}
+                  className="question-block"
+                >
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      marginBottom: "4px",
+                      color: "#475569",
+                    }}
+                  >
+                    {question.acs_reference_snapshot || "ACS"}
+                    {question.task_name_snapshot
+                      ? ` — ${question.task_name_snapshot}`
+                      : ""}
+                  </div>
+
+                  <div className="question-line">
+                    <span className="question-box">□</span>
+                    <span>{question.question_snapshot}</span>
+                  </div>
+
+                  {question.answer_snapshot ? (
+                    <div className="guidance">
+                      <em>Examiner guidance:</em>{" "}
+                      {question.answer_snapshot}
+                    </div>
+                  ) : null}
+
+                  <div className="acs-reference">
+                    {question.reference_snapshot ? (
+                      <>
+                        <em>Reference:</em>{" "}
+                        {question.reference_snapshot}
+                      </>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {/* POA-CHRONOLOGICAL-ORAL-END */}
+
+          {false && groupedAreas.map(
             ([area, groups]) => (
               <section
                 key={area}
@@ -877,6 +1138,174 @@ function GeneratedPoaPrintContent() {
               </section>
             ),
           )}
+
+          <section className="postflight-block">
+            <h2 className="section-title">
+              SECTION II — FLIGHT PORTION
+            </h2>
+
+          {/* POA-CHRONOLOGICAL-FLIGHT-START */}
+          <div className="chronological-poa">
+            {chronologicalFlightTimeline.map((entry, index) => {
+              if (entry.kind === "trigger") {
+                return (
+                  <article
+                    key={`flight-trigger-${entry.trigger.id}-${index}`}
+                    style={{
+                      margin: "16px 0",
+                      padding: "14px 16px",
+                      borderLeft: "5px solid #f59e0b",
+                      background: "#fffbeb",
+                      borderRadius: "8px",
+                      breakInside: "avoid",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        color: "#92400e",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      TRIGGER —{" "}
+                      {entry.trigger.trigger_text_snapshot}
+                    </div>
+
+                    <div>
+                      {entry.trigger.trigger_narrative_snapshot}
+                    </div>
+                  </article>
+                );
+              }
+
+              const task = entry.task;
+
+              return (
+                <article
+                  key={
+                    task.id ||
+                    `${task.acs_task_code_snapshot}-${index}`
+                  }
+                  className="question-block"
+                >
+                  <div style={{ fontWeight: 800 }}>
+                    {task.acs_task_code_snapshot} —{" "}
+                    {task.task_name_snapshot}
+                  </div>
+
+                  {Array.isArray(
+                    task.skill_elements_snapshot,
+                  ) &&
+                  task.skill_elements_snapshot.length > 0 ? (
+                    <div
+                      style={{
+                        marginTop: "6px",
+                        fontSize: "11px",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      <strong>Skills:</strong>{" "}
+                      {task.skill_elements_snapshot.join("; ")}
+                    </div>
+                  ) : null}
+
+                  {task.examiner_notes ? (
+                    <div className="guidance">
+                      <em>Examiner notes:</em>{" "}
+                      {task.examiner_notes}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+          {/* POA-CHRONOLOGICAL-FLIGHT-END */}
+
+
+            {flightTasks.length === 0 ? (
+              <div className="question-block">
+                No frozen flight-task sequence is
+                attached to this POA.
+              </div>
+            ) : (
+              flightTasks.map(
+                (task, index) => (
+                  <article
+                    key={task.id}
+                    className="task-block"
+                  >
+                    <h3 className="task-title">
+                      {index + 1}.{" "}
+                      {
+                        task.acs_task_code_snapshot
+                      }{" "}
+                      —{" "}
+                      {task.task_name_snapshot.toUpperCase()}
+                    </h3>
+
+                    {task.skill_elements_snapshot.length >
+                    0 ? (
+                      <div>
+                        {task.skill_elements_snapshot.map(
+                          (skill) => (
+                            <div
+                              key={
+                                skill.code
+                              }
+                              className="question-line"
+                            >
+                              <span className="question-box">
+                                □
+                              </span>
+
+                              <span>
+                                <strong>
+                                  {
+                                    skill.code
+                                  }
+                                </strong>
+                                {" — "}
+                                {
+                                  skill.label
+                                }
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    ) : (
+                      <div className="question-line">
+                        <span className="question-box">
+                          □
+                        </span>
+
+                        <span>
+                          Complete all applicable
+                          Skill elements for this ACS
+                          Task.
+                        </span>
+                      </div>
+                    )}
+
+                    {task.examiner_notes ? (
+                      <div className="guidance">
+                        <em>
+                          Examiner flight notes:
+                        </em>{" "}
+                        {
+                          task.examiner_notes
+                        }
+                      </div>
+                    ) : null}
+
+                    <div className="notes-line">
+                      Examiner Notes: ________________________________________________
+                    </div>
+                  </article>
+                ),
+              )
+            )}
+          </section>
 
           <section className="postflight-block">
             <h2 className="section-title">
