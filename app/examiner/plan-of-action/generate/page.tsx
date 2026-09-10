@@ -225,6 +225,17 @@ function complianceParentCode(reference: string) {
   return match?.[1] ?? null;
 }
 
+type GeneratorScenarioOption = {
+  id: string;
+  scenario_name: string;
+  scenario_brief: string | null;
+  departure: string | null;
+  destination: string | null;
+  aircraft: string | null;
+  initial_conditions: string | null;
+  examiner_notes: string | null;
+};
+
 type SavedGeneratedPoa = {
   id: string;
   title: string;
@@ -433,6 +444,17 @@ export default function GeneratePoaPage() {
 
   const [savedPoaVersions, setSavedPoaVersions] =
     useState<SavedGeneratedPoa[]>([]);
+
+
+  const [scenarioOptions, setScenarioOptions] =
+    useState<GeneratorScenarioOption[]>([]);
+
+  const [selectedScenarioId, setSelectedScenarioId] =
+    useState("");
+
+  const [loadingScenarios, setLoadingScenarios] =
+    useState(false);
+
 
   const [loadingPoaVersions, setLoadingPoaVersions] =
     useState(false);
@@ -1300,6 +1322,112 @@ export default function GeneratePoaPage() {
     return acsReferencesForQuestion(question)[0] ?? "";
   }
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadGeneratorScenarios() {
+      if (!testType?.id) {
+        setScenarioOptions([]);
+        setSelectedScenarioId("");
+        return;
+      }
+
+      setLoadingScenarios(true);
+
+      const supabase = createClient();
+
+      const {
+        data: mappings,
+        error: mappingError,
+      } = await supabase
+        .from("poa_scenario_practical_test_types")
+        .select("scenario_id")
+        .eq(
+          "practical_test_type_id",
+          testType.id,
+        );
+
+      if (cancelled) {
+        return;
+      }
+
+      const mappedIds = mappingError
+        ? []
+        : (mappings ?? [])
+            .map((row) =>
+              String(row.scenario_id || ""),
+            )
+            .filter(Boolean);
+
+      let scenarioQuery = supabase
+        .from("poa_scenarios")
+        .select(`
+          id,
+          scenario_name,
+          scenario_brief,
+          departure,
+          destination,
+          aircraft,
+          initial_conditions,
+          examiner_notes
+        `)
+        .eq("is_active", true)
+        .order("scenario_name", {
+          ascending: true,
+        });
+
+      if (mappedIds.length > 0) {
+        scenarioQuery = scenarioQuery.in(
+          "id",
+          mappedIds,
+        );
+      }
+
+      const {
+        data: scenarios,
+        error: scenarioError,
+      } = await scenarioQuery;
+
+      if (cancelled) {
+        return;
+      }
+
+      if (scenarioError) {
+        setScenarioOptions([]);
+        setSelectedScenarioId("");
+        setLoadingScenarios(false);
+        return;
+      }
+
+      setScenarioOptions(
+        (scenarios ?? []) as GeneratorScenarioOption[],
+      );
+
+      setSelectedScenarioId("");
+      setLoadingScenarios(false);
+    }
+
+    void loadGeneratorScenarios();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [testType?.id]);
+
+  const selectedScenario =
+    useMemo(
+      () =>
+        scenarioOptions.find(
+          (scenario) =>
+            scenario.id ===
+            selectedScenarioId,
+        ) ?? null,
+      [
+        scenarioOptions,
+        selectedScenarioId,
+      ],
+    );
+
   async function generatePoa() {
     if (!testType) {
       return;
@@ -1353,6 +1481,10 @@ export default function GeneratePoaPage() {
           practical_test_type_id: testType.id,
 
           title: title.trim(),
+
+          scenario_name:
+            selectedScenario?.scenario_name ??
+            null,
 
           selection_method: selectionMethod,
 
@@ -1818,6 +1950,87 @@ export default function GeneratePoaPage() {
               </div>
             </div>
           </section>
+
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                Scenario Library Selection
+              </p>
+
+              <h2 className="mt-1 text-xl font-bold text-slate-900">
+                Scenario
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-600">
+                Select the scenario that will organize this
+                Plan of Action chronologically.
+              </p>
+            </div>
+
+            <div className="mt-5">
+              <label>
+                <span className="mb-2 block text-sm font-semibold text-slate-700">
+                  Scenario
+                </span>
+
+                <select
+                  value={selectedScenarioId}
+                  onChange={(event) =>
+                    setSelectedScenarioId(
+                      event.target.value,
+                    )
+                  }
+                  disabled={loadingScenarios}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
+                >
+                  <option value="">
+                    {loadingScenarios
+                      ? "Loading scenarios…"
+                      : scenarioOptions.length === 0
+                        ? "No active scenarios available"
+                        : "Select a scenario…"}
+                  </option>
+
+                  {scenarioOptions.map(
+                    (scenario) => (
+                      <option
+                        key={scenario.id}
+                        value={scenario.id}
+                      >
+                        {scenario.scenario_name}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+            </div>
+
+            {selectedScenario ? (
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Scenario Brief
+                </p>
+
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                  {selectedScenario.scenario_brief ||
+                    "No scenario brief entered."}
+                </p>
+
+                {selectedScenario.initial_conditions ? (
+                  <div className="mt-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Initial Conditions
+                    </p>
+
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                      {selectedScenario.initial_conditions}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+
 
           <div className="mt-6 flex gap-1 border-b border-slate-300">
             <button
