@@ -9,9 +9,12 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import QualificationReviewPanel, {
   type QualificationWizardSummary,
 } from "./QualificationReviewPanel";
+
+import OpenAssignmentsPanel from "@/components/portal/OpenAssignmentsPanel";
 
 type PracticalTestRequest = {
   id: string;
@@ -32,6 +35,10 @@ type PracticalTestRequest = {
   practical_test_type_id: string | null;
 
   fee_amount: number | null;
+  travel_fee_amount: number;
+  fees_finalized_at: string | null;
+  fee_response_status: string | null;
+  fee_responded_at: string | null;
   dms_preapproval_number: string | null;
   scheduled_start_at: string | null;
   scheduled_end_at: string | null;
@@ -206,6 +213,10 @@ const statusOptions = [
     value: "no_show",
     label: "No Show",
   },
+  {
+    value: "completed_no_gradesheet",
+    label: "Completed - No Gradesheet",
+  },
 ];
 
 const closedStatuses = new Set([
@@ -215,6 +226,7 @@ const closedStatuses = new Set([
   "cancelled_by_applicant",
   "cancelled_by_examiner",
   "no_show",
+  "unable_to_accommodate",
 ]);
 
 function createRequestEditDraft(
@@ -348,6 +360,14 @@ function getDmsDeadlineCardClasses(
 }
 
 function formatStatus(status: string) {
+  if (status === "unable_to_accommodate") {
+    return "Unable to Accommodate";
+  }
+
+  if (status === "cancelled_by_applicant") {
+    return "Request Cancelled by Applicant";
+  }
+
   return status
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -375,6 +395,30 @@ function formatDate(value: string | null) {
 
 function normalizeGroupingText(value: string | null | undefined) {
   return String(value || "").trim();
+}
+
+function isPpcPracticalTest(request: PracticalTestRequest) {
+  const certificate = String(request.certificate_sought ?? "")
+    .trim()
+    .toLowerCase();
+
+  const issuance = String(request.issuance_type ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  return (
+    issuance === "proficiency_check" ||
+    certificate === "pilot proficiency check (61.58)" ||
+    certificate === "flight engineer proficiency check (91.529)"
+  );
+}
+
+function canOpenPpcEvaluation(request: PracticalTestRequest) {
+  return (
+    isPpcPracticalTest(request) &&
+    ["accepted", "scheduled", "confirmed"].includes(request.status)
+  );
 }
 
 function getApplicantSortName(request: PracticalTestRequest) {
@@ -659,7 +703,14 @@ function DetailSection({
 }
 
 export default function ExaminerRequestsPage() {
+  const [activeRequestsTab, setActiveRequestsTab] = useState<
+    "assigned" | "open"
+  >("assigned");
+
   const [requests, setRequests] = useState<PracticalTestRequest[]>([]);
+  const [declineRequestTarget, setDeclineRequestTarget] =
+    useState<PracticalTestRequest | null>(null);
+  const [declineReasonDraft, setDeclineReasonDraft] = useState("");
   const [auditByRequest, setAuditByRequest] = useState<
     Record<string, RequestStatusAudit[]>
   >({});
@@ -688,6 +739,15 @@ export default function ExaminerRequestsPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
+  const [noGradesheetRequests, setNoGradesheetRequests] = useState<
+    Record<string, boolean>
+  >({});
+  const [noGradesheetResults, setNoGradesheetResults] = useState<
+    Record<string, "pass" | "fail" | "discontinued" | "">
+  >({});
+  const [savingNoGradesheetId, setSavingNoGradesheetId] = useState<
+    string | null
+  >(null);
   const [groupingMode, setGroupingMode] =
     useState<RequestGroupingMode>("appointment_date");
   const [deadlineClock, setDeadlineClock] = useState(0);
@@ -704,6 +764,9 @@ export default function ExaminerRequestsPage() {
 
   const [dmsDrafts, setDmsDrafts] = useState<Record<string, string>>({});
   const [feeDrafts, setFeeDrafts] = useState<Record<string, string>>({});
+  const [travelFeeDrafts, setTravelFeeDrafts] = useState<
+    Record<string, string>
+  >({});
   const [standardFees, setStandardFees] = useState<Record<string, number>>({});
   const [appointmentDrafts, setAppointmentDrafts] = useState<
     Record<string, string>
@@ -732,6 +795,9 @@ export default function ExaminerRequestsPage() {
 
   const [qualificationWizardsByRequest, setQualificationWizardsByRequest] =
     useState<Record<string, QualificationWizardSummary>>({});
+
+  const [sendingRequestStatusUpdate, setSendingRequestStatusUpdate] =
+    useState(false);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -796,6 +862,10 @@ export default function ExaminerRequestsPage() {
         practical_test_type_id,
 
         fee_amount,
+        travel_fee_amount,
+        fees_finalized_at,
+        fee_response_status,
+        fee_responded_at,
         dms_preapproval_number,
         scheduled_start_at,
         scheduled_end_at,
@@ -852,6 +922,7 @@ export default function ExaminerRequestsPage() {
         updated_at
       `,
       )
+      .eq("assigned_examiner_profile_id", user.id)
       .order("submitted_at", {
         ascending: false,
         nullsFirst: false,
@@ -878,6 +949,15 @@ export default function ExaminerRequestsPage() {
           loadedRequests.map((request) => [
             request.id,
             request.fee_amount === null ? "" : String(request.fee_amount),
+          ]),
+        ),
+      );
+
+      setTravelFeeDrafts(
+        Object.fromEntries(
+          loadedRequests.map((request) => [
+            request.id,
+            String(request.travel_fee_amount ?? 0),
           ]),
         ),
       );
@@ -965,7 +1045,18 @@ export default function ExaminerRequestsPage() {
         Object.fromEntries(
           loadedRequests.map((request) => [
             request.id,
-            toDateTimeLocalValue(request.scheduled_start_at),
+            request.scheduled_start_at
+              ? toDateTimeLocalValue(request.scheduled_start_at)
+              : request.requested_date_1 &&
+                  request.preferred_time === "Specific time" &&
+                  request.specific_time
+                ? `${request.requested_date_1}T${request.specific_time.slice(
+                    0,
+                    5,
+                  )}`
+                : request.requested_date_1
+                  ? `${request.requested_date_1}T08:00`
+                  : "",
           ]),
         ),
       );
@@ -1527,6 +1618,26 @@ export default function ExaminerRequestsPage() {
     request: PracticalTestRequest,
     nextStatus: string,
   ) {
+    if (nextStatus === "completed_no_gradesheet") {
+      setNoGradesheetRequests((current) => ({
+        ...current,
+        [request.id]: true,
+      }));
+      setNoGradesheetResults((current) => ({
+        ...current,
+        [request.id]: current[request.id] ?? "",
+      }));
+      setPageError("");
+      setMessage("");
+      return;
+    }
+
+    setNoGradesheetRequests((current) => {
+      const next = { ...current };
+      delete next[request.id];
+      return next;
+    });
+
     if (savingRequestId || nextStatus === request.status) {
       return;
     }
@@ -1694,6 +1805,101 @@ export default function ExaminerRequestsPage() {
     setSavingRequestId(null);
   }
 
+  async function completeWithoutGradesheet(request: PracticalTestRequest) {
+    const result = noGradesheetResults[request.id];
+
+    if (!result) {
+      setPageError(
+        `Select SAT, UNSAT, or DISCONT before completing ${request.request_number}.`,
+      );
+      return;
+    }
+
+    if (savingNoGradesheetId) {
+      return;
+    }
+
+    const outcomeLabel =
+      result === "pass" ? "SAT" : result === "fail" ? "UNSAT" : "DISCONT";
+
+    const confirmed = window.confirm(
+      `Complete ${request.request_number} without a gradesheet as ${outcomeLabel}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setSavingNoGradesheetId(request.id);
+    setPageError("");
+    setMessage("");
+
+    const supabase = createClient();
+
+    const { data, error } = await supabase.rpc(
+      "examiner_complete_practical_test_without_gradesheet",
+      {
+        p_request_id: request.id,
+        p_result: result,
+      },
+    );
+
+    if (error) {
+      console.error(
+        "Unable to complete practical test without gradesheet:",
+        error,
+      );
+      setPageError(
+        `${request.request_number} could not be completed: ${error.message}`,
+      );
+      setSavingNoGradesheetId(null);
+      return;
+    }
+
+    const updatedRequest =
+      data && typeof data === "object" && !Array.isArray(data) ? data : null;
+
+    setRequests((current) =>
+      current.map((item) =>
+        item.id === request.id
+          ? {
+              ...item,
+              status: "completed",
+              status_reason: null,
+              completed_at:
+                typeof updatedRequest?.completed_at === "string"
+                  ? updatedRequest.completed_at
+                  : new Date().toISOString(),
+              updated_at:
+                typeof updatedRequest?.updated_at === "string"
+                  ? updatedRequest.updated_at
+                  : new Date().toISOString(),
+            }
+          : item,
+      ),
+    );
+
+    appendAuditEntry(request.id, request.status, "completed", null);
+
+    setNoGradesheetRequests((current) => {
+      const next = { ...current };
+      delete next[request.id];
+      return next;
+    });
+
+    setNoGradesheetResults((current) => {
+      const next = { ...current };
+      delete next[request.id];
+      return next;
+    });
+
+    setMessage(
+      `${request.request_number} completed without a gradesheet — ${outcomeLabel}.`,
+    );
+
+    setSavingNoGradesheetId(null);
+  }
+
   async function addRequestHistoryEntry(request: PracticalTestRequest) {
     if (savingHistoryRequestId) {
       return;
@@ -1770,9 +1976,20 @@ export default function ExaminerRequestsPage() {
 
     const rawFee = (feeDrafts[request.id] ?? "").trim();
     const feeAmount = Number(rawFee);
+    const rawTravelFee = (travelFeeDrafts[request.id] ?? "").trim();
+    const travelFeeAmount = Number(rawTravelFee);
 
     if (!rawFee || !Number.isFinite(feeAmount) || feeAmount < 0) {
       setPageError("Enter a valid fee amount of zero or greater.");
+      return;
+    }
+
+    if (
+      !rawTravelFee ||
+      !Number.isFinite(travelFeeAmount) ||
+      travelFeeAmount < 0
+    ) {
+      setPageError("Enter a valid travel fee of zero or greater.");
       return;
     }
 
@@ -1782,10 +1999,11 @@ export default function ExaminerRequestsPage() {
 
     const supabase = createClient();
     const { data, error } = await supabase.rpc(
-      "examiner_save_practical_test_request_fee",
+      "examiner_finalize_practical_test_request_fees",
       {
         p_request_id: request.id,
         p_fee_amount: feeAmount,
+        p_travel_fee_amount: travelFeeAmount,
       },
     );
 
@@ -1813,6 +2031,12 @@ export default function ExaminerRequestsPage() {
           ? {
               ...item,
               fee_amount: Number(updatedRequest.fee_amount),
+              travel_fee_amount: Number(updatedRequest.travel_fee_amount),
+              fees_finalized_at: updatedRequest.fees_finalized_at,
+              fee_response_status: updatedRequest.fee_response_status,
+              fee_responded_at: updatedRequest.fee_responded_at,
+              status: updatedRequest.status,
+              status_reason: updatedRequest.status_reason,
               updated_at: updatedRequest.updated_at,
             }
           : item,
@@ -1824,7 +2048,44 @@ export default function ExaminerRequestsPage() {
       [request.id]: String(updatedRequest.fee_amount),
     }));
 
-    setMessage(`Fee saved for ${request.request_number}.`);
+    setTravelFeeDrafts((current) => ({
+      ...current,
+      [request.id]: String(updatedRequest.travel_fee_amount),
+    }));
+
+    try {
+      const emailResponse = await fetch("/api/email/practical-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "request_fees_finalized_applicant",
+          requestId: request.id,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        console.warn("Fees were saved, but the applicant email was not sent.");
+        setMessage(
+          `Fees saved for ${request.request_number}, but the applicant email could not be sent.`,
+        );
+        setSavingFeeRequestId(null);
+        return;
+      }
+    } catch (emailError) {
+      console.warn(
+        "Fees were saved, but the email request failed:",
+        emailError,
+      );
+      setMessage(
+        `Fees saved for ${request.request_number}, but the applicant email could not be sent.`,
+      );
+      setSavingFeeRequestId(null);
+      return;
+    }
+
+    setMessage(
+      `Fees finalized for ${request.request_number}. The applicant was emailed for acceptance.`,
+    );
     setSavingFeeRequestId(null);
   }
 
@@ -2043,33 +2304,42 @@ export default function ExaminerRequestsPage() {
     );
     let qualificationMessage = "";
 
-    try {
-      const { data: qualificationData, error: qualificationError } =
-        await supabase.rpc("initialize_pretest_qualification", {
-          p_request_id: request.id,
-        });
+    /*
+     * PPCs are evaluated in EMT using the FAA Form 8410-1 task family.
+     * They do NOT use the normal ACS pretest-qualification rules package.
+     *
+     * Normal practical tests continue through the existing
+     * initialize_pretest_qualification RPC unchanged.
+     */
+    if (!canOpenPpcEvaluation(request)) {
+      try {
+        const { data: qualificationData, error: qualificationError } =
+          await supabase.rpc("initialize_pretest_qualification", {
+            p_request_id: request.id,
+          });
 
-      if (qualificationError) {
+        if (qualificationError) {
+          console.warn(
+            "Appointment saved, but pretest qualification initialization failed:",
+            qualificationError,
+          );
+
+          qualificationMessage = ` Qualification initialization failed: ${qualificationError.message}`;
+        } else if (qualificationData) {
+          qualificationMessage = " Pretest qualification initialized.";
+        } else {
+          qualificationMessage =
+            " No matching pretest qualification rule set was found.";
+        }
+      } catch (qualificationError) {
         console.warn(
           "Appointment saved, but pretest qualification initialization failed:",
           qualificationError,
         );
 
-        qualificationMessage = ` Qualification initialization failed: ${qualificationError.message}`;
-      } else if (qualificationData) {
-        qualificationMessage = " Pretest qualification initialized.";
-      } else {
         qualificationMessage =
-          " No matching pretest qualification rule set was found.";
+          " Qualification initialization could not be completed.";
       }
-    } catch (qualificationError) {
-      console.warn(
-        "Appointment saved, but pretest qualification initialization failed:",
-        qualificationError,
-      );
-
-      qualificationMessage =
-        " Qualification initialization could not be completed.";
     }
 
     if (qualificationMessage) {
@@ -2079,6 +2349,257 @@ export default function ExaminerRequestsPage() {
     }
 
     setSavingAppointmentRequestId(null);
+  }
+
+  async function respondToUnderReviewRequest(
+    request: PracticalTestRequest,
+    decision: "accept" | "decline",
+    declineReason?: string,
+  ) {
+    if (request.status !== "under_review" || savingRequestId) {
+      return;
+    }
+
+    const statusReason =
+      decision === "decline" ? declineReason?.trim() || "" : null;
+
+    if (decision === "decline" && !statusReason) {
+      setPageError("A reason is required to decline this request.");
+      return;
+    }
+
+    if (
+      decision === "accept" &&
+      !window.confirm(
+        `Accept practical test request ${request.request_number} and move it to Scheduling?`,
+      )
+    ) {
+      return;
+    }
+
+    setSavingRequestId(request.id);
+    setMessage("");
+    setPageError("");
+
+    try {
+      const supabase = createClient();
+
+      const { data, error } = await supabase.rpc(
+        "examiner_update_practical_test_request_status",
+        {
+          p_request_id: request.id,
+          p_new_status: decision === "accept" ? "scheduling" : "declined",
+          p_status_reason: statusReason,
+        },
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const updatedRequest = Array.isArray(data) ? data[0] : data;
+
+      if (!updatedRequest) {
+        throw new Error(
+          "The status update completed without returning the updated request.",
+        );
+      }
+
+      setRequests((current) =>
+        current.map((item) =>
+          item.id === request.id
+            ? {
+                ...item,
+                status: updatedRequest.status,
+                status_reason: updatedRequest.status_reason,
+                fee_amount: updatedRequest.fee_amount,
+                dms_preapproval_number:
+                  updatedRequest.dms_preapproval_number,
+                scheduled_start_at: updatedRequest.scheduled_start_at,
+                scheduled_end_at: updatedRequest.scheduled_end_at,
+                scheduled_location: updatedRequest.scheduled_location,
+                accepted_at: updatedRequest.accepted_at,
+                appointment_response_status:
+                  updatedRequest.appointment_response_status,
+                appointment_responded_at:
+                  updatedRequest.appointment_responded_at,
+                appointment_response_notes:
+                  updatedRequest.appointment_response_notes,
+                cancelled_at: updatedRequest.cancelled_at,
+                cancellation_reason: updatedRequest.cancellation_reason,
+                updated_at: updatedRequest.updated_at,
+              }
+            : item,
+        ),
+      );
+
+      appendAuditEntry(
+        request.id,
+        request.status,
+        updatedRequest.status,
+        updatedRequest.status_reason,
+      );
+
+      if (decision === "decline") {
+        setDeclineRequestTarget(null);
+        setDeclineReasonDraft("");
+      }
+
+      const eventType =
+        decision === "accept"
+          ? "request_accepted_applicant"
+          : "request_declined_applicant";
+
+      try {
+        const emailResponse = await fetch("/api/email/practical-test", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventType,
+            requestId: request.id,
+          }),
+        });
+
+        const emailResult = await emailResponse.json().catch(() => null);
+
+        if (!emailResponse.ok) {
+          console.warn(
+            "Request status updated, but applicant email was not sent:",
+            emailResult,
+          );
+
+          setMessage(
+            decision === "accept"
+              ? "Request accepted and moved to Scheduling, but the notification email could not be sent."
+              : "Request declined, but the notification email could not be sent.",
+          );
+        } else {
+          setMessage(
+            decision === "accept"
+              ? `Request ${request.request_number} accepted. Status moved to Scheduling and the applicant was notified.`
+              : `Request ${request.request_number} declined and the applicant was notified.`,
+          );
+        }
+      } catch (emailError) {
+        console.warn(
+          "Request status updated, but applicant email request failed:",
+          emailError,
+        );
+
+        setMessage(
+          decision === "accept"
+            ? "Request accepted and moved to Scheduling, but the notification email could not be sent."
+            : "Request declined, but the notification email could not be sent.",
+        );
+      }
+    } catch (error) {
+      console.error("Unable to respond to under-review request:", error);
+
+      setPageError(
+        error instanceof Error
+          ? `Request ${request.request_number} could not be updated: ${error.message}`
+          : `Request ${request.request_number} could not be updated.`,
+      );
+    } finally {
+      setSavingRequestId(null);
+    }
+  }
+
+  async function sendRequestStatusUpdateEmails() {
+    if (
+      !window.confirm(
+        "Send a Request Status Update Email to all of your Submitted / Under Review / Accepted applicants?",
+      )
+    ) {
+      return;
+    }
+
+    setSendingRequestStatusUpdate(true);
+    setPageError("");
+    setMessage("");
+
+    try {
+      const supabase = createClient();
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session?.access_token) {
+        throw new Error(
+          "Your login session could not be verified. Please sign in again.",
+        );
+      }
+
+      const response = await fetch(
+        "/.netlify/functions/practical-test-followup-manual",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        },
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error ||
+            "The request status update emails could not be sent.",
+        );
+      }
+
+      const sent = Number(result?.sent ?? 0);
+
+      const skipped = Number(result?.skipped ?? 0);
+
+      const failed = Number(result?.failed ?? 0);
+
+      const parts = [
+        `${sent} request status update ${
+          sent === 1 ? "email was" : "emails were"
+        } sent.`,
+      ];
+
+      if (skipped > 0) {
+        parts.push(
+          `${skipped} ${
+            skipped === 1 ? "request was" : "requests were"
+          } skipped.`,
+        );
+      }
+
+      if (failed > 0) {
+        parts.push(
+          `${failed} ${
+            failed === 1 ? "email failed" : "emails failed"
+          } to send.`,
+        );
+      }
+
+      setMessage(parts.join(" "));
+
+      if (failed > 0) {
+        console.warn(
+          "Manual request status follow-up failures:",
+          result?.failures ?? [],
+        );
+      }
+    } catch (error) {
+      console.error("Unable to send request status update emails:", error);
+
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "The request status update emails could not be sent.",
+      );
+    } finally {
+      setSendingRequestStatusUpdate(false);
+    }
   }
 
   function preferredDates(request: PracticalTestRequest) {
@@ -2099,19 +2620,88 @@ export default function ExaminerRequestsPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
-          Examiner Portal
-        </p>
+      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
+            Examiner Portal
+          </p>
 
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">
-          Practical Test Requests
-        </h1>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">
+            Practical Test Requests
+          </h1>
 
-        <p className="mt-2 max-w-3xl text-slate-600">
-          Review applicant information, requested tests, aircraft, instructors,
-          scheduling preferences, and request status.
-        </p>
+          <p className="mt-2 max-w-3xl text-slate-600">
+            Review applicant information, requested tests, aircraft,
+            instructors, scheduling preferences, and request status.
+          </p>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-2">
+          <Link
+            href="/examiner/requests/new"
+            className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-5 py-3 font-bold text-white shadow-sm transition hover:bg-amber-700"
+          >
+            + Create Test Request
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => void sendRequestStatusUpdateEmails()}
+            disabled={sendingRequestStatusUpdate}
+            className="inline-flex items-center justify-center rounded-lg border border-amber-300 bg-white px-5 py-3 text-sm font-bold text-amber-800 shadow-sm transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {sendingRequestStatusUpdate
+              ? "Sending Status Update Emails..."
+              : "Send Request Status Update Email"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-8 border-b border-slate-200">
+        <nav
+          className="flex flex-wrap items-end gap-1"
+          aria-label="Practical Test Request Views"
+        >
+          <button
+            type="button"
+            onClick={() => setActiveRequestsTab("assigned")}
+            className={`relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 px-6 py-4 text-base font-bold shadow-sm transition ${
+              activeRequestsTab === "assigned"
+                ? "border-slate-300 bg-white text-slate-900"
+                : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:text-slate-800"
+            }`}
+          >
+            <span aria-hidden="true" className="text-2xl leading-none">
+              ▣
+            </span>
+
+            <span>Practical Test Requests</span>
+
+            {activeRequestsTab === "assigned" ? (
+              <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
+            ) : null}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveRequestsTab("open")}
+            className={`relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 px-6 py-4 text-base font-bold shadow-sm transition ${
+              activeRequestsTab === "open"
+                ? "border-slate-300 bg-white text-amber-800"
+                : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:text-slate-800"
+            }`}
+          >
+            <span aria-hidden="true" className="text-2xl leading-none">
+              ♙
+            </span>
+
+            <span>Open Assignments</span>
+
+            {activeRequestsTab === "open" ? (
+              <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
+            ) : null}
+          </button>
+        </nav>
       </div>
 
       {message ? (
@@ -2126,1902 +2716,2329 @@ export default function ExaminerRequestsPage() {
         </div>
       ) : null}
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {[
-          {
-            label: "Total",
-            value: statusCounts.total,
-          },
-          {
-            label: "New",
-            value: statusCounts.new,
-          },
-          {
-            label: "Active",
-            value: statusCounts.active,
-          },
-          {
-            label: "Scheduled",
-            value: statusCounts.scheduled,
-          },
-          {
-            label: "Closed",
-            value: statusCounts.closed,
-          },
-        ].map((card) => (
-          <div
-            key={card.label}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <p className="text-sm font-medium text-slate-500">{card.label}</p>
+      {activeRequestsTab === "assigned" ? (
+        <>
+          <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              {
+                label: "Total",
+                value: statusCounts.total,
+              },
+              {
+                label: "New",
+                value: statusCounts.new,
+              },
+              {
+                label: "Active",
+                value: statusCounts.active,
+              },
+              {
+                label: "Scheduled",
+                value: statusCounts.scheduled,
+              },
+              {
+                label: "Closed",
+                value: statusCounts.closed,
+              },
+            ].map((card) => (
+              <div
+                key={card.label}
+                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+              >
+                <p className="text-sm font-medium text-slate-500">
+                  {card.label}
+                </p>
 
-            <p className="mt-2 text-3xl font-bold text-slate-900">
-              {card.value}
-            </p>
-          </div>
-        ))}
-      </section>
+                <p className="mt-2 text-3xl font-bold text-slate-900">
+                  {card.value}
+                </p>
+              </div>
+            ))}
+          </section>
 
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px_240px_auto] lg:items-end">
-          <div>
-            <label
-              htmlFor="request-search"
-              className="mb-2 block text-sm font-semibold text-slate-800"
-            >
-              Search requests
-            </label>
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px_240px_auto] lg:items-end">
+              <div>
+                <label
+                  htmlFor="request-search"
+                  className="mb-2 block text-sm font-semibold text-slate-800"
+                >
+                  Search requests
+                </label>
 
-            <input
-              id="request-search"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Applicant, FTN, request number, certificate, aircraft…"
-              className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-            />
-          </div>
+                <input
+                  id="request-search"
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Applicant, FTN, request number, certificate, aircraft…"
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
 
-          <div>
-            <label
-              htmlFor="status-filter"
-              className="mb-2 block text-sm font-semibold text-slate-800"
-            >
-              Request status
-            </label>
+              <div>
+                <label
+                  htmlFor="status-filter"
+                  className="mb-2 block text-sm font-semibold text-slate-800"
+                >
+                  Request status
+                </label>
 
-            <select
-              id="status-filter"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-            >
-              <option value="active">All active requests</option>
+                <select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                >
+                  <option value="active">All active requests</option>
 
-              <option value="all">All requests</option>
+                  <option value="all">All requests</option>
 
-              <option value="closed">All closed requests</option>
+                  <option value="closed">All closed requests</option>
 
-              {statusOptions.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
+                  {statusOptions.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
 
-              <option value="cancelled_by_applicant">
-                Cancelled by Applicant
-              </option>
-            </select>
-          </div>
+                  <option value="cancelled_by_applicant">
+                    Cancelled by Applicant
+                  </option>
+                </select>
+              </div>
 
-          <div>
-            <label
-              htmlFor="request-grouping"
-              className="mb-2 block text-sm font-semibold text-slate-800"
-            >
-              Group by
-            </label>
+              <div>
+                <label
+                  htmlFor="request-grouping"
+                  className="mb-2 block text-sm font-semibold text-slate-800"
+                >
+                  Group by
+                </label>
 
-            <select
-              id="request-grouping"
-              value={groupingMode}
-              onChange={(event) =>
-                setGroupingMode(event.target.value as RequestGroupingMode)
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-            >
-              <option value="appointment_date">
-                Proposed or Finalized Appointment Date
-              </option>
+                <select
+                  id="request-grouping"
+                  value={groupingMode}
+                  onChange={(event) =>
+                    setGroupingMode(event.target.value as RequestGroupingMode)
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                >
+                  <option value="appointment_date">
+                    Proposed or Finalized Appointment Date
+                  </option>
 
-              <option value="applicant_name">Applicant Name</option>
+                  <option value="applicant_name">Applicant Name</option>
 
-              <option value="test_type">Test Type</option>
+                  <option value="test_type">Test Type</option>
 
-              <option value="flight_school">Flight School</option>
-            </select>
-          </div>
+                  <option value="flight_school">Flight School</option>
+                </select>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => void loadRequests()}
-            disabled={loading}
-            className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-        </div>
-      </section>
+              <button
+                type="button"
+                onClick={() => void loadRequests()}
+                disabled={loading}
+                className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {loading ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+          </section>
 
-      {loading ? (
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">
-          Loading practical test requests…
-        </div>
-      ) : null}
+          {loading ? (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">
+              Loading practical test requests…
+            </div>
+          ) : null}
 
-      {!loading && !pageError && visibleRequests.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-600">
-          No practical test requests match the current filters.
-        </div>
-      ) : null}
+          {!loading && !pageError && visibleRequests.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-600">
+              No practical test requests match the current filters.
+            </div>
+          ) : null}
 
-      {!loading && visibleRequests.length > 0 ? (
-        <div className="mt-6 space-y-2">
-          {groupedRequests.map((request, requestIndex) => {
-            const previousRequest =
-              requestIndex > 0 ? groupedRequests[requestIndex - 1] : null;
+          {!loading && visibleRequests.length > 0 ? (
+            <div className="mt-6 space-y-2">
+              <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-5">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    DMS Preapproval
+                  </span>
 
-            const showGroupHeading =
-              !previousRequest ||
-              previousRequest.requestGroupKey !== request.requestGroupKey;
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-700">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 rounded-full border border-emerald-500 bg-emerald-400"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        <strong>Complete</strong> — DMS number entered,
+                        appointment within 48 hrs
+                      </span>
+                    </span>
 
-            const saving = savingRequestId === request.id;
-            const applicantRequestedReschedule =
-              request.appointment_response_status === "reschedule_requested";
-            const isRescheduleRequired =
-              request.status === "reschedule_required" ||
-              applicantRequestedReschedule;
-            const showAppointmentRow = [
-              "accepted",
-              "scheduling",
-              "scheduled",
-              "confirmed",
-              "reschedule_required",
-            ].includes(request.status);
-            const savingDms = savingDmsRequestId === request.id;
-            const savingFee = savingFeeRequestId === request.id;
-            const standardFee = request.practical_test_type_id
-              ? (standardFees[request.practical_test_type_id] ?? null)
-              : null;
-            const feeDraft = feeDrafts[request.id] ?? "";
-            const parsedFeeDraft =
-              feeDraft.trim() === "" ? null : Number(feeDraft);
-            const feeDiffersFromStandard =
-              parsedFeeDraft !== null &&
-              Number.isFinite(parsedFeeDraft) &&
-              standardFee !== null &&
-              Math.abs(parsedFeeDraft - standardFee) > 0.004;
-            const savingAppointment = savingAppointmentRequestId === request.id;
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 rounded-full border border-red-600 bg-red-500"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        <strong>Action Required</strong> — DMS number missing,
+                        appointment within 48 hrs
+                      </span>
+                    </span>
 
-            return (
-              <Fragment key={request.id}>
-                {showGroupHeading ? (
-                  <div className="mt-6 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 first:mt-0">
-                    <h2 className="font-bold text-slate-800">
-                      {request.requestGroupLabel}
-                    </h2>
-
-                    <span className="rounded-full border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-                      {groupCounts[request.requestGroupKey] ?? 0}
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 rounded-full border border-amber-500 bg-amber-400"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        <strong>Due Soon</strong> — DMS number missing,
+                        appointment within 72 hrs
+                      </span>
                     </span>
                   </div>
-                ) : null}
+                </div>
+              </div>
 
-                <article
-                  id={`examiner-request-${request.id}`}
-                  key={request.id}
-                  className={`scroll-mt-6 overflow-hidden rounded-lg border shadow-sm transition-colors ${
-                    directRequestId === request.id
-                      ? "ring-4 ring-amber-300 ring-offset-2"
-                      : ""
-                  } ${getDmsDeadlineCardClasses(request, deadlineClock)}`}
-                >
-                  <details
-                    className="group/request"
-                    open={directRequestId === request.id}
-                  >
-                    <summary className="cursor-pointer list-none border-b border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                      <div className="flex items-center gap-3">
-                        <span
-                          aria-hidden="true"
-                          className="shrink-0 text-lg text-slate-500 transition-transform group-open/request:rotate-180"
-                        >
-                          ⌄
+              {groupedRequests.map((request, requestIndex) => {
+                const previousRequest =
+                  requestIndex > 0 ? groupedRequests[requestIndex - 1] : null;
+
+                const showGroupHeading =
+                  !previousRequest ||
+                  previousRequest.requestGroupKey !== request.requestGroupKey;
+
+                const saving = savingRequestId === request.id;
+                const applicantRequestedReschedule =
+                  request.appointment_response_status ===
+                  "reschedule_requested";
+                const isRescheduleRequired =
+                  request.status === "reschedule_required" ||
+                  applicantRequestedReschedule;
+                const showAppointmentRow = [
+                  "accepted",
+                  "scheduling",
+                  "scheduled",
+                  "confirmed",
+                  "reschedule_required",
+                ].includes(request.status);
+                const savingDms = savingDmsRequestId === request.id;
+                const savingFee = savingFeeRequestId === request.id;
+                const standardFee = request.practical_test_type_id
+                  ? (standardFees[request.practical_test_type_id] ?? null)
+                  : null;
+                const feeDraft = feeDrafts[request.id] ?? "";
+                const travelFeeDraft = travelFeeDrafts[request.id] ?? "0";
+                const parsedFeeDraft =
+                  feeDraft.trim() === "" ? null : Number(feeDraft);
+                const parsedTravelFeeDraft =
+                  travelFeeDraft.trim() === "" ? null : Number(travelFeeDraft);
+                const feeDiffersFromStandard =
+                  parsedFeeDraft !== null &&
+                  Number.isFinite(parsedFeeDraft) &&
+                  standardFee !== null &&
+                  Math.abs(parsedFeeDraft - standardFee) > 0.004;
+                const savingAppointment =
+                  savingAppointmentRequestId === request.id;
+
+                return (
+                  <Fragment key={request.id}>
+                    {showGroupHeading ? (
+                      <div className="mt-6 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 first:mt-0">
+                        <h2 className="font-bold text-slate-800">
+                          {request.requestGroupLabel}
+                        </h2>
+
+                        <span className="rounded-full border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                          {groupCounts[request.requestGroupKey] ?? 0}
                         </span>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="grid w-full min-w-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1.5fr)_minmax(0,0.65fr)_minmax(0,1.15fr)_minmax(0,auto)] items-center gap-x-4">
-                            <div className="min-w-0">
-                              <p
-                                className="truncate text-sm font-bold text-slate-900"
-                                title={request.applicant_name_snapshot}
-                              >
-                                {request.applicant_name_snapshot}
-                              </p>
-                            </div>
-
-                            <div className="min-w-0">
-                              <p
-                                className="truncate text-sm font-medium text-slate-800"
-                                title={`${request.certificate_sought} · ${request.rating_sought}`}
-                              >
-                                {request.certificate_sought} ·{" "}
-                                {request.rating_sought}
-                              </p>
-                            </div>
-
-                            <div className="min-w-0">
-                              <p
-                                className="truncate text-sm text-slate-700"
-                                title={
-                                  request.status === "confirmed"
-                                    ? displayValue(request.scheduled_location)
-                                    : displayValue(
-                                        request.oral_test_location ??
-                                          request.flight_airport_code,
-                                      )
-                                }
-                              >
-                                {request.status === "confirmed"
-                                  ? displayValue(request.scheduled_location)
-                                  : displayValue(
-                                      request.oral_test_location ??
-                                        request.flight_airport_code,
-                                    )}
-                              </p>
-                            </div>
-
-                            <div className="min-w-0">
-                              <p
-                                className={`truncate text-sm ${
-                                  request.status === "confirmed"
-                                    ? "font-semibold text-emerald-800"
-                                    : "text-slate-700"
-                                }`}
-                                title={
-                                  request.status === "confirmed" &&
-                                  request.scheduled_start_at
-                                    ? formatDateTime(request.scheduled_start_at)
-                                    : preferredDates(request)
-                                }
-                              >
-                                {request.status === "confirmed" &&
-                                request.scheduled_start_at
-                                  ? formatDateTime(request.scheduled_start_at)
-                                  : preferredDates(request)}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {request.is_retest ? (
-                                <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-800">
-                                  Retest
-                                </span>
-                              ) : null}
-
-                              <span
-                                className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(
-                                  request.status,
-                                )}`}
-                              >
-                                {formatStatus(request.status)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
                       </div>
-                    </summary>
+                    ) : null}
 
-                    <div className="bg-white">
-                      <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              {closedStatuses.has(request.status)
-                                ? "Historical Request"
-                                : "Examiner Controls"}
-                            </p>
+                    <article
+                      id={`examiner-request-${request.id}`}
+                      key={request.id}
+                      className={`scroll-mt-6 overflow-hidden rounded-lg border shadow-sm transition-colors ${
+                        directRequestId === request.id
+                          ? "ring-4 ring-amber-300 ring-offset-2"
+                          : ""
+                      } ${getDmsDeadlineCardClasses(request, deadlineClock)}`}
+                    >
+                      <details
+                        className="group/request"
+                        open={directRequestId === request.id}
+                      >
+                        <summary className="cursor-pointer list-none border-b border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                          <div className="flex items-center gap-3">
+                            <span
+                              aria-hidden="true"
+                              className="shrink-0 text-lg text-slate-500 transition-transform group-open/request:rotate-180"
+                            >
+                              ⌄
+                            </span>
 
-                            {saving ? (
-                              <p className="mt-1 text-xs text-slate-500">
-                                Saving status…
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <select
-                            id={`status-${request.id}`}
-                            aria-label={`Examiner status for ${request.request_number}`}
-                            value={request.status}
-                            disabled={
-                              closedStatuses.has(request.status) ||
-                              (Boolean(savingRequestId) && !saving)
-                            }
-                            onChange={(event) =>
-                              void updateRequestStatus(
-                                request,
-                                event.target.value,
-                              )
-                            }
-                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100 sm:w-64 disabled:opacity-60"
-                          >
-                            {!statusOptions.some(
-                              (status) => status.value === request.status,
-                            ) ? (
-                              <option value={request.status}>
-                                {formatStatus(request.status)}
-                              </option>
-                            ) : null}
-
-                            {statusOptions.map((status) => (
-                              <option key={status.value} value={status.value}>
-                                {status.label}
-                              </option>
-                            ))}
-                          </select>
-
-                          <button
-                            type="button"
-                            onClick={() => beginEditingRequest(request)}
-                            disabled={
-                              closedStatuses.has(request.status) ||
-                              savingRequestInfoId === request.id ||
-                              editingRequestId === request.id
-                            }
-                            className="rounded-lg border border-amber-700 bg-white px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Edit Request Info
-                          </button>
-                        </div>
-
-                        {closedStatuses.has(request.status) ? (
-                          <p className="mt-3 text-xs font-medium text-slate-500">
-                            This request is part of the historical record.
-                            Workflow status and request information are locked.
-                          </p>
-                        ) : null}
-
-                        {!saving && request.status_reason ? (
-                          <p className="mt-3 break-words text-xs text-slate-600">
-                            <span className="font-semibold">
-                              Status reason:
-                            </span>{" "}
-                            {request.status_reason}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      {editingRequestId === request.id &&
-                      requestEditDrafts[request.id] ? (
-                        <section className="border-t border-amber-200 bg-amber-50/40 p-6">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                              <h3 className="text-lg font-bold text-slate-900">
-                                Edit Request Information
-                              </h3>
-                              <p className="mt-1 text-sm text-slate-600">
-                                Changes update this practical-test request and
-                                its examiner-facing snapshot information.
-                              </p>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() => cancelEditingRequest(request.id)}
-                                disabled={savingRequestInfoId === request.id}
-                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                              >
-                                Cancel
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => void saveRequestInfo(request)}
-                                disabled={savingRequestInfoId === request.id}
-                                className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {savingRequestInfoId === request.id
-                                  ? "Saving…"
-                                  : "Save Changes"}
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="mt-6 space-y-6">
-                            <section className="rounded-xl border border-slate-200 bg-white p-5">
-                              <h4 className="font-bold text-slate-900">
-                                Applicant Information
-                              </h4>
-
-                              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Applicant Name
-                                  <input
-                                    type="text"
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .applicant_name_snapshot
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "applicant_name_snapshot",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                  />
-                                </label>
-
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Email
-                                  <input
-                                    type="email"
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .applicant_email_snapshot
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "applicant_email_snapshot",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                  />
-                                </label>
-
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Phone
-                                  <input
-                                    type="text"
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .applicant_phone_snapshot
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "applicant_phone_snapshot",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                  />
-                                </label>
-
-                                <label className="text-sm font-semibold text-slate-700">
-                                  FTN
-                                  <input
-                                    type="text"
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .ftn_number_snapshot
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "ftn_number_snapshot",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                  />
-                                </label>
-                              </div>
-                            </section>
-
-                            <section className="rounded-xl border border-slate-200 bg-white p-5">
-                              <h4 className="font-bold text-slate-900">
-                                Practical Test
-                              </h4>
-
-                              <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {[
-                                  ["certificate_sought", "Certificate"],
-                                  ["issuance_type", "Issuance Type"],
-                                  ["category_sought", "Category"],
-                                  ["class_sought", "Class"],
-                                  ["rating_sought", "Rating"],
-                                ].map(([field, label]) => (
-                                  <label
-                                    key={field}
-                                    className="text-sm font-semibold text-slate-700"
+                            <div className="min-w-0 flex-1">
+                              <div className="grid w-full min-w-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1.5fr)_minmax(0,0.65fr)_minmax(0,1.15fr)_minmax(0,auto)] items-center gap-x-4">
+                                <div className="min-w-0">
+                                  <p
+                                    className="truncate text-sm font-bold text-slate-900"
+                                    title={request.applicant_name_snapshot}
                                   >
-                                    {label}
-                                    <input
-                                      type="text"
-                                      value={
-                                        requestEditDrafts[request.id][
-                                          field as keyof RequestEditDraft
-                                        ] as string
-                                      }
-                                      onChange={(event) =>
-                                        updateRequestEditDraft(
-                                          request.id,
-                                          field as
-                                            | "certificate_sought"
-                                            | "issuance_type"
-                                            | "category_sought"
-                                            | "class_sought"
-                                            | "rating_sought",
-                                          event.target.value,
+                                    <span>
+                                      {request.applicant_name_snapshot}
+                                    </span>
+                                    <span className="ml-2 text-xs font-medium text-slate-500">
+                                      · {request.request_number}
+                                    </span>
+                                  </p>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p
+                                    className="truncate text-sm font-medium text-slate-800"
+                                    title={`${request.certificate_sought} · ${request.rating_sought}`}
+                                  >
+                                    {request.certificate_sought} ·{" "}
+                                    {request.rating_sought}
+                                  </p>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p
+                                    className="truncate text-sm text-slate-700"
+                                    title={
+                                      request.status === "confirmed"
+                                        ? displayValue(
+                                            request.scheduled_location,
+                                          )
+                                        : displayValue(
+                                            request.oral_test_location ??
+                                              request.flight_airport_code,
+                                          )
+                                    }
+                                  >
+                                    {request.status === "confirmed"
+                                      ? displayValue(request.scheduled_location)
+                                      : displayValue(
+                                          request.oral_test_location ??
+                                            request.flight_airport_code,
+                                        )}
+                                  </p>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p
+                                    className={`truncate text-sm ${
+                                      request.status === "confirmed"
+                                        ? "font-semibold text-emerald-800"
+                                        : "text-slate-700"
+                                    }`}
+                                    title={
+                                      request.status === "confirmed" &&
+                                      request.scheduled_start_at
+                                        ? formatDateTime(
+                                            request.scheduled_start_at,
+                                          )
+                                        : preferredDates(request)
+                                    }
+                                  >
+                                    {request.status === "confirmed" &&
+                                    request.scheduled_start_at
+                                      ? formatDateTime(
+                                          request.scheduled_start_at,
                                         )
-                                      }
-                                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                    />
-                                  </label>
+                                      : preferredDates(request)}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {request.is_retest ? (
+                                    <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-800">
+                                      Retest
+                                    </span>
+                                  ) : null}
+
+                                  <span
+                                    className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(
+                                      request.status,
+                                    )}`}
+                                  >
+                                    {formatStatus(request.status)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </summary>
+
+                        <div className="bg-white">
+                          <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                  {closedStatuses.has(request.status)
+                                    ? "Historical Request"
+                                    : "Examiner Controls"}
+                                </p>
+
+                                {saving ? (
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    Saving status…
+                                  </p>
+                                ) : null}
+                              </div>
+
+                              <select
+                                id={`status-${request.id}`}
+                                aria-label={`Examiner status for ${request.request_number}`}
+                                value={
+                                  noGradesheetRequests[request.id]
+                                    ? "completed_no_gradesheet"
+                                    : request.status
+                                }
+                                disabled={
+                                  closedStatuses.has(request.status) ||
+                                  (Boolean(savingRequestId) && !saving)
+                                }
+                                onChange={(event) =>
+                                  void updateRequestStatus(
+                                    request,
+                                    event.target.value,
+                                  )
+                                }
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100 sm:w-64 disabled:opacity-60"
+                              >
+                                {!statusOptions.some(
+                                  (status) => status.value === request.status,
+                                ) ? (
+                                  <option value={request.status}>
+                                    {formatStatus(request.status)}
+                                  </option>
+                                ) : null}
+
+                                {statusOptions.map((status) => (
+                                  <option
+                                    key={status.value}
+                                    value={status.value}
+                                  >
+                                    {status.label}
+                                  </option>
                                 ))}
+                              </select>
 
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Retest
-                                  <select
-                                    value={
-                                      requestEditDrafts[request.id].is_retest
-                                        ? "true"
-                                        : "false"
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "is_retest",
-                                        event.target.value === "true",
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal outline-none"
-                                  >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
-                                  </select>
-                                </label>
+                              {canOpenPpcEvaluation(request) ? (
+                                <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                      <div className="font-semibold text-blue-950">
+                                        FAA Form 8410-1 Proficiency Check
+                                      </div>
 
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Part 141 Graduate
-                                  <select
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .part_141_graduate
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "part_141_graduate",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal outline-none"
-                                  >
-                                    <option value="">Not specified</option>
-                                    <option value="true">Yes</option>
-                                    <option value="false">No</option>
-                                  </select>
-                                </label>
-                              </div>
+                                      <p className="mt-1 text-sm text-blue-800">
+                                        Open this proficiency check in DPE EMT
+                                        for S / U / W grading.
+                                      </p>
+                                    </div>
 
-                              {requestEditDrafts[request.id].is_retest ? (
-                                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                  <label className="text-sm font-semibold text-slate-700">
-                                    Previous Test Date
-                                    <input
-                                      type="date"
-                                      value={
-                                        requestEditDrafts[request.id]
-                                          .previous_test_date
-                                      }
-                                      onChange={(event) =>
-                                        updateRequestEditDraft(
-                                          request.id,
-                                          "previous_test_date",
-                                          event.target.value,
-                                        )
-                                      }
-                                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                    />
-                                  </label>
-
-                                  <label className="text-sm font-semibold text-slate-700">
-                                    Previous Examiner
-                                    <input
-                                      type="text"
-                                      value={
-                                        requestEditDrafts[request.id]
-                                          .previous_examiner
-                                      }
-                                      onChange={(event) =>
-                                        updateRequestEditDraft(
-                                          request.id,
-                                          "previous_examiner",
-                                          event.target.value,
-                                        )
-                                      }
-                                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                    />
-                                  </label>
-
-                                  <label className="text-sm font-semibold text-slate-700">
-                                    Areas to Retest
-                                    <input
-                                      type="text"
-                                      value={
-                                        requestEditDrafts[request.id]
-                                          .retest_areas
-                                      }
-                                      onChange={(event) =>
-                                        updateRequestEditDraft(
-                                          request.id,
-                                          "retest_areas",
-                                          event.target.value,
-                                        )
-                                      }
-                                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                    />
-                                  </label>
+                                    <Link
+                                      href={`/ems/index.html?request=${encodeURIComponent(request.id)}`}
+                                      className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800"
+                                    >
+                                      Begin PPC Evaluation
+                                    </Link>
+                                  </div>
                                 </div>
                               ) : null}
-                            </section>
 
-                            <section className="rounded-xl border border-slate-200 bg-white p-5">
-                              <h4 className="font-bold text-slate-900">
-                                Location and Aircraft
-                              </h4>
+                              {noGradesheetRequests[request.id] ? (
+                                <div className="flex flex-wrap items-center gap-3">
+                                  {[
+                                    ["pass", "SAT"],
+                                    ["fail", "UNSAT"],
+                                    ["discontinued", "DISCONT"],
+                                  ].map(([value, label]) => (
+                                    <label
+                                      key={value}
+                                      className="flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-slate-700"
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`no-gradesheet-result-${request.id}`}
+                                        value={value}
+                                        checked={
+                                          noGradesheetResults[request.id] ===
+                                          value
+                                        }
+                                        onChange={() =>
+                                          setNoGradesheetResults((current) => ({
+                                            ...current,
+                                            [request.id]: value as
+                                              "pass" | "fail" | "discontinued",
+                                          }))
+                                        }
+                                        disabled={
+                                          savingNoGradesheetId === request.id
+                                        }
+                                        className="h-4 w-4 accent-amber-700"
+                                      />
+                                      {label}
+                                    </label>
+                                  ))}
 
-                              <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {[
-                                  [
-                                    "flight_school_name_snapshot",
-                                    "Flight School",
-                                  ],
-                                  ["oral_test_location", "Oral Test Location"],
-                                  ["flight_airport_code", "Flight Airport"],
-                                  ["aircraft_make", "Aircraft Make"],
-                                  ["aircraft_model", "Aircraft Model"],
-                                  ["aircraft_registration", "Registration"],
-                                ].map(([field, label]) => (
-                                  <label
-                                    key={field}
-                                    className="text-sm font-semibold text-slate-700"
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void completeWithoutGradesheet(request)
+                                    }
+                                    disabled={
+                                      !noGradesheetResults[request.id] ||
+                                      savingNoGradesheetId === request.id
+                                    }
+                                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
-                                    {label}
-                                    <input
-                                      type="text"
-                                      value={
-                                        requestEditDrafts[request.id][
-                                          field as keyof RequestEditDraft
-                                        ] as string
-                                      }
-                                      onChange={(event) =>
-                                        updateRequestEditDraft(
-                                          request.id,
-                                          field as
-                                            | "flight_school_name_snapshot"
-                                            | "oral_test_location"
-                                            | "flight_airport_code"
-                                            | "aircraft_make"
-                                            | "aircraft_model"
-                                            | "aircraft_registration",
-                                          event.target.value,
-                                        )
-                                      }
-                                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                    />
-                                  </label>
-                                ))}
+                                    {savingNoGradesheetId === request.id
+                                      ? "Saving…"
+                                      : "Save"}
+                                  </button>
+                                </div>
+                              ) : null}
+
+                              <button
+                                type="button"
+                                onClick={() => beginEditingRequest(request)}
+                                disabled={
+                                  closedStatuses.has(request.status) ||
+                                  savingRequestInfoId === request.id ||
+                                  editingRequestId === request.id
+                                }
+                                className="rounded-lg border border-amber-700 bg-white px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Edit Request Info
+                              </button>
+                            </div>
+
+                            {closedStatuses.has(request.status) ? (
+                              <p className="mt-3 text-xs font-medium text-slate-500">
+                                This request is part of the historical record.
+                                Workflow status and request information are
+                                locked.
+                              </p>
+                            ) : null}
+
+                            {!saving && request.status_reason ? (
+                              <p className="mt-3 break-words text-xs text-slate-600">
+                                <span className="font-semibold">
+                                  Status reason:
+                                </span>{" "}
+                                {request.status_reason}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          {editingRequestId === request.id &&
+                          requestEditDrafts[request.id] ? (
+                            <section className="border-t border-amber-200 bg-amber-50/40 p-6">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                  <h3 className="text-lg font-bold text-slate-900">
+                                    Edit Request Information
+                                  </h3>
+                                  <p className="mt-1 text-sm text-slate-600">
+                                    Changes update this practical-test request
+                                    and its examiner-facing snapshot
+                                    information.
+                                  </p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      cancelEditingRequest(request.id)
+                                    }
+                                    disabled={
+                                      savingRequestInfoId === request.id
+                                    }
+                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                                  >
+                                    Cancel
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void saveRequestInfo(request)
+                                    }
+                                    disabled={
+                                      savingRequestInfoId === request.id
+                                    }
+                                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {savingRequestInfoId === request.id
+                                      ? "Saving…"
+                                      : "Save Changes"}
+                                  </button>
+                                </div>
                               </div>
 
-                              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Aircraft Description
-                                  <textarea
-                                    rows={3}
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .aircraft_description
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "aircraft_description",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                  />
-                                </label>
+                              <div className="mt-6 space-y-6">
+                                <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                  <h4 className="font-bold text-slate-900">
+                                    Applicant Information
+                                  </h4>
 
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Aircraft Notes
-                                  <textarea
-                                    rows={3}
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .aircraft_notes
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "aircraft_notes",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                  />
-                                </label>
-                              </div>
-                            </section>
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Applicant Name
+                                      <input
+                                        type="text"
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .applicant_name_snapshot
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "applicant_name_snapshot",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                      />
+                                    </label>
 
-                            <section className="rounded-xl border border-slate-200 bg-white p-5">
-                              <h4 className="font-bold text-slate-900">
-                                Instructor Information
-                              </h4>
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Email
+                                      <input
+                                        type="email"
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .applicant_email_snapshot
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "applicant_email_snapshot",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                      />
+                                    </label>
 
-                              <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {[
-                                  ["instructor_name", "Instructor Name"],
-                                  ["instructor_phone", "Instructor Phone"],
-                                  ["instructor_email", "Instructor Email"],
-                                  [
-                                    "instructor_certificate_number",
-                                    "Certificate Number",
-                                  ],
-                                ].map(([field, label]) => (
-                                  <label
-                                    key={field}
-                                    className="text-sm font-semibold text-slate-700"
-                                  >
-                                    {label}
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Phone
+                                      <input
+                                        type="text"
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .applicant_phone_snapshot
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "applicant_phone_snapshot",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                      />
+                                    </label>
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      FTN
+                                      <input
+                                        type="text"
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .ftn_number_snapshot
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "ftn_number_snapshot",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                      />
+                                    </label>
+                                  </div>
+                                </section>
+
+                                <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                  <h4 className="font-bold text-slate-900">
+                                    Practical Test
+                                  </h4>
+
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    {[
+                                      ["certificate_sought", "Certificate"],
+                                      ["issuance_type", "Issuance Type"],
+                                      ["category_sought", "Category"],
+                                      ["class_sought", "Class"],
+                                      ["rating_sought", "Rating"],
+                                    ].map(([field, label]) => (
+                                      <label
+                                        key={field}
+                                        className="text-sm font-semibold text-slate-700"
+                                      >
+                                        {label}
+                                        <input
+                                          type="text"
+                                          value={
+                                            requestEditDrafts[request.id][
+                                              field as keyof RequestEditDraft
+                                            ] as string
+                                          }
+                                          onChange={(event) =>
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              field as
+                                                | "certificate_sought"
+                                                | "issuance_type"
+                                                | "category_sought"
+                                                | "class_sought"
+                                                | "rating_sought",
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                        />
+                                      </label>
+                                    ))}
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Retest
+                                      <select
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .is_retest
+                                            ? "true"
+                                            : "false"
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "is_retest",
+                                            event.target.value === "true",
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal outline-none"
+                                      >
+                                        <option value="false">No</option>
+                                        <option value="true">Yes</option>
+                                      </select>
+                                    </label>
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Part 141 Graduate
+                                      <select
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .part_141_graduate
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "part_141_graduate",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal outline-none"
+                                      >
+                                        <option value="">Not specified</option>
+                                        <option value="true">Yes</option>
+                                        <option value="false">No</option>
+                                      </select>
+                                    </label>
+                                  </div>
+
+                                  {requestEditDrafts[request.id].is_retest ? (
+                                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                                      <label className="text-sm font-semibold text-slate-700">
+                                        Previous Test Date
+                                        <input
+                                          type="date"
+                                          value={
+                                            requestEditDrafts[request.id]
+                                              .previous_test_date
+                                          }
+                                          onChange={(event) =>
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              "previous_test_date",
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                        />
+                                      </label>
+
+                                      <label className="text-sm font-semibold text-slate-700">
+                                        Previous Examiner
+                                        <input
+                                          type="text"
+                                          value={
+                                            requestEditDrafts[request.id]
+                                              .previous_examiner
+                                          }
+                                          onChange={(event) =>
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              "previous_examiner",
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                        />
+                                      </label>
+
+                                      <label className="text-sm font-semibold text-slate-700">
+                                        Areas to Retest
+                                        <input
+                                          type="text"
+                                          value={
+                                            requestEditDrafts[request.id]
+                                              .retest_areas
+                                          }
+                                          onChange={(event) =>
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              "retest_areas",
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                        />
+                                      </label>
+                                    </div>
+                                  ) : null}
+                                </section>
+
+                                <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                  <h4 className="font-bold text-slate-900">
+                                    Location and Aircraft
+                                  </h4>
+
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    {[
+                                      [
+                                        "flight_school_name_snapshot",
+                                        "Flight School",
+                                      ],
+                                      [
+                                        "oral_test_location",
+                                        "Oral Test Location",
+                                      ],
+                                      ["flight_airport_code", "Flight Airport"],
+                                      ["aircraft_make", "Aircraft Make"],
+                                      ["aircraft_model", "Aircraft Model"],
+                                      ["aircraft_registration", "Registration"],
+                                    ].map(([field, label]) => (
+                                      <label
+                                        key={field}
+                                        className="text-sm font-semibold text-slate-700"
+                                      >
+                                        {label}
+                                        <input
+                                          type="text"
+                                          value={
+                                            requestEditDrafts[request.id][
+                                              field as keyof RequestEditDraft
+                                            ] as string
+                                          }
+                                          onChange={(event) =>
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              field as
+                                                | "flight_school_name_snapshot"
+                                                | "oral_test_location"
+                                                | "flight_airport_code"
+                                                | "aircraft_make"
+                                                | "aircraft_model"
+                                                | "aircraft_registration",
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                        />
+                                      </label>
+                                    ))}
+                                  </div>
+
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Aircraft Description
+                                      <textarea
+                                        rows={3}
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .aircraft_description
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "aircraft_description",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
+                                    </label>
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Aircraft Notes
+                                      <textarea
+                                        rows={3}
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .aircraft_notes
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "aircraft_notes",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
+                                    </label>
+                                  </div>
+                                </section>
+
+                                <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                  <h4 className="font-bold text-slate-900">
+                                    Instructor Information
+                                  </h4>
+
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    {[
+                                      ["instructor_name", "Instructor Name"],
+                                      ["instructor_phone", "Instructor Phone"],
+                                      ["instructor_email", "Instructor Email"],
+                                      [
+                                        "instructor_certificate_number",
+                                        "Certificate Number",
+                                      ],
+                                    ].map(([field, label]) => (
+                                      <label
+                                        key={field}
+                                        className="text-sm font-semibold text-slate-700"
+                                      >
+                                        {label}
+                                        <input
+                                          type={
+                                            field === "instructor_email"
+                                              ? "email"
+                                              : "text"
+                                          }
+                                          value={
+                                            requestEditDrafts[request.id][
+                                              field as keyof RequestEditDraft
+                                            ] as string
+                                          }
+                                          onChange={(event) =>
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              field as
+                                                | "instructor_name"
+                                                | "instructor_phone"
+                                                | "instructor_email"
+                                                | "instructor_certificate_number",
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                        />
+                                      </label>
+                                    ))}
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Associated With School
+                                      <select
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .instructor_associated_with_school
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "instructor_associated_with_school",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal"
+                                      >
+                                        <option value="">Not specified</option>
+                                        <option value="true">Yes</option>
+                                        <option value="false">No</option>
+                                      </select>
+                                    </label>
+                                  </div>
+                                </section>
+
+                                <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                  <h4 className="font-bold text-slate-900">
+                                    Scheduling Preferences
+                                  </h4>
+
+                                  <label className="mt-4 flex items-center gap-3 text-sm font-semibold text-slate-700">
                                     <input
-                                      type={
-                                        field === "instructor_email"
-                                          ? "email"
-                                          : "text"
-                                      }
-                                      value={
-                                        requestEditDrafts[request.id][
-                                          field as keyof RequestEditDraft
-                                        ] as string
-                                      }
-                                      onChange={(event) =>
-                                        updateRequestEditDraft(
-                                          request.id,
-                                          field as
-                                            | "instructor_name"
-                                            | "instructor_phone"
-                                            | "instructor_email"
-                                            | "instructor_certificate_number",
-                                          event.target.value,
-                                        )
-                                      }
-                                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                    />
-                                  </label>
-                                ))}
-
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Associated With School
-                                  <select
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .instructor_associated_with_school
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "instructor_associated_with_school",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal"
-                                  >
-                                    <option value="">Not specified</option>
-                                    <option value="true">Yes</option>
-                                    <option value="false">No</option>
-                                  </select>
-                                </label>
-                              </div>
-                            </section>
-
-                            <section className="rounded-xl border border-slate-200 bg-white p-5">
-                              <h4 className="font-bold text-slate-900">
-                                Scheduling Preferences
-                              </h4>
-
-                              <label className="mt-4 flex items-center gap-3 text-sm font-semibold text-slate-700">
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    requestEditDrafts[request.id]
-                                      .first_available
-                                  }
-                                  onChange={(event) =>
-                                    updateRequestEditDraft(
-                                      request.id,
-                                      "first_available",
-                                      event.target.checked,
-                                    )
-                                  }
-                                  className="h-4 w-4 rounded border-slate-300"
-                                />
-                                First available appointment
-                              </label>
-
-                              <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                {[
-                                  ["requested_date_1", "Requested Date 1"],
-                                  ["requested_date_2", "Requested Date 2"],
-                                  ["requested_date_3", "Requested Date 3"],
-                                ].map(([field, label]) => (
-                                  <label
-                                    key={field}
-                                    className="text-sm font-semibold text-slate-700"
-                                  >
-                                    {label}
-                                    <input
-                                      type="date"
-                                      disabled={
+                                      type="checkbox"
+                                      checked={
                                         requestEditDrafts[request.id]
                                           .first_available
                                       }
-                                      value={
-                                        requestEditDrafts[request.id][
-                                          field as keyof RequestEditDraft
-                                        ] as string
-                                      }
                                       onChange={(event) =>
                                         updateRequestEditDraft(
                                           request.id,
-                                          field as
-                                            | "requested_date_1"
-                                            | "requested_date_2"
-                                            | "requested_date_3",
-                                          event.target.value,
+                                          "first_available",
+                                          event.target.checked,
                                         )
                                       }
-                                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal disabled:bg-slate-100"
+                                      className="h-4 w-4 rounded border-slate-300"
                                     />
+                                    First available appointment
                                   </label>
-                                ))}
-                              </div>
 
-                              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Requested Dates Text
-                                  <input
-                                    type="text"
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .requested_dates_text
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "requested_dates_text",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                  />
-                                </label>
+                                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                                    {[
+                                      ["requested_date_1", "Requested Date 1"],
+                                      ["requested_date_2", "Requested Date 2"],
+                                      ["requested_date_3", "Requested Date 3"],
+                                    ].map(([field, label]) => (
+                                      <label
+                                        key={field}
+                                        className="text-sm font-semibold text-slate-700"
+                                      >
+                                        {label}
+                                        <input
+                                          type="date"
+                                          disabled={
+                                            requestEditDrafts[request.id]
+                                              .first_available
+                                          }
+                                          value={
+                                            requestEditDrafts[request.id][
+                                              field as keyof RequestEditDraft
+                                            ] as string
+                                          }
+                                          onChange={(event) =>
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              field as
+                                                | "requested_date_1"
+                                                | "requested_date_2"
+                                                | "requested_date_3",
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal disabled:bg-slate-100"
+                                        />
+                                      </label>
+                                    ))}
+                                  </div>
 
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Preferred Time
-                                  <input
-                                    type="text"
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .preferred_time
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "preferred_time",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                  />
-                                </label>
-
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Specific Time
-                                  <input
-                                    type="time"
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .specific_time
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "specific_time",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                  />
-                                </label>
-                              </div>
-
-                              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Scheduling Notes
-                                  <textarea
-                                    rows={4}
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .scheduling_notes
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "scheduling_notes",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                  />
-                                </label>
-
-                                <label className="text-sm font-semibold text-slate-700">
-                                  Applicant Comments
-                                  <textarea
-                                    rows={4}
-                                    value={
-                                      requestEditDrafts[request.id]
-                                        .applicant_comments
-                                    }
-                                    onChange={(event) =>
-                                      updateRequestEditDraft(
-                                        request.id,
-                                        "applicant_comments",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                                  />
-                                </label>
-                              </div>
-                            </section>
-                          </div>
-
-                          <div className="mt-6 flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => cancelEditingRequest(request.id)}
-                              disabled={savingRequestInfoId === request.id}
-                              className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                              Cancel
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => void saveRequestInfo(request)}
-                              disabled={savingRequestInfoId === request.id}
-                              className="rounded-lg bg-amber-700 px-5 py-3 font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {savingRequestInfoId === request.id
-                                ? "Saving Changes…"
-                                : "Save Changes"}
-                            </button>
-                          </div>
-                        </section>
-                      ) : null}
-
-                      {isRescheduleRequired ? (
-                        <div className="border-t border-red-200 bg-red-50 px-5 py-4">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                              <p className="text-sm font-bold text-red-900">
-                                {applicantRequestedReschedule
-                                  ? "Applicant Requested an Appointment Change"
-                                  : "Appointment Reschedule Required"}
-                              </p>
-                              <p className="mt-1 whitespace-pre-wrap text-sm text-red-800">
-                                {displayValue(
-                                  applicantRequestedReschedule
-                                    ? request.appointment_response_notes
-                                    : request.status_reason,
-                                )}
-                              </p>
-                            </div>
-
-                            {applicantRequestedReschedule &&
-                            request.appointment_responded_at ? (
-                              <p className="shrink-0 text-xs font-semibold text-red-700">
-                                Submitted{" "}
-                                {formatDateTime(
-                                  request.appointment_responded_at,
-                                )}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          {request.scheduled_start_at ? (
-                            <p className="mt-3 text-xs text-red-700">
-                              <span className="font-semibold">
-                                Previously proposed appointment:
-                              </span>{" "}
-                              {formatDateTime(request.scheduled_start_at)}
-                              {request.scheduled_end_at
-                                ? ` – ${formatDateTime(request.scheduled_end_at)}`
-                                : ""}
-                              {" · "}
-                              {displayValue(request.scheduled_location)}
-                            </p>
-                          ) : null}
-
-                          <p className="mt-3 text-xs font-medium text-red-800">
-                            Enter the replacement date, time, duration, and
-                            location in the Appointment Scheduling section
-                            below, then select Send Revised Appointment.
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <details className="group border-t border-slate-200">
-                        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                          <span>Request Info</span>
-                          <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
-                            ⌄
-                          </span>
-                        </summary>
-                        <div className="space-y-5 bg-slate-50/60 p-6">
-                          <DetailSection title="Applicant Information">
-                            <DetailItem
-                              label="Applicant name"
-                              value={request.applicant_name_snapshot}
-                            />
-
-                            <DetailItem
-                              label="Email"
-                              value={
-                                <a
-                                  href={`mailto:${request.applicant_email_snapshot}`}
-                                  className="font-semibold text-sky-700 hover:underline"
-                                >
-                                  {request.applicant_email_snapshot}
-                                </a>
-                              }
-                            />
-
-                            <DetailItem
-                              label="Phone"
-                              value={displayValue(
-                                request.applicant_phone_snapshot,
-                              )}
-                            />
-
-                            <DetailItem
-                              label="FTN"
-                              value={displayValue(request.ftn_number_snapshot)}
-                            />
-
-                            <DetailItem
-                              label="Part 141 graduate"
-                              value={yesNo(request.part_141_graduate)}
-                            />
-
-                            <DetailItem
-                              label="Request source"
-                              value={displayValue(request.source_system)}
-                            />
-                          </DetailSection>
-
-                          <DetailSection title="Practical Test Requested">
-                            <DetailItem
-                              label="Certificate"
-                              value={request.certificate_sought}
-                            />
-
-                            <DetailItem
-                              label="Issuance"
-                              value={formatIssuanceType(request.issuance_type)}
-                            />
-
-                            <DetailItem
-                              label="Category"
-                              value={displayValue(request.category_sought)}
-                            />
-
-                            <DetailItem
-                              label="Class"
-                              value={displayValue(request.class_sought)}
-                            />
-
-                            <DetailItem
-                              label="Rating"
-                              value={request.rating_sought}
-                            />
-
-                            <DetailItem
-                              label="Retest"
-                              value={yesNo(request.is_retest)}
-                            />
-                          </DetailSection>
-
-                          {request.is_retest ? (
-                            <DetailSection title="Retest Information">
-                              <DetailItem
-                                label="Previous test date"
-                                value={formatDate(request.previous_test_date)}
-                              />
-
-                              <DetailItem
-                                label="Previous examiner"
-                                value={displayValue(request.previous_examiner)}
-                              />
-
-                              <DetailItem
-                                label="Areas to be retested"
-                                value={displayValue(request.retest_areas)}
-                              />
-                            </DetailSection>
-                          ) : null}
-
-                          <DetailSection title="Location and Aircraft">
-                            <DetailItem
-                              label="Flight school"
-                              value={displayValue(
-                                request.flight_school_name_snapshot,
-                              )}
-                            />
-
-                            <DetailItem
-                              label="Oral test location"
-                              value={displayValue(request.oral_test_location)}
-                            />
-
-                            <DetailItem
-                              label="Flight airport"
-                              value={displayValue(request.flight_airport_code)}
-                            />
-
-                            <DetailItem
-                              label="Aircraft make"
-                              value={displayValue(request.aircraft_make)}
-                            />
-
-                            <DetailItem
-                              label="Aircraft model"
-                              value={displayValue(request.aircraft_model)}
-                            />
-
-                            <DetailItem
-                              label="Registration"
-                              value={displayValue(
-                                request.aircraft_registration,
-                              )}
-                            />
-
-                            <DetailItem
-                              label="Aircraft description"
-                              value={displayValue(request.aircraft_description)}
-                            />
-
-                            <DetailItem
-                              label="Aircraft notes"
-                              value={displayValue(request.aircraft_notes)}
-                            />
-                          </DetailSection>
-
-                          <DetailSection title="Instructor Information">
-                            <DetailItem
-                              label="Instructor name"
-                              value={displayValue(request.instructor_name)}
-                            />
-
-                            <DetailItem
-                              label="Instructor phone"
-                              value={displayValue(request.instructor_phone)}
-                            />
-
-                            <DetailItem
-                              label="Instructor email"
-                              value={
-                                request.instructor_email ? (
-                                  <a
-                                    href={`mailto:${request.instructor_email}`}
-                                    className="font-semibold text-sky-700 hover:underline"
-                                  >
-                                    {request.instructor_email}
-                                  </a>
-                                ) : (
-                                  "Not specified"
-                                )
-                              }
-                            />
-
-                            <DetailItem
-                              label="Certificate number"
-                              value={displayValue(
-                                request.instructor_certificate_number,
-                              )}
-                            />
-
-                            <DetailItem
-                              label="Associated with school"
-                              value={yesNo(
-                                request.instructor_associated_with_school,
-                              )}
-                            />
-                          </DetailSection>
-
-                          <DetailSection title="Scheduling Preferences">
-                            <DetailItem
-                              label="Requested dates"
-                              value={preferredDates(request)}
-                            />
-
-                            <DetailItem
-                              label="Preferred time"
-                              value={displayValue(request.preferred_time)}
-                            />
-
-                            <DetailItem
-                              label="Specific time"
-                              value={displayValue(request.specific_time)}
-                            />
-
-                            <DetailItem
-                              label="Scheduling notes"
-                              value={displayValue(request.scheduling_notes)}
-                            />
-
-                            <DetailItem
-                              label="Applicant comments"
-                              value={displayValue(request.applicant_comments)}
-                            />
-                          </DetailSection>
-
-                          <DetailSection title="Applicant Acknowledgments">
-                            <DetailItem
-                              label="Fee acknowledged"
-                              value={yesNo(request.fee_acknowledged)}
-                            />
-
-                            <DetailItem
-                              label="Eligibility acknowledged"
-                              value={yesNo(request.eligibility_acknowledged)}
-                            />
-
-                            <DetailItem
-                              label="Aircraft acknowledged"
-                              value={yesNo(request.aircraft_acknowledged)}
-                            />
-
-                            <DetailItem
-                              label="Request acknowledged"
-                              value={yesNo(request.request_acknowledged)}
-                            />
-
-                            <DetailItem
-                              label="Accepted at"
-                              value={formatDateTime(
-                                request.acknowledgments_accepted_at,
-                              )}
-                            />
-                          </DetailSection>
-
-                          {request.cancellation_reason ||
-                          request.cancelled_at ? (
-                            <section className="rounded-xl border border-red-200 bg-red-50 p-5">
-                              <h3 className="font-bold text-red-900">
-                                Cancellation Information
-                              </h3>
-
-                              <dl className="mt-4 grid gap-5 sm:grid-cols-2">
-                                <DetailItem
-                                  label="Cancelled at"
-                                  value={formatDateTime(request.cancelled_at)}
-                                />
-
-                                <DetailItem
-                                  label="Reason"
-                                  value={displayValue(
-                                    request.cancellation_reason,
-                                  )}
-                                />
-                              </dl>
-                            </section>
-                          ) : null}
-                        </div>
-                      </details>
-
-                      <details className="group border-t border-slate-200">
-                        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                          <span>
-                            {isRescheduleRequired
-                              ? "Revised Appointment"
-                              : "Appointment Scheduling"}
-                          </span>
-                          <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
-                            ⌄
-                          </span>
-                        </summary>
-                        {showAppointmentRow ? (
-                          <div className="bg-amber-50/50 p-6">
-                            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                              <div>
-                                <h3 className="font-bold text-slate-900">
-                                  {isRescheduleRequired
-                                    ? "Enter Revised Appointment"
-                                    : "Appointment Management"}
-                                </h3>
-                                <p className="mt-1 text-sm text-slate-600">
-                                  {isRescheduleRequired
-                                    ? "Update the appointment date, time, duration, and location, then send the revised appointment to the applicant."
-                                    : "Save the proposed appointment for applicant review. The appointment becomes confirmed only after the applicant accepts it."}
-                                </p>
-                              </div>
-
-                              {request.status === "confirmed" ? (
-                                <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                                  Appointment Confirmed
-                                </span>
-                              ) : null}
-                            </div>
-
-                            <div className="mt-5 grid gap-5 lg:grid-cols-[1.25fr_1fr_0.65fr] lg:items-end">
-                              <div className="lg:col-span-3">
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.15fr_0.55fr_1.3fr_auto] xl:items-end">
-                                  <div>
-                                    <label
-                                      htmlFor={`finalized-time-${request.id}`}
-                                      className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
-                                    >
-                                      Appointment Start
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Requested Dates Text
+                                      <input
+                                        type="text"
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .requested_dates_text
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "requested_dates_text",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
                                     </label>
 
-                                    <div
-                                      id={`finalized-time-${request.id}`}
-                                      className="grid grid-cols-[minmax(0,1fr)_minmax(145px,0.7fr)] gap-2"
-                                    >
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Preferred Time
                                       <input
-                                        type="date"
-                                        aria-label={`Appointment date for ${request.request_number}`}
-                                        value={appointmentDatePart(
-                                          appointmentDrafts[request.id],
-                                        )}
-                                        onChange={(event) => {
-                                          const existingTime =
-                                            appointmentTimePart(
-                                              appointmentDrafts[request.id],
-                                            ) || "08:00";
-
-                                          setAppointmentDrafts((current) => ({
-                                            ...current,
-                                            [request.id]: event.target.value
-                                              ? `${event.target.value}T${existingTime}`
-                                              : "",
-                                          }));
-                                        }}
-                                        className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                        type="text"
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .preferred_time
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "preferred_time",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
                                       />
+                                    </label>
 
-                                      <select
-                                        aria-label={`Appointment time for ${request.request_number}`}
-                                        value={appointmentTimePart(
-                                          appointmentDrafts[request.id],
-                                        )}
-                                        onChange={(event) => {
-                                          const existingDate =
-                                            appointmentDatePart(
-                                              appointmentDrafts[request.id],
-                                            );
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Specific Time
+                                      <input
+                                        type="time"
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .specific_time
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "specific_time",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
+                                    </label>
+                                  </div>
 
-                                          setAppointmentDrafts((current) => ({
-                                            ...current,
-                                            [request.id]: existingDate
-                                              ? `${existingDate}T${event.target.value}`
-                                              : "",
-                                          }));
-                                        }}
-                                        className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Scheduling Notes
+                                      <textarea
+                                        rows={4}
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .scheduling_notes
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "scheduling_notes",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
+                                    </label>
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Applicant Comments
+                                      <textarea
+                                        rows={4}
+                                        value={
+                                          requestEditDrafts[request.id]
+                                            .applicant_comments
+                                        }
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "applicant_comments",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
+                                    </label>
+                                  </div>
+                                </section>
+                              </div>
+
+                              <div className="mt-6 flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    cancelEditingRequest(request.id)
+                                  }
+                                  disabled={savingRequestInfoId === request.id}
+                                  className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => void saveRequestInfo(request)}
+                                  disabled={savingRequestInfoId === request.id}
+                                  className="rounded-lg bg-amber-700 px-5 py-3 font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {savingRequestInfoId === request.id
+                                    ? "Saving Changes…"
+                                    : "Save Changes"}
+                                </button>
+                              </div>
+                            </section>
+                          ) : null}
+
+                          {isRescheduleRequired ? (
+                            <div className="border-t border-red-200 bg-red-50 px-5 py-4">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                  <p className="text-sm font-bold text-red-900">
+                                    {applicantRequestedReschedule
+                                      ? "Applicant Requested an Appointment Change"
+                                      : "Appointment Reschedule Required"}
+                                  </p>
+                                  <p className="mt-1 whitespace-pre-wrap text-sm text-red-800">
+                                    {displayValue(
+                                      applicantRequestedReschedule
+                                        ? request.appointment_response_notes
+                                        : request.status_reason,
+                                    )}
+                                  </p>
+                                </div>
+
+                                {applicantRequestedReschedule &&
+                                request.appointment_responded_at ? (
+                                  <p className="shrink-0 text-xs font-semibold text-red-700">
+                                    Submitted{" "}
+                                    {formatDateTime(
+                                      request.appointment_responded_at,
+                                    )}
+                                  </p>
+                                ) : null}
+                              </div>
+
+                              {request.scheduled_start_at ? (
+                                <p className="mt-3 text-xs text-red-700">
+                                  <span className="font-semibold">
+                                    Previously proposed appointment:
+                                  </span>{" "}
+                                  {formatDateTime(request.scheduled_start_at)}
+                                  {request.scheduled_end_at
+                                    ? ` – ${formatDateTime(request.scheduled_end_at)}`
+                                    : ""}
+                                  {" · "}
+                                  {displayValue(request.scheduled_location)}
+                                </p>
+                              ) : null}
+
+                              <p className="mt-3 text-xs font-medium text-red-800">
+                                Enter the replacement date, time, duration, and
+                                location in the Appointment Scheduling section
+                                below, then select Send Revised Appointment.
+                              </p>
+                            </div>
+                          ) : null}
+
+                          <details className="group border-t border-slate-200">
+                            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                              <span>Request Info</span>
+                              <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
+                                ⌄
+                              </span>
+                            </summary>
+                            <div className="space-y-5 bg-slate-50/60 p-6">
+                              <DetailSection title="Applicant Information">
+                                <DetailItem
+                                  label="Request number"
+                                  value={request.request_number}
+                                />
+
+                                <DetailItem
+                                  label="Applicant name"
+                                  value={request.applicant_name_snapshot}
+                                />
+
+                                <DetailItem
+                                  label="Email"
+                                  value={
+                                    <a
+                                      href={`mailto:${request.applicant_email_snapshot}`}
+                                      className="font-semibold text-sky-700 hover:underline"
+                                    >
+                                      {request.applicant_email_snapshot}
+                                    </a>
+                                  }
+                                />
+
+                                <DetailItem
+                                  label="Phone"
+                                  value={displayValue(
+                                    request.applicant_phone_snapshot,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="FTN"
+                                  value={displayValue(
+                                    request.ftn_number_snapshot,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Part 141 graduate"
+                                  value={yesNo(request.part_141_graduate)}
+                                />
+
+                                <DetailItem
+                                  label="Request source"
+                                  value={displayValue(request.source_system)}
+                                />
+                              </DetailSection>
+
+                              <DetailSection title="Practical Test Requested">
+                                <DetailItem
+                                  label="Certificate"
+                                  value={request.certificate_sought}
+                                />
+
+                                <DetailItem
+                                  label="Issuance"
+                                  value={formatIssuanceType(
+                                    request.issuance_type,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Category"
+                                  value={displayValue(request.category_sought)}
+                                />
+
+                                <DetailItem
+                                  label="Class"
+                                  value={displayValue(request.class_sought)}
+                                />
+
+                                <DetailItem
+                                  label="Rating"
+                                  value={request.rating_sought}
+                                />
+
+                                <DetailItem
+                                  label="Retest"
+                                  value={yesNo(request.is_retest)}
+                                />
+                              </DetailSection>
+
+                              {request.is_retest ? (
+                                <DetailSection title="Retest Information">
+                                  <DetailItem
+                                    label="Previous test date"
+                                    value={formatDate(
+                                      request.previous_test_date,
+                                    )}
+                                  />
+
+                                  <DetailItem
+                                    label="Previous examiner"
+                                    value={displayValue(
+                                      request.previous_examiner,
+                                    )}
+                                  />
+
+                                  <DetailItem
+                                    label="Areas to be retested"
+                                    value={displayValue(request.retest_areas)}
+                                  />
+                                </DetailSection>
+                              ) : null}
+
+                              <DetailSection title="Location and Aircraft">
+                                <DetailItem
+                                  label="Flight school"
+                                  value={displayValue(
+                                    request.flight_school_name_snapshot,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Oral test location"
+                                  value={displayValue(
+                                    request.oral_test_location,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Flight airport"
+                                  value={displayValue(
+                                    request.flight_airport_code,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Aircraft make"
+                                  value={displayValue(request.aircraft_make)}
+                                />
+
+                                <DetailItem
+                                  label="Aircraft model"
+                                  value={displayValue(request.aircraft_model)}
+                                />
+
+                                <DetailItem
+                                  label="Registration"
+                                  value={displayValue(
+                                    request.aircraft_registration,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Aircraft description"
+                                  value={displayValue(
+                                    request.aircraft_description,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Aircraft notes"
+                                  value={displayValue(request.aircraft_notes)}
+                                />
+                              </DetailSection>
+
+                              <DetailSection title="Instructor Information">
+                                <DetailItem
+                                  label="Instructor name"
+                                  value={displayValue(request.instructor_name)}
+                                />
+
+                                <DetailItem
+                                  label="Instructor phone"
+                                  value={displayValue(request.instructor_phone)}
+                                />
+
+                                <DetailItem
+                                  label="Instructor email"
+                                  value={
+                                    request.instructor_email ? (
+                                      <a
+                                        href={`mailto:${request.instructor_email}`}
+                                        className="font-semibold text-sky-700 hover:underline"
                                       >
-                                        <option value="">Select time</option>
+                                        {request.instructor_email}
+                                      </a>
+                                    ) : (
+                                      "Not specified"
+                                    )
+                                  }
+                                />
 
-                                        {quarterHourTimes.map((time) => (
-                                          <option
-                                            key={time.value}
-                                            value={time.value}
+                                <DetailItem
+                                  label="Certificate number"
+                                  value={displayValue(
+                                    request.instructor_certificate_number,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Associated with school"
+                                  value={yesNo(
+                                    request.instructor_associated_with_school,
+                                  )}
+                                />
+                              </DetailSection>
+
+                              <DetailSection title="Scheduling Preferences">
+                                <DetailItem
+                                  label="Requested dates"
+                                  value={preferredDates(request)}
+                                />
+
+                                <DetailItem
+                                  label="Preferred time"
+                                  value={displayValue(request.preferred_time)}
+                                />
+
+                                <DetailItem
+                                  label="Specific time"
+                                  value={displayValue(request.specific_time)}
+                                />
+
+                                <DetailItem
+                                  label="Scheduling notes"
+                                  value={displayValue(request.scheduling_notes)}
+                                />
+
+                                <DetailItem
+                                  label="Applicant comments"
+                                  value={displayValue(
+                                    request.applicant_comments,
+                                  )}
+                                />
+                              </DetailSection>
+
+                              <DetailSection title="Applicant Acknowledgments">
+                                <DetailItem
+                                  label="Fee acknowledged"
+                                  value={yesNo(request.fee_acknowledged)}
+                                />
+
+                                <DetailItem
+                                  label="Eligibility acknowledged"
+                                  value={yesNo(
+                                    request.eligibility_acknowledged,
+                                  )}
+                                />
+
+                                <DetailItem
+                                  label="Aircraft acknowledged"
+                                  value={yesNo(request.aircraft_acknowledged)}
+                                />
+
+                                <DetailItem
+                                  label="Request acknowledged"
+                                  value={yesNo(request.request_acknowledged)}
+                                />
+
+                                <DetailItem
+                                  label="Accepted at"
+                                  value={formatDateTime(
+                                    request.acknowledgments_accepted_at,
+                                  )}
+                                />
+                              </DetailSection>
+
+                              {request.cancellation_reason ||
+                              request.cancelled_at ? (
+                                <section className="rounded-xl border border-red-200 bg-red-50 p-5">
+                                  <h3 className="font-bold text-red-900">
+                                    Cancellation Information
+                                  </h3>
+
+                                  <dl className="mt-4 grid gap-5 sm:grid-cols-2">
+                                    <DetailItem
+                                      label="Cancelled at"
+                                      value={formatDateTime(
+                                        request.cancelled_at,
+                                      )}
+                                    />
+
+                                    <DetailItem
+                                      label="Reason"
+                                      value={displayValue(
+                                        request.cancellation_reason,
+                                      )}
+                                    />
+                                  </dl>
+                                </section>
+                              ) : null}
+                            </div>
+                          </details>
+
+                          <details className="group border-t border-slate-200">
+                            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                              <span>
+                                {isRescheduleRequired
+                                  ? "Revised Appointment"
+                                  : "Appointment Scheduling"}
+                              </span>
+                              <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
+                                ⌄
+                              </span>
+                            </summary>
+                            {showAppointmentRow ? (
+                              <div className="bg-amber-50/50 p-6">
+                                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                                  <div>
+                                    <h3 className="font-bold text-slate-900">
+                                      {isRescheduleRequired
+                                        ? "Enter Revised Appointment"
+                                        : "Appointment Management"}
+                                    </h3>
+                                    <p className="mt-1 text-sm text-slate-600">
+                                      {isRescheduleRequired
+                                        ? "Update the appointment date, time, duration, and location, then send the revised appointment to the applicant."
+                                        : "Save the proposed appointment for applicant review. The appointment becomes confirmed only after the applicant accepts it."}
+                                    </p>
+                                  </div>
+
+                                  {request.status === "confirmed" ? (
+                                    <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                      Appointment Confirmed
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                <div className="mt-5 grid gap-5 lg:grid-cols-[1.25fr_1fr_0.65fr] lg:items-end">
+                                  <div className="lg:col-span-3">
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.15fr_0.55fr_1.3fr_auto] xl:items-end">
+                                      <div>
+                                        <label
+                                          htmlFor={`finalized-time-${request.id}`}
+                                          className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+                                        >
+                                          Appointment Start
+                                        </label>
+
+                                        <div
+                                          id={`finalized-time-${request.id}`}
+                                          className="grid grid-cols-[minmax(0,1fr)_minmax(145px,0.7fr)] gap-2"
+                                        >
+                                          <input
+                                            type="date"
+                                            aria-label={`Appointment date for ${request.request_number}`}
+                                            value={appointmentDatePart(
+                                              appointmentDrafts[request.id],
+                                            )}
+                                            onChange={(event) => {
+                                              const existingTime =
+                                                appointmentTimePart(
+                                                  appointmentDrafts[request.id],
+                                                ) || "08:00";
+
+                                              setAppointmentDrafts(
+                                                (current) => ({
+                                                  ...current,
+                                                  [request.id]: event.target
+                                                    .value
+                                                    ? `${event.target.value}T${existingTime}`
+                                                    : "",
+                                                }),
+                                              );
+                                            }}
+                                            className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                          />
+
+                                          <select
+                                            aria-label={`Appointment time for ${request.request_number}`}
+                                            value={appointmentTimePart(
+                                              appointmentDrafts[request.id],
+                                            )}
+                                            onChange={(event) => {
+                                              const existingDate =
+                                                appointmentDatePart(
+                                                  appointmentDrafts[request.id],
+                                                );
+
+                                              setAppointmentDrafts(
+                                                (current) => ({
+                                                  ...current,
+                                                  [request.id]: existingDate
+                                                    ? `${existingDate}T${event.target.value}`
+                                                    : "",
+                                                }),
+                                              );
+                                            }}
+                                            className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
                                           >
-                                            {time.label}
-                                          </option>
-                                        ))}
-                                      </select>
+                                            <option value="">
+                                              Select time
+                                            </option>
+
+                                            {quarterHourTimes.map((time) => (
+                                              <option
+                                                key={time.value}
+                                                value={time.value}
+                                              >
+                                                {time.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <label
+                                          htmlFor={`duration-${request.id}`}
+                                          className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+                                        >
+                                          Duration
+                                        </label>
+
+                                        <select
+                                          id={`duration-${request.id}`}
+                                          value={
+                                            appointmentDurationDrafts[
+                                              request.id
+                                            ] ??
+                                            String(
+                                              request.practical_test_type_id
+                                                ? (defaultDurations[
+                                                    request
+                                                      .practical_test_type_id
+                                                  ] ?? 240)
+                                                : 240,
+                                            )
+                                          }
+                                          onChange={(event) =>
+                                            setAppointmentDurationDrafts(
+                                              (current) => ({
+                                                ...current,
+                                                [request.id]:
+                                                  event.target.value,
+                                              }),
+                                            )
+                                          }
+                                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                        >
+                                          <option value="60">1 hour</option>
+                                          <option value="90">1.5 hours</option>
+                                          <option value="120">2 hours</option>
+                                          <option value="150">2.5 hours</option>
+                                          <option value="180">3 hours</option>
+                                          <option value="210">3.5 hours</option>
+                                          <option value="240">4 hours</option>
+                                          <option value="270">4.5 hours</option>
+                                          <option value="300">5 hours</option>
+                                          <option value="330">5.5 hours</option>
+                                          <option value="360">6 hours</option>
+                                          <option value="390">6.5 hours</option>
+                                          <option value="420">7 hours</option>
+                                          <option value="450">7.5 hours</option>
+                                          <option value="480">8 hours</option>
+                                        </select>
+                                      </div>
+
+                                      <div>
+                                        <label
+                                          htmlFor={`location-${request.id}`}
+                                          className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+                                        >
+                                          Appointment Location
+                                        </label>
+
+                                        <input
+                                          id={`location-${request.id}`}
+                                          list={`location-options-${request.id}`}
+                                          value={
+                                            appointmentLocationDrafts[
+                                              request.id
+                                            ] ?? ""
+                                          }
+                                          onChange={(event) =>
+                                            setAppointmentLocationDrafts(
+                                              (current) => ({
+                                                ...current,
+                                                [request.id]:
+                                                  event.target.value,
+                                              }),
+                                            )
+                                          }
+                                          placeholder="Select or enter location"
+                                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                        />
+
+                                        <datalist
+                                          id={`location-options-${request.id}`}
+                                        >
+                                          {schedulingLocations.map(
+                                            (location) => (
+                                              <option
+                                                key={location.id}
+                                                value={
+                                                  location.default_oral_test_location?.trim() ||
+                                                  location.name
+                                                }
+                                              >
+                                                {location.name}
+                                                {location.default_airport_code
+                                                  ? ` · ${location.default_airport_code}`
+                                                  : ""}
+                                              </option>
+                                            ),
+                                          )}
+                                        </datalist>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void saveFinalizedAppointment(request)
+                                        }
+                                        disabled={
+                                          Boolean(savingAppointmentRequestId) ||
+                                          !(
+                                            appointmentDrafts[request.id] ?? ""
+                                          ) ||
+                                          !(
+                                            appointmentLocationDrafts[
+                                              request.id
+                                            ] ?? ""
+                                          ).trim()
+                                        }
+                                        className="rounded-lg border border-amber-700 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {savingAppointment
+                                          ? request.status ===
+                                            "reschedule_required"
+                                            ? "Sending…"
+                                            : "Saving…"
+                                          : request.status ===
+                                              "reschedule_required"
+                                            ? "Send Revised Appointment"
+                                            : "Save Appointment"}
+                                      </button>
                                     </div>
+
+                                    {request.scheduled_start_at ? (
+                                      <div className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs text-slate-700">
+                                        <span className="font-semibold">
+                                          Saved appointment:
+                                        </span>{" "}
+                                        {formatDateTime(
+                                          request.scheduled_start_at,
+                                        )}
+                                        {request.scheduled_end_at
+                                          ? ` – ${formatDateTime(
+                                              request.scheduled_end_at,
+                                            )}`
+                                          : ""}
+                                        {" · "}
+                                        {displayValue(
+                                          request.scheduled_location,
+                                        )}
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   <div>
                                     <label
-                                      htmlFor={`duration-${request.id}`}
+                                      htmlFor={`dms-${request.id}`}
                                       className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
                                     >
-                                      Duration
+                                      DMS Preapproval Number
+                                    </label>
+
+                                    <div className="flex gap-2">
+                                      <input
+                                        id={`dms-${request.id}`}
+                                        type="text"
+                                        value={dmsDrafts[request.id] ?? ""}
+                                        onChange={(event) =>
+                                          setDmsDrafts((current) => ({
+                                            ...current,
+                                            [request.id]: event.target.value,
+                                          }))
+                                        }
+                                        placeholder="Enter DMS number"
+                                        className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                      />
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void saveDmsPreapprovalNumber(request)
+                                        }
+                                        disabled={Boolean(savingDmsRequestId)}
+                                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {savingDms ? "Saving…" : "Save"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-slate-50 px-6 py-5 text-sm text-slate-600">
+                                Appointment confirmation becomes available after
+                                this request is moved to Accepted.
+                              </div>
+                            )}
+                          </details>
+
+                          <details className="group border-t border-slate-200">
+                            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                              <span>Fees</span>
+                              <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
+                                ⌄
+                              </span>
+                            </summary>
+
+                            <div className="bg-slate-50 px-6 py-5">
+                              {showAppointmentRow ? (
+                                <div className="space-y-5">
+                                  <p className="text-sm leading-6 text-slate-600">
+                                    Finalizing fees emails the applicant and
+                                    requires their acceptance. Saving a revised
+                                    amount resets any previous fee acceptance.
+                                  </p>
+
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <div>
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <label
+                                          htmlFor={`fee-${request.id}`}
+                                          className="block text-xs font-semibold uppercase tracking-wide text-slate-600"
+                                        >
+                                          Test Fee
+                                        </label>
+                                        <span className="text-xs font-medium text-slate-500">
+                                          Standard:{" "}
+                                          {formatCurrency(standardFee)}
+                                        </span>
+                                      </div>
+                                      <div className="relative">
+                                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-500">
+                                          $
+                                        </span>
+                                        <input
+                                          id={`fee-${request.id}`}
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={feeDraft}
+                                          onChange={(event) =>
+                                            setFeeDrafts((current) => ({
+                                              ...current,
+                                              [request.id]: event.target.value,
+                                            }))
+                                          }
+                                          className={`w-full rounded-lg border px-3 py-2 pl-7 text-sm font-semibold outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100 ${
+                                            feeDiffersFromStandard
+                                              ? "border-amber-400 bg-amber-100"
+                                              : "border-slate-300 bg-white"
+                                          }`}
+                                        />
+                                      </div>
+                                      {feeDiffersFromStandard ? (
+                                        <p className="mt-1 text-xs font-semibold text-amber-800">
+                                          This fee differs from the standard
+                                          fee.
+                                        </p>
+                                      ) : null}
+                                    </div>
+
+                                    <div>
+                                      <label
+                                        htmlFor={`travel-fee-${request.id}`}
+                                        className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+                                      >
+                                        Travel Fee
+                                      </label>
+                                      <div className="relative">
+                                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-500">
+                                          $
+                                        </span>
+                                        <input
+                                          id={`travel-fee-${request.id}`}
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={travelFeeDraft}
+                                          onChange={(event) =>
+                                            setTravelFeeDrafts((current) => ({
+                                              ...current,
+                                              [request.id]: event.target.value,
+                                            }))
+                                          }
+                                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pl-7 text-sm font-semibold outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        Grand Total
+                                      </p>
+                                      <p className="mt-1 text-xl font-bold text-slate-950">
+                                        {formatCurrency(
+                                          parsedFeeDraft !== null &&
+                                            Number.isFinite(parsedFeeDraft) &&
+                                            parsedTravelFeeDraft !== null &&
+                                            Number.isFinite(
+                                              parsedTravelFeeDraft,
+                                            )
+                                            ? parsedFeeDraft +
+                                                parsedTravelFeeDraft
+                                            : null,
+                                        )}
+                                      </p>
+                                      <p className="mt-1 text-xs text-slate-500">
+                                        {request.fee_response_status ===
+                                        "accepted"
+                                          ? `Accepted${request.fee_responded_at ? ` ${formatDateTime(request.fee_responded_at)}` : ""}`
+                                          : request.fees_finalized_at
+                                            ? "Awaiting applicant acceptance"
+                                            : "Not yet finalized"}
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void saveFeeAmount(request)
+                                      }
+                                      disabled={Boolean(savingFeeRequestId)}
+                                      className="rounded-lg bg-amber-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {savingFee
+                                        ? "Finalizing…"
+                                        : "Save & Notify Applicant"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-slate-600">
+                                  Fees become available after this request is
+                                  moved to Accepted.
+                                </p>
+                              )}
+                            </div>
+                          </details>
+
+                          <QualificationReviewPanel
+                            requestNumber={request.request_number}
+                            applicantName={request.applicant_name_snapshot}
+                            wizard={
+                              qualificationWizardsByRequest[request.id] ?? null
+                            }
+                            onWizardChanged={(updatedWizard) =>
+                              setQualificationWizardsByRequest((current) => ({
+                                ...current,
+                                [request.id]: updatedWizard,
+                              }))
+                            }
+                          />
+
+                          <details className="group border-t border-slate-200">
+                            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                              <span>History</span>
+
+                              <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
+                                ⌄
+                              </span>
+                            </summary>
+
+                            <div className="space-y-6 bg-slate-50/60 p-6">
+                              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                <h3 className="font-bold text-slate-900">
+                                  Add History Entry
+                                </h3>
+
+                                <p className="mt-1 text-sm text-slate-600">
+                                  Add a dated internal note to maintain a
+                                  running log for this request.
+                                </p>
+
+                                <div className="mt-4 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_auto] lg:items-end">
+                                  <div>
+                                    <label
+                                      htmlFor={`history-type-${request.id}`}
+                                      className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+                                    >
+                                      Entry Type
                                     </label>
 
                                     <select
-                                      id={`duration-${request.id}`}
+                                      id={`history-type-${request.id}`}
                                       value={
-                                        appointmentDurationDrafts[request.id] ??
-                                        String(
-                                          request.practical_test_type_id
-                                            ? (defaultDurations[
-                                                request.practical_test_type_id
-                                              ] ?? 240)
-                                            : 240,
-                                        )
+                                        historyTypeDrafts[request.id] ??
+                                        "manual_note"
                                       }
                                       onChange={(event) =>
-                                        setAppointmentDurationDrafts(
-                                          (current) => ({
-                                            ...current,
-                                            [request.id]: event.target.value,
-                                          }),
-                                        )
+                                        setHistoryTypeDrafts((current) => ({
+                                          ...current,
+                                          [request.id]: event.target.value,
+                                        }))
                                       }
-                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
                                     >
-                                      <option value="60">1 hour</option>
-                                      <option value="90">1.5 hours</option>
-                                      <option value="120">2 hours</option>
-                                      <option value="150">2.5 hours</option>
-                                      <option value="180">3 hours</option>
-                                      <option value="210">3.5 hours</option>
-                                      <option value="240">4 hours</option>
-                                      <option value="270">4.5 hours</option>
-                                      <option value="300">5 hours</option>
-                                      <option value="330">5.5 hours</option>
-                                      <option value="360">6 hours</option>
-                                      <option value="390">6.5 hours</option>
-                                      <option value="420">7 hours</option>
-                                      <option value="450">7.5 hours</option>
-                                      <option value="480">8 hours</option>
+                                      <option value="manual_note">
+                                        General Note
+                                      </option>
+
+                                      <option value="phone_call">
+                                        Phone Call
+                                      </option>
+
+                                      <option value="email">Email</option>
+
+                                      <option value="document_received">
+                                        Document Received
+                                      </option>
+
+                                      <option value="appointment_change">
+                                        Appointment Change
+                                      </option>
+
+                                      <option value="internal_note">
+                                        Internal Note
+                                      </option>
                                     </select>
                                   </div>
 
                                   <div>
                                     <label
-                                      htmlFor={`location-${request.id}`}
+                                      htmlFor={`history-entry-${request.id}`}
                                       className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
                                     >
-                                      Appointment Location
+                                      History Note
                                     </label>
 
-                                    <input
-                                      id={`location-${request.id}`}
-                                      list={`location-options-${request.id}`}
-                                      value={
-                                        appointmentLocationDrafts[request.id] ??
-                                        ""
-                                      }
+                                    <textarea
+                                      id={`history-entry-${request.id}`}
+                                      rows={3}
+                                      value={historyDrafts[request.id] ?? ""}
                                       onChange={(event) =>
-                                        setAppointmentLocationDrafts(
-                                          (current) => ({
-                                            ...current,
-                                            [request.id]: event.target.value,
-                                          }),
-                                        )
-                                      }
-                                      placeholder="Select or enter location"
-                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                    />
-
-                                    <datalist
-                                      id={`location-options-${request.id}`}
-                                    >
-                                      {schedulingLocations.map((location) => (
-                                        <option
-                                          key={location.id}
-                                          value={
-                                            location.default_oral_test_location?.trim() ||
-                                            location.name
-                                          }
-                                        >
-                                          {location.name}
-                                          {location.default_airport_code
-                                            ? ` · ${location.default_airport_code}`
-                                            : ""}
-                                        </option>
-                                      ))}
-                                    </datalist>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void saveFinalizedAppointment(request)
-                                    }
-                                    disabled={
-                                      Boolean(savingAppointmentRequestId) ||
-                                      !(appointmentDrafts[request.id] ?? "") ||
-                                      !(
-                                        appointmentLocationDrafts[request.id] ??
-                                        ""
-                                      ).trim()
-                                    }
-                                    className="rounded-lg border border-amber-700 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    {savingAppointment
-                                      ? request.status === "reschedule_required"
-                                        ? "Sending…"
-                                        : "Saving…"
-                                      : request.status === "reschedule_required"
-                                        ? "Send Revised Appointment"
-                                        : "Save Appointment"}
-                                  </button>
-                                </div>
-
-                                {request.scheduled_start_at ? (
-                                  <div className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs text-slate-700">
-                                    <span className="font-semibold">
-                                      Saved appointment:
-                                    </span>{" "}
-                                    {formatDateTime(request.scheduled_start_at)}
-                                    {request.scheduled_end_at
-                                      ? ` – ${formatDateTime(
-                                          request.scheduled_end_at,
-                                        )}`
-                                      : ""}
-                                    {" · "}
-                                    {displayValue(request.scheduled_location)}
-                                  </div>
-                                ) : null}
-                              </div>
-
-                              <div>
-                                <label
-                                  htmlFor={`dms-${request.id}`}
-                                  className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
-                                >
-                                  DMS Preapproval Number
-                                </label>
-
-                                <div className="flex gap-2">
-                                  <input
-                                    id={`dms-${request.id}`}
-                                    type="text"
-                                    value={dmsDrafts[request.id] ?? ""}
-                                    onChange={(event) =>
-                                      setDmsDrafts((current) => ({
-                                        ...current,
-                                        [request.id]: event.target.value,
-                                      }))
-                                    }
-                                    placeholder="Enter DMS number"
-                                    className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                  />
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void saveDmsPreapprovalNumber(request)
-                                    }
-                                    disabled={Boolean(savingDmsRequestId)}
-                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    {savingDms ? "Saving…" : "Save"}
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="mb-2 flex items-center justify-between gap-3">
-                                  <label
-                                    htmlFor={`fee-${request.id}`}
-                                    className="block text-xs font-semibold uppercase tracking-wide text-slate-600"
-                                  >
-                                    Fee Amount
-                                  </label>
-
-                                  <span className="text-xs font-medium text-slate-500">
-                                    Standard: {formatCurrency(standardFee)}
-                                  </span>
-                                </div>
-
-                                <div className="flex gap-2">
-                                  <div className="relative min-w-0 flex-1">
-                                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-slate-500">
-                                      $
-                                    </span>
-                                    <input
-                                      id={`fee-${request.id}`}
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={feeDraft}
-                                      onChange={(event) =>
-                                        setFeeDrafts((current) => ({
+                                        setHistoryDrafts((current) => ({
                                           ...current,
                                           [request.id]: event.target.value,
                                         }))
                                       }
-                                      className={`w-full rounded-lg border px-3 py-2 pl-7 text-sm font-semibold outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100 ${
-                                        feeDiffersFromStandard
-                                          ? "border-amber-400 bg-amber-100"
-                                          : "border-slate-300 bg-white"
-                                      }`}
+                                      placeholder="Enter a note about this request…"
+                                      className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
                                     />
                                   </div>
 
                                   <button
                                     type="button"
-                                    onClick={() => void saveFeeAmount(request)}
-                                    disabled={Boolean(savingFeeRequestId)}
-                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={() =>
+                                      void addRequestHistoryEntry(request)
+                                    }
+                                    disabled={
+                                      Boolean(savingHistoryRequestId) ||
+                                      !(historyDrafts[request.id] ?? "").trim()
+                                    }
+                                    className="rounded-lg bg-amber-700 px-5 py-3 font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
-                                    {savingFee ? "Saving…" : "Save"}
+                                    {savingHistoryRequestId === request.id
+                                      ? "Adding…"
+                                      : "Add Entry"}
                                   </button>
                                 </div>
+                              </section>
 
-                                {feeDiffersFromStandard ? (
-                                  <p className="mt-1 text-xs font-semibold text-amber-800">
-                                    This fee differs from the standard fee.
+                              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                <h3 className="font-bold text-slate-900">
+                                  Running Log
+                                </h3>
+
+                                {(historyByRequest[request.id] ?? []).length ===
+                                0 ? (
+                                  <p className="mt-4 text-sm text-slate-500">
+                                    No manual history entries have been added.
                                   </p>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-slate-50 px-6 py-5 text-sm text-slate-600">
-                            Appointment confirmation becomes available after
-                            this request is moved to Accepted.
-                          </div>
-                        )}
-                      </details>
+                                ) : (
+                                  <ol className="mt-5 space-y-4">
+                                    {(historyByRequest[request.id] ?? []).map(
+                                      (historyEntry) => (
+                                        <li
+                                          key={historyEntry.id}
+                                          className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4"
+                                        >
+                                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                              <p className="text-xs font-bold uppercase tracking-wide text-amber-800">
+                                                {formatStatus(
+                                                  historyEntry.entry_type,
+                                                )}
+                                              </p>
 
-                      <QualificationReviewPanel
-                        requestNumber={request.request_number}
-                        applicantName={request.applicant_name_snapshot}
-                        wizard={
-                          qualificationWizardsByRequest[request.id] ?? null
-                        }
-                        onWizardChanged={(updatedWizard) =>
-                          setQualificationWizardsByRequest((current) => ({
-                            ...current,
-                            [request.id]: updatedWizard,
-                          }))
-                        }
-                      />
+                                              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">
+                                                {historyEntry.entry_text}
+                                              </p>
+                                            </div>
 
-                      <details className="group border-t border-slate-200">
-                        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                          <span>History</span>
+                                            <div className="shrink-0 text-left text-xs text-slate-500 sm:text-right">
+                                              <p className="font-semibold text-slate-600">
+                                                {historyEntry.created_by_label}
+                                              </p>
 
-                          <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
-                            ⌄
-                          </span>
-                        </summary>
-
-                        <div className="space-y-6 bg-slate-50/60 p-6">
-                          <section className="rounded-xl border border-slate-200 bg-white p-5">
-                            <h3 className="font-bold text-slate-900">
-                              Add History Entry
-                            </h3>
-
-                            <p className="mt-1 text-sm text-slate-600">
-                              Add a dated internal note to maintain a running
-                              log for this request.
-                            </p>
-
-                            <div className="mt-4 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_auto] lg:items-end">
-                              <div>
-                                <label
-                                  htmlFor={`history-type-${request.id}`}
-                                  className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
-                                >
-                                  Entry Type
-                                </label>
-
-                                <select
-                                  id={`history-type-${request.id}`}
-                                  value={
-                                    historyTypeDrafts[request.id] ??
-                                    "manual_note"
-                                  }
-                                  onChange={(event) =>
-                                    setHistoryTypeDrafts((current) => ({
-                                      ...current,
-                                      [request.id]: event.target.value,
-                                    }))
-                                  }
-                                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                >
-                                  <option value="manual_note">
-                                    General Note
-                                  </option>
-
-                                  <option value="phone_call">Phone Call</option>
-
-                                  <option value="email">Email</option>
-
-                                  <option value="document_received">
-                                    Document Received
-                                  </option>
-
-                                  <option value="appointment_change">
-                                    Appointment Change
-                                  </option>
-
-                                  <option value="internal_note">
-                                    Internal Note
-                                  </option>
-                                </select>
-                              </div>
-
-                              <div>
-                                <label
-                                  htmlFor={`history-entry-${request.id}`}
-                                  className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
-                                >
-                                  History Note
-                                </label>
-
-                                <textarea
-                                  id={`history-entry-${request.id}`}
-                                  rows={3}
-                                  value={historyDrafts[request.id] ?? ""}
-                                  onChange={(event) =>
-                                    setHistoryDrafts((current) => ({
-                                      ...current,
-                                      [request.id]: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="Enter a note about this request…"
-                                  className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                />
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void addRequestHistoryEntry(request)
-                                }
-                                disabled={
-                                  Boolean(savingHistoryRequestId) ||
-                                  !(historyDrafts[request.id] ?? "").trim()
-                                }
-                                className="rounded-lg bg-amber-700 px-5 py-3 font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {savingHistoryRequestId === request.id
-                                  ? "Adding…"
-                                  : "Add Entry"}
-                              </button>
-                            </div>
-                          </section>
-
-                          <section className="rounded-xl border border-slate-200 bg-white p-5">
-                            <h3 className="font-bold text-slate-900">
-                              Running Log
-                            </h3>
-
-                            {(historyByRequest[request.id] ?? []).length ===
-                            0 ? (
-                              <p className="mt-4 text-sm text-slate-500">
-                                No manual history entries have been added.
-                              </p>
-                            ) : (
-                              <ol className="mt-5 space-y-4">
-                                {(historyByRequest[request.id] ?? []).map(
-                                  (historyEntry) => (
-                                    <li
-                                      key={historyEntry.id}
-                                      className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4"
-                                    >
-                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                          <p className="text-xs font-bold uppercase tracking-wide text-amber-800">
-                                            {formatStatus(
-                                              historyEntry.entry_type,
-                                            )}
-                                          </p>
-
-                                          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">
-                                            {historyEntry.entry_text}
-                                          </p>
-                                        </div>
-
-                                        <div className="shrink-0 text-left text-xs text-slate-500 sm:text-right">
-                                          <p className="font-semibold text-slate-600">
-                                            {historyEntry.created_by_label}
-                                          </p>
-
-                                          <p className="mt-1">
-                                            {formatDateTime(
-                                              historyEntry.created_at,
-                                            )}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </li>
-                                  ),
+                                              <p className="mt-1">
+                                                {formatDateTime(
+                                                  historyEntry.created_at,
+                                                )}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </li>
+                                      ),
+                                    )}
+                                  </ol>
                                 )}
-                              </ol>
-                            )}
-                          </section>
+                              </section>
 
-                          <section className="rounded-xl border border-slate-200 bg-white p-5">
-                            <h3 className="font-bold text-slate-900">
-                              Request Status History
-                            </h3>
 
-                            {(auditByRequest[request.id] ?? []).length === 0 ? (
-                              <p className="mt-4 text-sm text-slate-500">
-                                No status-history entries are available for this
-                                request.
-                              </p>
-                            ) : (
-                              <ol className="mt-5">
-                                {(auditByRequest[request.id] ?? []).map(
-                                  (audit, index, history) => (
-                                    <li
-                                      key={audit.id}
-                                      className="relative flex gap-4 pb-6 last:pb-0"
-                                    >
-                                      {index < history.length - 1 ? (
-                                        <span
-                                          aria-hidden="true"
-                                          className="absolute left-[7px] top-4 h-full w-px bg-slate-200"
-                                        />
-                                      ) : null}
+                              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                <h3 className="font-bold text-slate-900">
+                                  Request Status History
+                                </h3>
 
-                                      <span
-                                        aria-hidden="true"
-                                        className="relative mt-1.5 h-4 w-4 shrink-0 rounded-full border-4 border-white bg-amber-600 ring-1 ring-slate-300"
-                                      />
+                                {(auditByRequest[request.id] ?? []).length ===
+                                0 ? (
+                                  <p className="mt-4 text-sm text-slate-500">
+                                    No status-history entries are available for
+                                    this request.
+                                  </p>
+                                ) : (
+                                  <ol className="mt-5">
+                                    {(auditByRequest[request.id] ?? []).map(
+                                      (audit, index, history) => (
+                                        <li
+                                          key={audit.id}
+                                          className="relative flex gap-4 pb-6 last:pb-0"
+                                        >
+                                          {index < history.length - 1 ? (
+                                            <span
+                                              aria-hidden="true"
+                                              className="absolute left-[7px] top-4 h-full w-px bg-slate-200"
+                                            />
+                                          ) : null}
 
-                                      <div>
-                                        <p className="font-semibold text-slate-900">
-                                          {formatStatus(audit.new_status)}
-                                        </p>
+                                          <span
+                                            aria-hidden="true"
+                                            className="relative mt-1.5 h-4 w-4 shrink-0 rounded-full border-4 border-white bg-amber-600 ring-1 ring-slate-300"
+                                          />
 
-                                        <p className="mt-1 text-xs text-slate-500">
-                                          {formatDateTime(audit.changed_at)}
-                                        </p>
+                                          <div>
+                                            <p className="font-semibold text-slate-900">
+                                              {formatStatus(audit.new_status)}
+                                            </p>
 
-                                        {audit.previous_status ? (
-                                          <p className="mt-1 text-xs text-slate-500">
-                                            Changed from{" "}
-                                            {formatStatus(
-                                              audit.previous_status,
-                                            )}
-                                          </p>
-                                        ) : null}
+                                            <p className="mt-1 text-xs text-slate-500">
+                                              {formatDateTime(audit.changed_at)}
+                                            </p>
 
-                                        {audit.status_reason ? (
-                                          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                                            {audit.status_reason}
-                                          </p>
-                                        ) : null}
-                                      </div>
-                                    </li>
-                                  ),
+                                            {audit.previous_status ? (
+                                              <p className="mt-1 text-xs text-slate-500">
+                                                Changed from{" "}
+                                                {formatStatus(
+                                                  audit.previous_status,
+                                                )}
+                                              </p>
+                                            ) : null}
+
+                                            {audit.status_reason ? (
+                                              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                                                {audit.status_reason}
+                                              </p>
+                                            ) : null}
+                                          </div>
+                                        </li>
+                                      ),
+                                    )}
+                                  </ol>
                                 )}
-                              </ol>
-                            )}
-                          </section>
+                              </section>
+                            </div>
+                          </details>
+
+                              {request.status === "under_review" ? (
+                                <section className="rounded-xl border border-sky-200 bg-sky-50 p-5">
+                                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                      <h3 className="font-bold text-slate-900">
+                                        Examiner Review
+                                      </h3>
+                                      <p className="mt-1 text-sm text-slate-600">
+                                        Accept this request to move it into Scheduling, or decline it and provide a reason to the applicant.
+                                      </p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-3 sm:flex-row">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void respondToUnderReviewRequest(request, "accept")
+                                        }
+                                        disabled={savingRequestId === request.id}
+                                        className="rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {savingRequestId === request.id
+                                          ? "Saving…"
+                                          : "Accept Request"}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setDeclineRequestTarget(request);
+                                          setDeclineReasonDraft("");
+                                          setPageError("");
+                                        }}
+                                        disabled={savingRequestId === request.id}
+                                        className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        Decline Request
+                                      </button>
+                                    </div>
+                                  </div>
+                                </section>
+                              ) : null}
+
+
                         </div>
                       </details>
-                    </div>
-                  </details>
-                </article>
-              </Fragment>
-            );
-          })}
+                    </article>
+                  </Fragment>
+                );
+              })}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <OpenAssignmentsPanel />
+      )}
+      {declineRequestTarget ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="decline-request-title"
+        >
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <h2
+              id="decline-request-title"
+              className="text-xl font-bold text-slate-900"
+            >
+              Confirm Decline Request
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              You are declining request{" "}
+              <span className="font-semibold text-slate-900">
+                {declineRequestTarget.request_number}
+              </span>
+              . The applicant will receive an email containing the reason
+              entered below.
+            </p>
+
+            <label
+              htmlFor="decline-request-reason"
+              className="mt-5 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+            >
+              Decline Reason
+            </label>
+
+            <textarea
+              id="decline-request-reason"
+              rows={5}
+              value={declineReasonDraft}
+              onChange={(event) => setDeclineReasonDraft(event.target.value)}
+              placeholder="Enter the reason this request is being declined…"
+              className="mt-2 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              autoFocus
+            />
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeclineRequestTarget(null);
+                  setDeclineReasonDraft("");
+                }}
+                disabled={Boolean(savingRequestId)}
+                className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void respondToUnderReviewRequest(
+                    declineRequestTarget,
+                    "decline",
+                    declineReasonDraft,
+                  )
+                }
+                disabled={
+                  Boolean(savingRequestId) || !declineReasonDraft.trim()
+                }
+                className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {savingRequestId === declineRequestTarget.id
+                  ? "Declining…"
+                  : "Decline Request"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
+
     </main>
   );
 }
