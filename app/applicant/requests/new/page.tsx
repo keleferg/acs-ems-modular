@@ -32,6 +32,8 @@ type FormData = {
   applicantPhone: string;
   applicantEmail: string;
 
+  examinerProfileId: string;
+
   practicalTestTypeId: string;
   certificateType: string;
   certificateSought: string;
@@ -39,6 +41,10 @@ type FormData = {
   categorySought: string;
   classSought: string;
   ratingSought: string;
+  ppcTypeRatingAircraftId: string;
+  ppcTypeRatingDesignation: string;
+  ppcAircraftTypeCertificateHolder: string;
+  ppcAircraftCivilModelDesignation: string;
 
   flightSchool: string;
   otherFlightSchool: string;
@@ -87,6 +93,8 @@ const initialFormData: FormData = {
   applicantPhone: "",
   applicantEmail: "",
 
+  examinerProfileId: "",
+
   practicalTestTypeId: "",
   certificateType: "",
   certificateSought: "",
@@ -94,6 +102,14 @@ const initialFormData: FormData = {
   categorySought: "",
   classSought: "",
   ratingSought: "",
+
+  ppcTypeRatingAircraftId: "",
+
+  ppcTypeRatingDesignation: "",
+
+  ppcAircraftTypeCertificateHolder: "",
+
+  ppcAircraftCivilModelDesignation: "",
 
   flightSchool: "",
   otherFlightSchool: "",
@@ -220,6 +236,20 @@ type ApplicantFeeInformation = {
   applicant_note: string | null;
 };
 
+type ExaminerOption = {
+  examiner_profile_id: string;
+  examiner_name: string;
+  designation_number: string | null;
+};
+
+type AvailabilitySlot = {
+  slot_date: string;
+  slot_start_time: string;
+  slot_end_time: string;
+  slot_start_at: string;
+  slot_end_at: string;
+};
+
 export default function NewRequestPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
@@ -235,13 +265,82 @@ export default function NewRequestPage() {
   const [feeInformationLoading, setFeeInformationLoading] = useState(false);
   const [feeInformationError, setFeeInformationError] = useState("");
 
+  const [examiners, setExaminers] = useState<ExaminerOption[]>([]);
+  const [examinersLoading, setExaminersLoading] = useState(true);
+
+  const [showAvailabilityCalendar, setShowAvailabilityCalendar] =
+    useState(false);
+
+  const [availabilitySlots, setAvailabilitySlots] =
+    useState<AvailabilitySlot[]>([]);
+
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
+
+  const [availabilityMonth, setAvailabilityMonth] = useState(() => {
+    const now = new Date();
+
+    return `${now.getFullYear()}-${String(
+      now.getMonth() + 1,
+    ).padStart(2, "0")}`;
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadExaminers() {
+      setExaminersLoading(true);
+
+      const supabase = createClient();
+
+      const { data, error } = await supabase.rpc(
+        "applicant_list_available_examiners",
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Unable to load examiners:", error);
+        setExaminers([]);
+        setExaminersLoading(false);
+        return;
+      }
+
+      const rows = (data ?? []) as ExaminerOption[];
+
+      setExaminers(rows);
+
+      if (rows.length === 1) {
+        setFormData((current) => ({
+          ...current,
+          examinerProfileId:
+            current.examinerProfileId ||
+            rows[0].examiner_profile_id,
+        }));
+      }
+
+      setExaminersLoading(false);
+    }
+
+    void loadExaminers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     async function loadFeeInformation() {
       const practicalTestTypeId = formData.practicalTestTypeId;
+      const examinerProfileId = formData.examinerProfileId;
 
-      if (!practicalTestTypeId) {
+      if (
+        !practicalTestTypeId ||
+        !examinerProfileId ||
+        examinerProfileId === "__ANY__"
+      ) {
         setFeeInformation(null);
         setFeeInformationError("");
         setFeeInformationLoading(false);
@@ -254,16 +353,10 @@ export default function NewRequestPage() {
       const supabase = createClient();
 
       const { data, error } = await supabase
-        .from("practical_test_fees")
-        .select(
-          `
-          fee_amount,
-          fee_label,
-          applicant_note
-        `,
-        )
-        .eq("practical_test_type_id", practicalTestTypeId)
-        .eq("is_active", true)
+        .rpc("applicant_get_examiner_test_fee", {
+          p_examiner_profile_id: examinerProfileId,
+          p_practical_test_type_id: practicalTestTypeId,
+        })
         .maybeSingle();
 
       if (cancelled) return;
@@ -278,12 +371,15 @@ export default function NewRequestPage() {
         return;
       }
 
+      const feeRow =
+        data as ApplicantFeeInformation | null;
+
       setFeeInformation(
-        data
+        feeRow
           ? {
-              fee_amount: Number(data.fee_amount),
-              fee_label: data.fee_label ?? null,
-              applicant_note: data.applicant_note ?? null,
+              fee_amount: Number(feeRow.fee_amount),
+              fee_label: feeRow.fee_label ?? null,
+              applicant_note: feeRow.applicant_note ?? null,
             }
           : null,
       );
@@ -296,7 +392,10 @@ export default function NewRequestPage() {
     return () => {
       cancelled = true;
     };
-  }, [formData.practicalTestTypeId]);
+  }, [
+    formData.examinerProfileId,
+    formData.practicalTestTypeId,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -543,8 +642,13 @@ export default function NewRequestPage() {
     formData.flightSchool === "Self / Independent" ||
     formData.flightSchool === "Other";
 
+  const isPpcRequest =
+    formData.certificateSought === "Pilot Proficiency Check (61.58)" ||
+    formData.certificateSought === "Flight Engineer Proficiency Check (91.529)";
+
   const allAcknowledgmentsComplete =
-    formData.feeAcknowledged &&
+    (formData.examinerProfileId === "__ANY__" ||
+      formData.feeAcknowledged) &&
     formData.eligibilityAcknowledged &&
     formData.aircraftAcknowledged &&
     formData.requestAcknowledged;
@@ -572,11 +676,13 @@ export default function NewRequestPage() {
         (formData.isRetest === "Yes" && Boolean(formData.previousTestDate));
 
       return Boolean(
+        formData.examinerProfileId &&
         formData.practicalTestTypeId &&
         formData.certificateSought &&
-        formData.issuanceType &&
+        (isPpcRequest || formData.issuanceType) &&
+        (!isPpcRequest || formData.ppcTypeRatingAircraftId) &&
         formData.isRetest &&
-        formData.part141Graduate &&
+        (isPpcRequest || formData.part141Graduate) &&
         priorFailureComplete,
       );
     }
@@ -586,7 +692,8 @@ export default function NewRequestPage() {
         formData.flightSchool &&
         formData.flightAirportId &&
         formData.flightAirport &&
-        formData.aircraftTypeId &&
+        (!isPpcRequest || formData.ppcTypeRatingAircraftId) &&
+        (isPpcRequest || formData.aircraftTypeId) &&
         formData.aircraftMake.trim() &&
         formData.aircraftModel.trim() &&
         (!selectedSchoolRequiresLocation || formData.oralTestLocation.trim()) &&
@@ -596,6 +703,13 @@ export default function NewRequestPage() {
     }
 
     if (currentStep === 3) {
+      if (
+        isPpcRequest &&
+        formData.isRetest === "No"
+      ) {
+        return true;
+      }
+
       return Boolean(
         formData.instructorName.trim() &&
         formData.instructorPhone.trim() &&
@@ -616,6 +730,10 @@ export default function NewRequestPage() {
     }
 
     if (currentStep === 5) {
+      if (formData.examinerProfileId === "__ANY__") {
+        return true;
+      }
+
       return formData.feeAcknowledged;
     }
 
@@ -636,14 +754,34 @@ export default function NewRequestPage() {
       return;
     }
 
-    setCurrentStep((current) => Math.min(current + 1, steps.length - 1));
+    setCurrentStep((current) => {
+      if (
+        isPpcRequest &&
+        formData.isRetest === "No" &&
+        current === 2
+      ) {
+        return 4;
+      }
+
+      return Math.min(current + 1, steps.length - 1);
+    });
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function previousStep() {
     setSubmitMessage("");
-    setCurrentStep((current) => Math.max(current - 1, 0));
+    setCurrentStep((current) => {
+      if (
+        isPpcRequest &&
+        formData.isRetest === "No" &&
+        current === 4
+      ) {
+        return 2;
+      }
+
+      return Math.max(current - 1, 0);
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -654,8 +792,8 @@ export default function NewRequestPage() {
     setSubmitMessage("");
   }
 
-  async function submitRequest(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitRequest(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
 
     if (!validateCurrentStep()) {
       setSubmitMessage(
@@ -712,18 +850,29 @@ export default function NewRequestPage() {
 
       const issuanceText = formData.issuanceType.trim().toLowerCase();
 
-      let issuanceType = "other";
+      let issuanceType = isPpcRequest
+        ? "proficiency_check"
+        : "other";
 
       if (
-        issuanceText.includes("original") ||
-        issuanceText.includes("initial")
+        !isPpcRequest &&
+        (
+          issuanceText.includes("original") ||
+          issuanceText.includes("initial")
+        )
       ) {
         issuanceType = "original";
-      } else if (issuanceText.includes("additional")) {
+      } else if (
+        !isPpcRequest &&
+        issuanceText.includes("additional")
+      ) {
         issuanceType = "additional_rating";
       } else if (
-        issuanceText.includes("reissuance") ||
-        issuanceText.includes("reinstatement")
+        !isPpcRequest &&
+        (
+          issuanceText.includes("reissuance") ||
+          issuanceText.includes("reinstatement")
+        )
       ) {
         issuanceType = "reissuance";
       }
@@ -768,6 +917,11 @@ export default function NewRequestPage() {
           applicant_phone_snapshot: formData.applicantPhone.trim() || null,
           ftn_number_snapshot: formData.ftnNumber.trim().toUpperCase() || null,
 
+          assigned_examiner_profile_id:
+            formData.examinerProfileId === "__ANY__"
+              ? null
+              : formData.examinerProfileId || null,
+
           practical_test_type_id: formData.practicalTestTypeId || null,
           certificate_sought: formData.certificateSought.trim(),
           category_sought: formData.categorySought.trim() || null,
@@ -775,8 +929,20 @@ export default function NewRequestPage() {
           rating_sought: ratingSought,
           issuance_type: issuanceType,
 
+          ppc_type_rating_aircraft_id:
+            formData.ppcTypeRatingAircraftId || null,
+          ppc_type_rating_designation:
+            formData.ppcTypeRatingDesignation.trim() || null,
+          ppc_aircraft_type_certificate_holder:
+            formData.ppcAircraftTypeCertificateHolder.trim() || null,
+          ppc_aircraft_civil_model_designation:
+            formData.ppcAircraftCivilModelDesignation.trim() || null,
+
           is_retest: formData.isRetest === "Yes",
-          part_141_graduate: formData.part141Graduate === "Yes",
+          part_141_graduate:
+            isPpcRequest
+              ? false
+              : formData.part141Graduate === "Yes",
           previous_test_date:
             formData.isRetest === "Yes"
               ? formData.previousTestDate || null
@@ -798,9 +964,12 @@ export default function NewRequestPage() {
           flight_airport_icao: formData.flightAirportIcao.trim() || null,
           flight_airport_name: formData.flightAirportName.trim() || null,
 
-          aircraft_type_id: formData.aircraftTypeId || null,
+          aircraft_type_id:
+            isPpcRequest ? null : formData.aircraftTypeId || null,
           aircraft_type_designator:
-            formData.aircraftTypeDesignator.trim() || null,
+            isPpcRequest
+              ? null
+              : formData.aircraftTypeDesignator.trim() || null,
           aircraft_description: aircraftDescription || null,
           aircraft_make: formData.aircraftMake.trim() || null,
           aircraft_model: formData.aircraftModel.trim() || null,
@@ -808,14 +977,26 @@ export default function NewRequestPage() {
             formData.aircraftRegistration.trim().toUpperCase() || null,
           aircraft_notes: formData.aircraftNotes.trim() || null,
 
-          instructor_name: formData.instructorName.trim() || null,
-          instructor_phone: formData.instructorPhone.trim() || null,
+          instructor_name:
+            isPpcRequest && formData.isRetest === "No"
+              ? null
+              : formData.instructorName.trim() || null,
+          instructor_phone:
+            isPpcRequest && formData.isRetest === "No"
+              ? null
+              : formData.instructorPhone.trim() || null,
           instructor_email:
-            formData.instructorEmail.trim().toLowerCase() || null,
+            isPpcRequest && formData.isRetest === "No"
+              ? null
+              : formData.instructorEmail.trim().toLowerCase() || null,
           instructor_certificate_number:
-            formData.instructorCertificateNumber.trim() || null,
+            isPpcRequest && formData.isRetest === "No"
+              ? null
+              : formData.instructorCertificateNumber.trim() || null,
           instructor_associated_with_school:
-            formData.instructorAssociatedWithSchool === "Yes",
+            isPpcRequest && formData.isRetest === "No"
+              ? false
+              : formData.instructorAssociatedWithSchool === "Yes",
 
           first_available: formData.firstAvailable,
           requested_dates_text: requestedDatesText || null,
@@ -830,7 +1011,10 @@ export default function NewRequestPage() {
           scheduling_notes: formData.schedulingNotes.trim() || null,
           applicant_comments: formData.schedulingNotes.trim() || null,
 
-          fee_acknowledged: formData.feeAcknowledged,
+          fee_acknowledged:
+            formData.examinerProfileId === "__ANY__"
+              ? false
+              : formData.feeAcknowledged,
           eligibility_acknowledged: formData.eligibilityAcknowledged,
           aircraft_acknowledged: formData.aircraftAcknowledged,
           request_acknowledged: formData.requestAcknowledged,
@@ -905,6 +1089,101 @@ export default function NewRequestPage() {
     );
   }
 
+  async function loadAvailabilityCalendar() {
+    if (
+      !formData.examinerProfileId ||
+      formData.examinerProfileId === "__ANY__"
+    ) {
+      setAvailabilityError(
+        "Availability Calendar is available when you select a specific examiner.",
+      );
+      return;
+    }
+
+    if (!formData.practicalTestTypeId) {
+      setAvailabilityError("Select the practical test first.");
+      return;
+    }
+
+    setShowAvailabilityCalendar(true);
+    setAvailabilityLoading(true);
+    setAvailabilityError("");
+
+    const [yearText, monthText] =
+      availabilityMonth.split("-");
+
+    const year = Number(yearText);
+    const month = Number(monthText);
+
+    const firstDate =
+      `${yearText}-${monthText}-01`;
+
+    const lastDay =
+      new Date(year, month, 0).getDate();
+
+    const lastDate =
+      `${yearText}-${monthText}-${String(lastDay).padStart(
+        2,
+        "0",
+      )}`;
+
+    const supabase = createClient();
+
+    const { data, error } = await supabase.rpc(
+      "applicant_get_examiner_open_slots",
+      {
+        p_examiner_profile_id:
+          formData.examinerProfileId,
+
+        p_practical_test_type_id:
+          formData.practicalTestTypeId,
+
+        p_start_date:
+          firstDate,
+
+        p_end_date:
+          lastDate,
+      },
+    );
+
+    if (error) {
+      setAvailabilitySlots([]);
+      setAvailabilityError(error.message);
+      setAvailabilityLoading(false);
+      return;
+    }
+
+    setAvailabilitySlots(
+      (data ?? []) as AvailabilitySlot[],
+    );
+
+    setAvailabilityLoading(false);
+  }
+
+
+  function chooseAvailabilitySlot(
+    slot: AvailabilitySlot,
+  ) {
+    setFormData((current) => ({
+      ...current,
+
+      firstAvailable: false,
+
+      preferredDate1:
+        slot.slot_date,
+
+      preferredTime:
+        "Specific time",
+
+      specificTime:
+        slot.slot_start_time.slice(0, 5),
+    }));
+
+    setShowAvailabilityCalendar(false);
+    setAvailabilityError("");
+  }
+
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -976,7 +1255,7 @@ export default function NewRequestPage() {
         </div>
       </div>
 
-      <form onSubmit={submitRequest}>
+      <form onSubmit={submitRequest} noValidate>
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           {currentStep === 0 ? (
             <div>
@@ -1039,13 +1318,67 @@ export default function NewRequestPage() {
               </h2>
 
               <p className="mt-2 text-slate-600">
-                Select the practical test you are requesting. Only test types
-                currently offered by the examiner are shown.
+                Select a specific examiner if you only want to test with that
+                examiner, or select Any Examiner if you would like the first
+                available examiner. When Any Examiner is selected, the full
+                active practical test catalog is available.
               </p>
 
               <div className="mt-7">
+                <div className="mb-6">
+                  <FieldLabel required>Examiner</FieldLabel>
+
+                  <SelectInput
+                    value={formData.examinerProfileId}
+                    onChange={(value) =>
+                      setFormData((current) => ({
+                        ...current,
+                        examinerProfileId: value,
+                        practicalTestTypeId: "",
+                        certificateType: "",
+                        certificateSought: "",
+                        issuanceType: "",
+                        categorySought: "",
+                        classSought: "",
+                        ratingSought: "",
+
+                        ppcTypeRatingAircraftId: "",
+
+                        ppcTypeRatingDesignation: "",
+
+                        ppcAircraftTypeCertificateHolder: "",
+
+                        ppcAircraftCivilModelDesignation: "",
+                      }))
+                    }
+                  >
+                    <option value="">
+                      {examinersLoading
+                        ? "Loading examiners..."
+                        : "Select an examiner"}
+                    </option>
+
+                  <option value="__ANY__">
+                    Any Examiner — First Available
+                  </option>
+
+                    {examiners.map((examiner) => (
+                      <option
+                        key={examiner.examiner_profile_id}
+                        value={examiner.examiner_profile_id}
+                      >
+                        {examiner.examiner_name}
+                        {examiner.designation_number
+                          ? ` — DPE #${examiner.designation_number}`
+                          : ""}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </div>
+
                 <PracticalTestTypeSelector
-                  selection={{
+                  examinerProfileId={formData.examinerProfileId}
+                selection={{
                     practicalTestTypeId: formData.practicalTestTypeId,
                     certificateType: formData.certificateType,
                     certificateSought: formData.certificateSought,
@@ -1053,6 +1386,10 @@ export default function NewRequestPage() {
                     categorySought: formData.categorySought,
                     classSought: formData.classSought,
                     ratingSought: formData.ratingSought,
+                    ppcTypeRatingAircraftId: formData.ppcTypeRatingAircraftId,
+                    ppcTypeRatingDesignation: formData.ppcTypeRatingDesignation,
+                    ppcAircraftTypeCertificateHolder: formData.ppcAircraftTypeCertificateHolder,
+                    ppcAircraftCivilModelDesignation: formData.ppcAircraftCivilModelDesignation,
                   }}
                   onChange={(selection: PracticalTestTypeSelection) => {
                     setFormData((current) => ({
@@ -1067,8 +1404,9 @@ export default function NewRequestPage() {
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
                     <FieldLabel required>
-                      Have you previously failed a test for this certificate or
-                      rating?
+                      {isPpcRequest
+                        ? "Is this a retest for a previously failed proficiency check?"
+                        : "Have you previously failed a test for this certificate or rating?"}
                     </FieldLabel>
 
                     <div className="mt-3 flex gap-6">
@@ -1113,34 +1451,36 @@ export default function NewRequestPage() {
                     ) : null}
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                    <FieldLabel required>
-                      Are you or will you be a graduate of a Part 141 approved
-                      course?
-                    </FieldLabel>
+                  {!isPpcRequest ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                      <FieldLabel required>
+                        Are you or will you be a graduate of a Part 141 approved
+                        course?
+                      </FieldLabel>
 
-                    <div className="mt-3 flex gap-6">
-                      {["No", "Yes"].map((answer) => (
-                        <label
-                          key={answer}
-                          className="flex cursor-pointer items-center gap-2"
-                        >
-                          <input
-                            type="radio"
-                            name="part141Graduate"
-                            value={answer}
-                            checked={formData.part141Graduate === answer}
-                            onChange={() =>
-                              updateField("part141Graduate", answer)
-                            }
-                            className="h-4 w-4"
-                          />
+                      <div className="mt-3 flex gap-6">
+                        {["No", "Yes"].map((answer) => (
+                          <label
+                            key={answer}
+                            className="flex cursor-pointer items-center gap-2"
+                          >
+                            <input
+                              type="radio"
+                              name="part141Graduate"
+                              value={answer}
+                              checked={formData.part141Graduate === answer}
+                              onChange={() =>
+                                updateField("part141Graduate", answer)
+                              }
+                              className="h-4 w-4"
+                            />
 
-                          <span className="text-slate-800">{answer}</span>
-                        </label>
-                      ))}
+                            <span className="text-slate-800">{answer}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -1416,8 +1756,165 @@ export default function NewRequestPage() {
               </h2>
 
               <p className="mt-2 text-slate-600">
-                Tell us when you are available and whether this is a retest.
+                Tell us when you are available. If you would like to see if there
+                are specific slots available, click on &quot;View Availability Calendar&quot;.
               </p>
+
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => void loadAvailabilityCalendar()}
+                  disabled={
+                    !formData.examinerProfileId ||
+                    formData.examinerProfileId === "__ANY__" ||
+                    !formData.practicalTestTypeId
+                  }
+                  className="inline-flex items-center justify-center rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  View Availability Calendar
+                </button>
+              </div>
+
+              {showAvailabilityCalendar ? (
+                <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50/40 p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        Availability Calendar
+                      </h3>
+
+                      <p className="mt-1 text-sm text-slate-600">
+                        Times shown are current openings. Selecting a
+                        time adds it as your preferred appointment time
+                        but does not reserve the appointment.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-2">
+                      <label>
+                        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                          Month
+                        </span>
+
+                        <input
+                          type="month"
+                          value={availabilityMonth}
+                          onChange={(event) =>
+                            setAvailabilityMonth(
+                              event.target.value,
+                            )
+                          }
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void loadAvailabilityCalendar()
+                        }
+                        className="rounded-lg border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
+                      >
+                        Refresh
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowAvailabilityCalendar(false)
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+
+                  {availabilityError ? (
+                    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                      {availabilityError}
+                    </div>
+                  ) : null}
+
+                  {availabilityLoading ? (
+                    <div className="mt-5 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+                      Loading available appointment slots...
+                    </div>
+                  ) : null}
+
+                  {!availabilityLoading &&
+                  availabilitySlots.length === 0 &&
+                  !availabilityError ? (
+                    <div className="mt-5 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+                      No open appointment slots are currently
+                      available for this month.
+                    </div>
+                  ) : null}
+
+                  {!availabilityLoading &&
+                  availabilitySlots.length > 0 ? (
+                    <div className="mt-5 space-y-5">
+                      {Object.entries(
+                        availabilitySlots.reduce<
+                          Record<string, AvailabilitySlot[]>
+                        >((groups, slot) => {
+                          (groups[slot.slot_date] ??= []).push(
+                            slot,
+                          );
+
+                          return groups;
+                        }, {}),
+                      ).map(([date, slots]) => (
+                        <div
+                          key={date}
+                          className="rounded-xl border border-slate-200 bg-white p-4"
+                        >
+                          <p className="font-bold text-slate-900">
+                            {new Intl.DateTimeFormat("en-US", {
+                              weekday: "long",
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                              timeZone: "UTC",
+                            }).format(
+                              new Date(
+                                `${date}T12:00:00Z`,
+                              ),
+                            )}
+                          </p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {slots.map((slot) => (
+                              <button
+                                key={slot.slot_start_at}
+                                type="button"
+                                onClick={() =>
+                                  chooseAvailabilitySlot(slot)
+                                }
+                                className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
+                              >
+                                {new Intl.DateTimeFormat(
+                                  "en-US",
+                                  {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    timeZone:
+                                      "Pacific/Honolulu",
+                                  },
+                                ).format(
+                                  new Date(
+                                    slot.slot_start_at,
+                                  ),
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="mt-7 space-y-7">
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4">
@@ -1593,35 +2090,56 @@ export default function NewRequestPage() {
                 </div>
               </div>
 
-              <label className="mt-7 flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-5">
-                <input
-                  type="checkbox"
-                  checked={formData.feeAcknowledged}
-                  onChange={(event) =>
-                    updateField("feeAcknowledged", event.target.checked)
-                  }
-                  className="mt-1 h-5 w-5 rounded border-slate-300"
-                />
+              {formData.examinerProfileId === "__ANY__" ? (
+                <div className="mt-7 rounded-xl border border-sky-200 bg-sky-50 p-5">
+                  <p className="font-semibold text-sky-900">
+                    Fee acknowledgment is not required yet.
+                  </p>
 
-                <span>
-                  <span className="block font-bold text-slate-900">
-                    Fee acknowledgment
-                  </span>
+                  <p className="mt-2 text-sm leading-6 text-sky-800">
+                    You selected Any Examiner — First Available. An examiner
+                    will provide the proposed appointment and applicable fee.
+                    You will be able to review and acknowledge the fee before
+                    accepting that examiner&apos;s proposal.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <label className="mt-7 flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-5">
+                    <input
+                      type="checkbox"
+                      checked={formData.feeAcknowledged}
+                      onChange={(event) =>
+                        updateField("feeAcknowledged", event.target.checked)
+                      }
+                      className="mt-1 h-5 w-5 rounded border-slate-300"
+                    />
 
-                  <span className="mt-1 block text-sm leading-6 text-slate-600">
-                    I acknowledge that I have reviewed the fee information for
-                    the practical test requested and agree to pay the published
-                    testing fee, any agreed travel fees, and any applicable
-                    cancellation or additional testing fees.
-                  </span>
-                </span>
-              </label>
+                    <span>
+                      <span className="block font-bold text-slate-900">
+                        Fee acknowledgment
+                      </span>
 
-              {!formData.feeAcknowledged ? (
-                <p className="mt-3 text-sm font-medium text-slate-600">
-                  Fee acknowledgment is required before continuing.
-                </p>
-              ) : null}
+                      <span className="mt-1 block text-sm leading-6 text-slate-600">
+                        I acknowledge that I have reviewed the fee schedule for the type of
+                      test that I am requesting, and agree to pay the published fees for
+                      testing, any agreed upon travel fees, and any fees resulting
+                      cancellation on the day of the test when the applicant is at fault.
+                      Weather and Mechanical cancellations are not the fault of the
+                      applicant. Travel fees are not returnable if the DPE has traveled
+                      to the site location. The link to the Fee Schedule is provided
+                      below.
+                      </span>
+                    </span>
+                  </label>
+
+                  {!formData.feeAcknowledged ? (
+                    <p className="mt-3 text-sm font-medium text-slate-600">
+                      Fee acknowledgment is required before continuing.
+                    </p>
+                  ) : null}
+                </>
+              )}
             </div>
           ) : null}
 
@@ -1747,17 +2265,17 @@ export default function NewRequestPage() {
                   {
                     field: "eligibilityAcknowledged" as const,
                     title: "Eligibility acknowledgment",
-                    text: "I acknowledge that I meet the requirements of 14 CFR Part 61 for the certificate, category, and class sought, or will meet them before final confirmation of the practical test appointment.",
+                    text: "I acknowledge that I meet the requirements for the certificate and rating sought in Part 61 or will meet the requirements prior to final confirmation of a test date and time. Failure to meet the requirements at the appointment time may result in up to a $500 cancellation fee.",
                   },
                   {
                     field: "aircraftAcknowledged" as const,
                     title: "Aircraft acknowledgment",
-                    text: "I acknowledge that I will provide an airworthy aircraft capable of completing all required areas of operation. The aircraft records and required documents will be available for inspection.",
+                    text: "I acknowledge that I will provide an airworthy aircraft for the practical test that is capable of conducting all areas of operation required for the certificate and rating sought. The logbooks will need to be provided to the DPE for review at the appointment date / time and location.",
                   },
                   {
                     field: "requestAcknowledged" as const,
                     title: "Request acknowledgment",
-                    text: "I understand that submitting this request does not confirm an appointment. The request will be reviewed, and I will be contacted when an appointment can be offered.",
+                    text: "I understand that this test request is just a request - it is not a confirmation of a test date or time. We will review the request list daily and when there is an opening, you will be contacted to confirm the schedule. Should you be able to confirm a test with another DPE, we ask that you cancel your request so we can move on to the next applicant. You will also receive confirmation emails when you scheduled appointment in confirmed.",
                   },
                 ].map((acknowledgment) => (
                   <label
@@ -1831,11 +2349,19 @@ export default function NewRequestPage() {
             </button>
           ) : (
             <button
-              type="submit"
-              disabled={!allAcknowledgmentsComplete}
+              type="button"
+              disabled={
+                !allAcknowledgmentsComplete ||
+                isSubmitting
+              }
+              onClick={() => {
+                void submitRequest();
+              }}
               className="rounded-lg bg-emerald-700 px-6 py-3 font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              Submit Practical Test Request
+              {isSubmitting
+                ? "Submitting…"
+                : "Submit Practical Test Request"}
             </button>
           )}
         </div>

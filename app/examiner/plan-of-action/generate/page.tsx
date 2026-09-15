@@ -236,6 +236,34 @@ type GeneratorScenarioOption = {
   examiner_notes: string | null;
 };
 
+type ScenarioTimelineItem = {
+  kind: string;
+  label: string;
+  phase: string;
+  title: string;
+  narrative?: string | null;
+  trigger_id?: string | null;
+  category?: string | null;
+  branch_worthy?: boolean;
+  required?: boolean;
+  time_pressure?: string | null;
+  source_trigger_id?: string | null;
+  design_note?: string | null;
+  precondition?: string | null;
+};
+
+type ScenarioTimelineResult = {
+  seed?: {
+    id?: string | null;
+    title?: string | null;
+    narrative?: string | null;
+    time_pressure?: string | null;
+  } | null;
+  altitude?: number | null;
+  cross_country_required?: boolean;
+  timeline?: ScenarioTimelineItem[];
+};
+
 type SavedGeneratedPoa = {
   id: string;
   title: string;
@@ -401,6 +429,57 @@ function chooseRandom<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)] ?? null;
 }
 
+function crossCountryTaskParentsForPrefixes(prefixes: string[]) {
+  const allowed = new Set(prefixes.map((value) => value.trim().toUpperCase()));
+
+  const parents = new Set<string>();
+
+  const entries = faaAcsComplianceCatalog.entries as unknown as Array<
+    Record<string, unknown>
+  >;
+
+  for (const raw of entries) {
+    const code = String(raw.code ?? raw.acs_reference ?? raw.reference ?? "")
+      .trim()
+      .toUpperCase();
+
+    const prefix = acsPrefix(code);
+
+    if (!prefix || !allowed.has(prefix)) {
+      continue;
+    }
+
+    const parent = taskParentFromReference(code);
+
+    if (!parent) {
+      continue;
+    }
+
+    const taskLabelCandidates = [
+      raw.task_name,
+      raw.taskName,
+      raw.task,
+      raw.name,
+      raw.title,
+      raw.label,
+    ];
+
+    const taskLabel = taskLabelCandidates.find(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+
+    if (
+      String(taskLabel ?? "")
+        .toLowerCase()
+        .includes("cross-country flight planning")
+    ) {
+      parents.add(parent);
+    }
+  }
+
+  return [...parents].sort(compareAcsReferences);
+}
+
 export default function GeneratePoaPage() {
   const [testTypeId, setTestTypeId] = useState("");
 
@@ -442,28 +521,30 @@ export default function GeneratePoaPage() {
 
   const [generatedPoaId, setGeneratedPoaId] = useState("");
 
-  const [savedPoaVersions, setSavedPoaVersions] =
-    useState<SavedGeneratedPoa[]>([]);
+  const [savedPoaVersions, setSavedPoaVersions] = useState<SavedGeneratedPoa[]>(
+    [],
+  );
 
+  const [scenarioOptions, setScenarioOptions] = useState<
+    GeneratorScenarioOption[]
+  >([]);
 
-  const [scenarioOptions, setScenarioOptions] =
-    useState<GeneratorScenarioOption[]>([]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState("");
 
-  const [selectedScenarioId, setSelectedScenarioId] =
-    useState("");
+  const [loadingScenarios, setLoadingScenarios] = useState(false);
 
-  const [loadingScenarios, setLoadingScenarios] =
-    useState(false);
+  const [scenarioTimeline, setScenarioTimeline] =
+    useState<ScenarioTimelineResult | null>(null);
 
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
 
-  const [loadingPoaVersions, setLoadingPoaVersions] =
-    useState(false);
+  const [scenarioAltitude, setScenarioAltitude] = useState(8000);
 
-  const [selectedPoaVersionId, setSelectedPoaVersionId] =
-    useState("new");
+  const [loadingPoaVersions, setLoadingPoaVersions] = useState(false);
 
-  const [additionalRatingHeld, setAdditionalRatingHeld] =
-    useState("");
+  const [selectedPoaVersionId, setSelectedPoaVersionId] = useState("new");
+
+  const [additionalRatingHeld, setAdditionalRatingHeld] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -644,7 +725,6 @@ export default function GeneratePoaPage() {
     }
   }, [loadPage, testTypeId]);
 
-
   useEffect(() => {
     let cancelled = false;
 
@@ -673,26 +753,21 @@ export default function GeneratePoaPage() {
         return;
       }
 
-      const { data, error } =
-        await supabase
-          .from("generated_plan_of_actions")
-          .select(`
+      const { data, error } = await supabase
+        .from("generated_plan_of_actions")
+        .select(
+          `
             id,
             title,
             status,
             created_at
-          `)
-          .eq(
-            "examiner_profile_id",
-            user.id,
-          )
-          .eq(
-            "practical_test_type_id",
-            testTypeId,
-          )
-          .order("created_at", {
-            ascending: true,
-          });
+          `,
+        )
+        .eq("examiner_profile_id", user.id)
+        .eq("practical_test_type_id", testTypeId)
+        .order("created_at", {
+          ascending: true,
+        });
 
       if (cancelled) {
         return;
@@ -704,9 +779,7 @@ export default function GeneratePoaPage() {
         return;
       }
 
-      setSavedPoaVersions(
-        (data ?? []) as SavedGeneratedPoa[],
-      );
+      setSavedPoaVersions((data ?? []) as SavedGeneratedPoa[]);
 
       setLoadingPoaVersions(false);
     }
@@ -718,48 +791,31 @@ export default function GeneratePoaPage() {
     };
   }, [testTypeId]);
 
-  function formatSavedPoaVersion(
-    poa: SavedGeneratedPoa,
-    index: number,
-  ) {
-    const created =
-      new Date(poa.created_at);
+  function formatSavedPoaVersion(poa: SavedGeneratedPoa, index: number) {
+    const created = new Date(poa.created_at);
 
-    const dateText =
-      Number.isNaN(created.getTime())
-        ? ""
-        : created.toLocaleString(
-            undefined,
-            {
-              month: "short",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            },
-          );
+    const dateText = Number.isNaN(created.getTime())
+      ? ""
+      : created.toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        });
 
-    return `Version ${index + 1}${
-      dateText
-        ? ` — ${dateText}`
-        : ""
-    }`;
+    return `Version ${index + 1}${dateText ? ` — ${dateText}` : ""}`;
   }
 
-  function selectPoaVersion(
-    value: string,
-  ) {
-    setSelectedPoaVersionId(
-      value,
-    );
+  function selectPoaVersion(value: string) {
+    setSelectedPoaVersionId(value);
 
     if (value === "new") {
       return;
     }
 
-    window.location.href =
-      `/examiner/plan-of-action/generated/${encodeURIComponent(
-        value,
-      )}/edit`;
+    window.location.href = `/examiner/plan-of-action/generated/${encodeURIComponent(
+      value,
+    )}/edit`;
   }
 
   function selectPracticalTest(nextTestTypeId: string) {
@@ -809,121 +865,87 @@ export default function GeneratePoaPage() {
       return false;
     }
 
-    const code =
-      (testType.issuance_code ?? "")
-        .trim()
-        .toUpperCase();
+    const code = (testType.issuance_code ?? "").trim().toUpperCase();
 
-    const name =
-      (testType.issuance_name ?? "")
-        .trim()
-        .toLowerCase();
+    const name = (testType.issuance_name ?? "").trim().toLowerCase();
 
-    return (
-      code === "ADDITIONAL" ||
-      name.includes("additional")
-    );
+    return code === "ADDITIONAL" || name.includes("additional");
   }, [testType]);
 
-  const additionalMapCertificateKey =
-    useMemo(() => {
-      if (!testType) {
-        return "";
-      }
-
-      const certificate =
-        testType.certificate_name
-          .trim()
-          .toLowerCase();
-
-      if (certificate.includes("private")) {
-        return "Private";
-      }
-
-      if (certificate.includes("commercial")) {
-        return "Commercial";
-      }
-
-      if (certificate.includes("instrument")) {
-        return "Instrument";
-      }
-
-      if (certificate.includes("airline transport")) {
-        return "ATP";
-      }
-
-      if (certificate.includes("flight instructor")) {
-        return "CFI";
-      }
-
+  const additionalMapCertificateKey = useMemo(() => {
+    if (!testType) {
       return "";
-    }, [testType]);
+    }
 
-  const additionalTargetRatingKey =
-    useMemo(() => {
-      if (!testType) {
-        return "";
-      }
+    const certificate = testType.certificate_name.trim().toLowerCase();
 
-      const classCode =
-        (testType.class_code ?? "")
-          .trim()
-          .toUpperCase();
+    if (certificate.includes("private")) {
+      return "Private";
+    }
 
-      if (
-        ["ASEL", "AMEL", "ASES", "AMES"].includes(
-          classCode,
-        )
-      ) {
-        return classCode;
-      }
+    if (certificate.includes("commercial")) {
+      return "Commercial";
+    }
 
-      return testType.rating_name.trim();
-    }, [testType]);
+    if (certificate.includes("instrument")) {
+      return "Instrument";
+    }
 
-  const additionalHeldOptions =
-    useMemo(() => {
-      if (
-        !isAdditionalIssuance ||
-        !additionalMapCertificateKey ||
-        !additionalTargetRatingKey
-      ) {
-        return [];
-      }
+    if (certificate.includes("airline transport")) {
+      return "ATP";
+    }
 
-      const certificateMaps =
-        (
-          ADDITIONAL_MAPS as Record<
-            string,
-            Record<string, unknown>
-          >
-        )[additionalMapCertificateKey] ?? {};
+    if (certificate.includes("flight instructor")) {
+      return "CFI";
+    }
 
-      const prefix =
-        `${additionalTargetRatingKey}_from_`;
+    return "";
+  }, [testType]);
 
-      return Object.keys(certificateMaps)
-        .filter((key) =>
-          key.startsWith(prefix),
-        )
-        .map((key) =>
-          key.slice(prefix.length),
-        )
-        .sort((a, b) =>
-          a.localeCompare(
-            b,
-            undefined,
-            {
-              numeric: true,
-              sensitivity: "base",
-            },
-          ),
-        );
-    }, [
-      additionalMapCertificateKey,
-      additionalTargetRatingKey,
-      isAdditionalIssuance,
-    ]);
+  const additionalTargetRatingKey = useMemo(() => {
+    if (!testType) {
+      return "";
+    }
+
+    const classCode = (testType.class_code ?? "").trim().toUpperCase();
+
+    if (["ASEL", "AMEL", "ASES", "AMES"].includes(classCode)) {
+      return classCode;
+    }
+
+    return testType.rating_name.trim();
+  }, [testType]);
+
+  const additionalHeldOptions = useMemo(() => {
+    if (
+      !isAdditionalIssuance ||
+      !additionalMapCertificateKey ||
+      !additionalTargetRatingKey
+    ) {
+      return [];
+    }
+
+    const certificateMaps =
+      (ADDITIONAL_MAPS as Record<string, Record<string, unknown>>)[
+        additionalMapCertificateKey
+      ] ?? {};
+
+    const prefix = `${additionalTargetRatingKey}_from_`;
+
+    return Object.keys(certificateMaps)
+      .filter((key) => key.startsWith(prefix))
+      .map((key) => key.slice(prefix.length))
+      .sort((a, b) =>
+        a.localeCompare(b, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        }),
+      );
+  }, [
+    additionalMapCertificateKey,
+    additionalTargetRatingKey,
+    isAdditionalIssuance,
+  ]);
 
   const filteredQuestions = useMemo(() => {
     const search = searchText.trim().toLowerCase();
@@ -1203,7 +1225,9 @@ export default function GeneratePoaPage() {
           continue;
         }
 
-        for (const reference of splitAcsReferences(applicability.acs_reference)) {
+        for (const reference of splitAcsReferences(
+          applicability.acs_reference,
+        )) {
           const prefix = acsPrefix(reference);
           const taskParent = taskParentFromReference(reference);
           const elementKind = elementKindFromReference(reference);
@@ -1212,18 +1236,27 @@ export default function GeneratePoaPage() {
             continue;
           }
 
-          const current =
-            taskCandidates.get(taskParent) ?? { K: [], R: [], any: [] };
+          const current = taskCandidates.get(taskParent) ?? {
+            K: [],
+            R: [],
+            any: [],
+          };
 
           if (!current.any.some((item) => item.id === question.id)) {
             current.any.push(question);
           }
 
-          if (elementKind === "K" && !current.K.some((item) => item.id === question.id)) {
+          if (
+            elementKind === "K" &&
+            !current.K.some((item) => item.id === question.id)
+          ) {
             current.K.push(question);
           }
 
-          if (elementKind === "R" && !current.R.some((item) => item.id === question.id)) {
+          if (
+            elementKind === "R" &&
+            !current.R.some((item) => item.id === question.id)
+          ) {
             current.R.push(question);
           }
 
@@ -1336,16 +1369,10 @@ export default function GeneratePoaPage() {
 
       const supabase = createClient();
 
-      const {
-        data: mappings,
-        error: mappingError,
-      } = await supabase
+      const { data: mappings, error: mappingError } = await supabase
         .from("poa_scenario_practical_test_types")
         .select("scenario_id")
-        .eq(
-          "practical_test_type_id",
-          testType.id,
-        );
+        .eq("practical_test_type_id", testType.id);
 
       if (cancelled) {
         return;
@@ -1354,14 +1381,13 @@ export default function GeneratePoaPage() {
       const mappedIds = mappingError
         ? []
         : (mappings ?? [])
-            .map((row) =>
-              String(row.scenario_id || ""),
-            )
+            .map((row) => String(row.scenario_id || ""))
             .filter(Boolean);
 
       let scenarioQuery = supabase
         .from("poa_scenarios")
-        .select(`
+        .select(
+          `
           id,
           scenario_name,
           scenario_brief,
@@ -1370,23 +1396,18 @@ export default function GeneratePoaPage() {
           aircraft,
           initial_conditions,
           examiner_notes
-        `)
+        `,
+        )
         .eq("is_active", true)
         .order("scenario_name", {
           ascending: true,
         });
 
       if (mappedIds.length > 0) {
-        scenarioQuery = scenarioQuery.in(
-          "id",
-          mappedIds,
-        );
+        scenarioQuery = scenarioQuery.in("id", mappedIds);
       }
 
-      const {
-        data: scenarios,
-        error: scenarioError,
-      } = await scenarioQuery;
+      const { data: scenarios, error: scenarioError } = await scenarioQuery;
 
       if (cancelled) {
         return;
@@ -1399,9 +1420,7 @@ export default function GeneratePoaPage() {
         return;
       }
 
-      setScenarioOptions(
-        (scenarios ?? []) as GeneratorScenarioOption[],
-      );
+      setScenarioOptions((scenarios ?? []) as GeneratorScenarioOption[]);
 
       setSelectedScenarioId("");
       setLoadingScenarios(false);
@@ -1414,19 +1433,116 @@ export default function GeneratePoaPage() {
     };
   }, [testType?.id]);
 
-  const selectedScenario =
-    useMemo(
-      () =>
-        scenarioOptions.find(
-          (scenario) =>
-            scenario.id ===
-            selectedScenarioId,
-        ) ?? null,
-      [
-        scenarioOptions,
-        selectedScenarioId,
-      ],
-    );
+  useEffect(() => {
+    setScenarioTimeline(null);
+  }, [testType?.id, additionalRatingHeld]);
+
+  const selectedScenario = useMemo(
+    () =>
+      scenarioOptions.find((scenario) => scenario.id === selectedScenarioId) ??
+      null,
+    [scenarioOptions, selectedScenarioId],
+  );
+
+  async function buildScenarioTimeline() {
+    if (!testType) {
+      return;
+    }
+
+    setLoadingTimeline(true);
+    setErrorMessage("");
+    setMessage("");
+
+    try {
+      if (isAdditionalIssuance && !additionalRatingHeld) {
+        throw new Error(
+          "Select the rating already held before building the Scenario Timeline.",
+        );
+      }
+
+      const crossCountryParents = new Set(
+        crossCountryTaskParentsForPrefixes(complianceAcsPrefixes),
+      );
+
+      let crossCountryRequired = crossCountryParents.size > 0;
+
+      /*
+       * Additional ratings must use the same
+       * ACS task map already used by the POA
+       * flight-task resolver.
+       */
+      if (isAdditionalIssuance) {
+        const certificateMaps =
+          (ADDITIONAL_MAPS as Record<string, Record<string, unknown>>)[
+            additionalMapCertificateKey
+          ] ?? {};
+
+        const mapKey = `${additionalTargetRatingKey}_from_${additionalRatingHeld}`;
+
+        const requiredParents = normalizeAdditionalMapCodes(
+          certificateMaps[mapKey],
+          complianceAcsPrefixes[0] ?? "",
+        );
+
+        if (requiredParents.length === 0) {
+          throw new Error(
+            `No Additional Rating ACS task map was found for ${mapKey}.`,
+          );
+        }
+
+        crossCountryRequired = requiredParents.some((parent) =>
+          crossCountryParents.has(parent),
+        );
+      }
+
+      const supabase = createClient();
+
+      const { data, error } = await supabase.rpc(
+        "examiner_generate_poa_scenario_timeline",
+        {
+          p_cross_country_required: crossCountryRequired,
+          p_altitude: Number.isFinite(scenarioAltitude)
+            ? Math.round(scenarioAltitude)
+            : 8000,
+        },
+      );
+
+      if (error) {
+        throw new Error(
+          `Scenario Timeline could not be generated: ${error.message}`,
+        );
+      }
+
+      const result = data as ScenarioTimelineResult;
+
+      setScenarioTimeline(result);
+
+      const itemCount = result.timeline?.length ?? 0;
+
+      const branchCount =
+        result.timeline?.filter((item) => item.kind === "branch").length ?? 0;
+
+      setMessage(
+        `Scenario Timeline generated with ${itemCount} timeline item${
+          itemCount === 1 ? "" : "s"
+        } and ${branchCount} decision branch${
+          branchCount === 1 ? "" : "es"
+        }. Cross-country planning ${
+          result.cross_country_required ? "is required" : "is not required"
+        } for this ACS task set.`,
+      );
+    } catch (error) {
+      setScenarioTimeline(null);
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "The Scenario Timeline could not be generated.",
+      );
+    } finally {
+      setLoadingTimeline(false);
+    }
+  }
 
   async function generatePoa() {
     if (!testType) {
@@ -1482,9 +1598,7 @@ export default function GeneratePoaPage() {
 
           title: title.trim(),
 
-          scenario_name:
-            selectedScenario?.scenario_name ??
-            null,
+          scenario_name: selectedScenario?.scenario_name ?? null,
 
           selection_method: selectionMethod,
 
@@ -1521,10 +1635,9 @@ export default function GeneratePoaPage() {
         return a.question.localeCompare(b.question);
       });
 
-      let generatedFlightTasks =
-        deriveAllFlightTasksFromAcsCatalog(
-          complianceAcsPrefixes,
-        );
+      let generatedFlightTasks = deriveAllFlightTasksFromAcsCatalog(
+        complianceAcsPrefixes,
+      );
 
       if (isAdditionalIssuance) {
         if (!additionalRatingHeld) {
@@ -1534,21 +1647,16 @@ export default function GeneratePoaPage() {
         }
 
         const certificateMaps =
-          (
-            ADDITIONAL_MAPS as Record<
-              string,
-              Record<string, unknown>
-            >
-          )[additionalMapCertificateKey] ?? {};
+          (ADDITIONAL_MAPS as Record<string, Record<string, unknown>>)[
+            additionalMapCertificateKey
+          ] ?? {};
 
-        const mapKey =
-          `${additionalTargetRatingKey}_from_${additionalRatingHeld}`;
+        const mapKey = `${additionalTargetRatingKey}_from_${additionalRatingHeld}`;
 
-        const parentCodes =
-          normalizeAdditionalMapCodes(
-            certificateMaps[mapKey],
-            complianceAcsPrefixes[0] ?? "",
-          );
+        const parentCodes = normalizeAdditionalMapCodes(
+          certificateMaps[mapKey],
+          complianceAcsPrefixes[0] ?? "",
+        );
 
         if (parentCodes.length === 0) {
           throw new Error(
@@ -1556,94 +1664,56 @@ export default function GeneratePoaPage() {
           );
         }
 
-        generatedFlightTasks =
-          filterFlightTasksByParentCodes(
-            generatedFlightTasks,
-            parentCodes,
-          );
+        generatedFlightTasks = filterFlightTasksByParentCodes(
+          generatedFlightTasks,
+          parentCodes,
+        );
       }
 
       const commercialSingleEngineOriginal =
-        (testType.certificate_code ?? "")
-          .toUpperCase() === "COMMERCIAL" &&
-        (testType.category_code ?? "")
-          .toUpperCase() === "AIRPLANE" &&
-        ["ASEL", "ASES"].includes(
-          (testType.class_code ?? "")
-            .toUpperCase(),
-        ) &&
+        (testType.certificate_code ?? "").toUpperCase() === "COMMERCIAL" &&
+        (testType.category_code ?? "").toUpperCase() === "AIRPLANE" &&
+        ["ASEL", "ASES"].includes((testType.class_code ?? "").toUpperCase()) &&
         isOriginalIssuance(testType);
 
       if (commercialSingleEngineOriginal) {
         const selectedParents = new Set(
-          selectedQuestions.flatMap(
-            (question) =>
-              acsReferencesForQuestion(question)
-                .map((reference) =>
-                  taskParentFromReference(reference),
-                )
-                .filter(
-                  (value): value is string =>
-                    Boolean(value),
-                ),
+          selectedQuestions.flatMap((question) =>
+            acsReferencesForQuestion(question)
+              .map((reference) => taskParentFromReference(reference))
+              .filter((value): value is string => Boolean(value)),
           ),
         );
 
-        const chooseFromPair = (
-          first: string,
-          second: string,
-        ) => {
-          if (
-            selectedParents.has(first) &&
-            !selectedParents.has(second)
-          ) {
+        const chooseFromPair = (first: string, second: string) => {
+          if (selectedParents.has(first) && !selectedParents.has(second)) {
             return first;
           }
 
-          if (
-            selectedParents.has(second) &&
-            !selectedParents.has(first)
-          ) {
+          if (selectedParents.has(second) && !selectedParents.has(first)) {
             return second;
           }
 
           return first;
         };
 
-        const firstChoice =
-          chooseFromPair(
-            "CA.V.A",
-            "CA.V.B",
-          );
+        const firstChoice = chooseFromPair("CA.V.A", "CA.V.B");
 
-        const secondChoice =
-          chooseFromPair(
-            "CA.V.C",
-            "CA.V.D",
-          );
+        const secondChoice = chooseFromPair("CA.V.C", "CA.V.D");
 
-        generatedFlightTasks =
-          generatedFlightTasks
-            .filter(
-              (task) =>
-                ![
-                  "CA.V.A",
-                  "CA.V.B",
-                  "CA.V.C",
-                  "CA.V.D",
-                ].includes(
-                  task.acs_task_code_snapshot,
-                ) ||
-                task.acs_task_code_snapshot ===
-                  firstChoice ||
-                task.acs_task_code_snapshot ===
-                  secondChoice,
-            )
-            .map((task, index) => ({
-              ...task,
-              sort_order:
-                (index + 1) * 10,
-            }));
+        generatedFlightTasks = generatedFlightTasks
+          .filter(
+            (task) =>
+              !["CA.V.A", "CA.V.B", "CA.V.C", "CA.V.D"].includes(
+                task.acs_task_code_snapshot,
+              ) ||
+              task.acs_task_code_snapshot === firstChoice ||
+              task.acs_task_code_snapshot === secondChoice,
+          )
+          .map((task, index) => ({
+            ...task,
+            sort_order: (index + 1) * 10,
+          }));
       }
 
       const snapshots = orderedSelected.map((question, index) => ({
@@ -1683,13 +1753,10 @@ export default function GeneratePoaPage() {
         );
       }
 
-      const {
-        error: flightTaskError,
-      } = await supabase.rpc(
+      const { error: flightTaskError } = await supabase.rpc(
         "examiner_replace_generated_poa_flight_tasks",
         {
-          p_generated_plan_of_action_id:
-            generated.id,
+          p_generated_plan_of_action_id: generated.id,
           p_tasks: generatedFlightTasks,
         },
       );
@@ -1810,6 +1877,172 @@ export default function GeneratePoaPage() {
         </div>
       </section>
 
+      <section className="mt-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+              Scenario Engine
+            </p>
+
+            <h2 className="mt-1 text-xl font-bold text-slate-900">
+              Scenario POA Timeline
+            </h2>
+
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Builds the scenario as an ordered operational sequence using the
+              Trigger Library. Required ACS coverage remains a separate
+              background constraint.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                Scenario Altitude
+              </span>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={500}
+                  value={scenarioAltitude}
+                  onChange={(event) =>
+                    setScenarioAltitude(Number(event.target.value))
+                  }
+                  className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500"
+                />
+
+                <span className="text-sm text-slate-500">ft MSL</span>
+              </div>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void buildScenarioTimeline()}
+              disabled={loadingTimeline || !testType}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingTimeline ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Shuffle className="h-4 w-4" />
+              )}
+
+              {scenarioTimeline ? "Regenerate Timeline" : "Build Timeline"}
+            </button>
+          </div>
+        </div>
+
+        {!scenarioTimeline ? (
+          <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm text-slate-600">
+            Build the timeline after selecting the practical test. The engine
+            will determine whether Cross-Country Flight Planning belongs in this
+            test before inserting it into the scenario.
+          </div>
+        ) : (
+          <>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  scenarioTimeline.cross_country_required
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                Cross-Country{" "}
+                {scenarioTimeline.cross_country_required
+                  ? "Required"
+                  : "Not Required"}
+              </span>
+
+              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">
+                {scenarioTimeline.timeline?.length ?? 0} Timeline Items
+              </span>
+
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800">
+                {scenarioTimeline.timeline?.filter(
+                  (item) => item.kind === "branch",
+                ).length ?? 0}{" "}
+                Decision Branch
+                {(scenarioTimeline.timeline?.filter(
+                  (item) => item.kind === "branch",
+                ).length ?? 0) === 1
+                  ? ""
+                  : "es"}
+              </span>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {(scenarioTimeline.timeline ?? []).map((item, index) => {
+                const isBranch = item.kind === "branch";
+
+                const isReconverge = item.kind === "reconverge";
+
+                const isRequired =
+                  item.kind === "required_task" || item.required;
+
+                return (
+                  <article
+                    key={`${index}-${item.kind}-${item.trigger_id ?? item.source_trigger_id ?? item.title}`}
+                    className={`rounded-2xl border p-4 ${
+                      isBranch
+                        ? "border-amber-300 bg-amber-50"
+                        : isReconverge
+                          ? "border-violet-300 bg-violet-50"
+                          : isRequired
+                            ? "border-emerald-300 bg-emerald-50"
+                            : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
+                        {index + 1}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-700">
+                            {item.label}
+                          </span>
+
+                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                            {item.phase.replaceAll("_", " ")}
+                          </span>
+
+                          {item.branch_worthy ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                              <TriangleAlert className="h-3.5 w-3.5" />
+                              Decision Point
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <h3 className="mt-2 font-bold text-slate-900">
+                          {item.title}
+                        </h3>
+
+                        {item.narrative ? (
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                            {item.narrative}
+                          </p>
+                        ) : null}
+
+                        {item.precondition ? (
+                          <p className="mt-2 text-xs text-slate-500">
+                            Preconditions: {item.precondition}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+
       {testType && isAdditionalIssuance ? (
         <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
@@ -1819,34 +2052,23 @@ export default function GeneratePoaPage() {
               </p>
 
               <p className="mt-1 text-xs text-slate-600">
-                Required to determine the correct FAA
-                Additional Rating flight-task matrix.
+                Required to determine the correct FAA Additional Rating
+                flight-task matrix.
               </p>
             </div>
 
             <select
               value={additionalRatingHeld}
-              onChange={(event) =>
-                setAdditionalRatingHeld(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setAdditionalRatingHeld(event.target.value)}
               className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
             >
-              <option value="">
-                Select rating already held
-              </option>
+              <option value="">Select rating already held</option>
 
-              {additionalHeldOptions.map(
-                (held) => (
-                  <option
-                    key={held}
-                    value={held}
-                  >
-                    {held}
-                  </option>
-                ),
-              )}
+              {additionalHeldOptions.map((held) => (
+                <option key={held} value={held}>
+                  {held}
+                </option>
+              ))}
             </select>
           </div>
         </section>
@@ -1893,11 +2115,7 @@ export default function GeneratePoaPage() {
 
                 <select
                   value={selectedPoaVersionId}
-                  onChange={(event) =>
-                    selectPoaVersion(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => selectPoaVersion(event.target.value)}
                   disabled={loadingPoaVersions}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
                 >
@@ -1907,19 +2125,11 @@ export default function GeneratePoaPage() {
                       : `New POA — ${testType.display_name}`}
                   </option>
 
-                  {savedPoaVersions.map(
-                    (poa, index) => (
-                      <option
-                        key={poa.id}
-                        value={poa.id}
-                      >
-                        {formatSavedPoaVersion(
-                          poa,
-                          index,
-                        )}
-                      </option>
-                    ),
-                  )}
+                  {savedPoaVersions.map((poa, index) => (
+                    <option key={poa.id} value={poa.id}>
+                      {formatSavedPoaVersion(poa, index)}
+                    </option>
+                  ))}
                 </select>
 
                 <label className="mt-4 block">
@@ -1929,11 +2139,7 @@ export default function GeneratePoaPage() {
 
                   <input
                     value={title}
-                    onChange={(event) =>
-                      setTitle(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setTitle(event.target.value)}
                     className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
                   />
                 </label>
@@ -1962,8 +2168,8 @@ export default function GeneratePoaPage() {
               </h2>
 
               <p className="mt-2 text-sm text-slate-600">
-                Select the scenario that will organize this
-                Plan of Action chronologically.
+                Select the scenario that will organize this Plan of Action
+                chronologically.
               </p>
             </div>
 
@@ -1976,9 +2182,7 @@ export default function GeneratePoaPage() {
                 <select
                   value={selectedScenarioId}
                   onChange={(event) =>
-                    setSelectedScenarioId(
-                      event.target.value,
-                    )
+                    setSelectedScenarioId(event.target.value)
                   }
                   disabled={loadingScenarios}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
@@ -1991,16 +2195,11 @@ export default function GeneratePoaPage() {
                         : "Select a scenario…"}
                   </option>
 
-                  {scenarioOptions.map(
-                    (scenario) => (
-                      <option
-                        key={scenario.id}
-                        value={scenario.id}
-                      >
-                        {scenario.scenario_name}
-                      </option>
-                    ),
-                  )}
+                  {scenarioOptions.map((scenario) => (
+                    <option key={scenario.id} value={scenario.id}>
+                      {scenario.scenario_name}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -2030,7 +2229,6 @@ export default function GeneratePoaPage() {
               </div>
             ) : null}
           </section>
-
 
           <div className="mt-6 flex gap-1 border-b border-slate-300">
             <button

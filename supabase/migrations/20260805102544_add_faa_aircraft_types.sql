@@ -1,7 +1,5 @@
 begin;
-
 create extension if not exists pg_trgm;
-
 create table if not exists public.faa_aircraft_types (
   id uuid primary key default gen_random_uuid(),
 
@@ -33,51 +31,40 @@ create table if not exists public.faa_aircraft_types (
       type_designator
     )
 );
-
 create index if not exists
   faa_aircraft_types_manufacturer_model_trgm_idx
 on public.faa_aircraft_types
 using gin (manufacturer_model gin_trgm_ops);
-
 create index if not exists
   faa_aircraft_types_manufacturer_trgm_idx
 on public.faa_aircraft_types
 using gin (manufacturer gin_trgm_ops);
-
 create index if not exists
   faa_aircraft_types_model_trgm_idx
 on public.faa_aircraft_types
 using gin (model gin_trgm_ops);
-
 create index if not exists
   faa_aircraft_types_type_designator_idx
 on public.faa_aircraft_types (type_designator);
-
 create index if not exists
   faa_aircraft_types_active_idx
 on public.faa_aircraft_types (is_active)
 where is_active = true;
-
 alter table public.faa_aircraft_types
   enable row level security;
-
 drop policy if exists
   "Authenticated users can view active FAA aircraft types"
 on public.faa_aircraft_types;
-
 create policy
   "Authenticated users can view active FAA aircraft types"
 on public.faa_aircraft_types
 for select
 to authenticated
 using (is_active = true);
-
 alter table public.practical_test_requests
   add column if not exists aircraft_type_id uuid;
-
 alter table public.practical_test_requests
   add column if not exists aircraft_type_designator text;
-
 do $$
 begin
   if not exists (
@@ -95,11 +82,9 @@ begin
   end if;
 end;
 $$;
-
 create index if not exists
   practical_test_requests_aircraft_type_id_idx
 on public.practical_test_requests (aircraft_type_id);
-
 create or replace function public.search_faa_aircraft_types(
   p_search text,
   p_limit integer default 20
@@ -158,13 +143,10 @@ as $function$
     fat.model
   limit greatest(1, least(coalesce(p_limit, 20), 50));
 $function$;
-
 revoke all
 on function public.search_faa_aircraft_types(text, integer)
 from public;
-
 grant execute
 on function public.search_faa_aircraft_types(text, integer)
 to authenticated;
-
 commit;

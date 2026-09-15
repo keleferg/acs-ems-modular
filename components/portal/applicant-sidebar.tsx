@@ -274,20 +274,17 @@ export function ApplicantSidebar({
     setSigningOut(true);
 
     const supabase = createClient();
-    const { error } =
-      await supabase.auth.signOut();
 
-    if (error) {
-      console.error(
-        "Unable to sign out:",
-        error,
-      );
-      setSigningOut(false);
-      return;
+    try {
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((resolve) => window.setTimeout(resolve, 1500)),
+      ]);
+    } catch (error) {
+      console.warn("Supabase sign out did not complete cleanly:", error);
+    } finally {
+      window.location.assign("/auth/login");
     }
-
-    router.replace("/auth/login");
-    router.refresh();
   }
 
   if (checkingSetup) {
@@ -330,7 +327,7 @@ export function ApplicantSidebar({
             width={1265}
             height={371}
             priority
-            className="h-12 w-auto object-contain"
+            className="h-auto w-full object-contain"
           />
         </Link>
 

@@ -1,5 +1,4 @@
 begin;
-
 create or replace function public.examiner_update_practical_test_request_info(
   p_request_id uuid,
   p_changes jsonb
@@ -282,13 +281,10 @@ begin
   return v_request;
 end;
 $function$;
-
 revoke all on function
   public.examiner_update_practical_test_request_info(uuid, jsonb)
 from public;
-
 grant execute on function
   public.examiner_update_practical_test_request_info(uuid, jsonb)
 to authenticated;
-
 commit;

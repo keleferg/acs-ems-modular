@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- 1. Add missing examiner workflow and scheduling fields
 -- ============================================================
@@ -12,7 +11,6 @@ alter table public.practical_test_requests
   add column if not exists status_reason text,
   add column if not exists reviewed_at timestamptz,
   add column if not exists declined_at timestamptz;
-
 do $$
 begin
   if not exists (
@@ -29,10 +27,8 @@ begin
   end if;
 end;
 $$;
-
 alter table public.practical_test_requests
   drop constraint if exists practical_test_requests_schedule_dates_check;
-
 alter table public.practical_test_requests
   add constraint practical_test_requests_schedule_dates_check
   check (
@@ -40,18 +36,13 @@ alter table public.practical_test_requests
     or scheduled_start_at is null
     or scheduled_end_at > scheduled_start_at
   );
-
 create index if not exists practical_test_requests_assigned_examiner_idx
   on public.practical_test_requests (assigned_examiner_profile_id);
-
 create index if not exists practical_test_requests_scheduled_start_idx
   on public.practical_test_requests (scheduled_start_at)
   where scheduled_start_at is not null;
-
 create index if not exists practical_test_requests_status_schedule_idx
   on public.practical_test_requests (status, scheduled_start_at);
-
-
 -- ============================================================
 -- 2. Request status audit table
 -- ============================================================
@@ -73,20 +64,16 @@ create table if not exists public.practical_test_request_status_audit (
 
   changed_at timestamptz not null default now()
 );
-
 create index if not exists practical_test_request_status_audit_request_idx
   on public.practical_test_request_status_audit (
     practical_test_request_id,
     changed_at desc
   );
-
 create index if not exists practical_test_request_status_audit_actor_idx
   on public.practical_test_request_status_audit (
     changed_by_profile_id,
     changed_at desc
   );
-
-
 -- ============================================================
 -- 3. Audit every status change automatically
 -- This will also audit applicant cancellations performed by the
@@ -143,17 +130,13 @@ begin
   return new;
 end;
 $function$;
-
 drop trigger if exists audit_practical_test_request_status
   on public.practical_test_requests;
-
 create trigger audit_practical_test_request_status
 after insert or update of status
 on public.practical_test_requests
 for each row
 execute function public.audit_practical_test_request_status();
-
-
 -- ============================================================
 -- 4. RLS for audit history
 -- Applicants may see audit history for their own requests.
@@ -163,10 +146,8 @@ execute function public.audit_practical_test_request_status();
 
 alter table public.practical_test_request_status_audit
   enable row level security;
-
 drop policy if exists request_status_audit_select_owner_or_examiner
   on public.practical_test_request_status_audit;
-
 create policy request_status_audit_select_owner_or_examiner
 on public.practical_test_request_status_audit
 for select
@@ -183,8 +164,6 @@ using (
       and ap.profile_id = auth.uid()
   )
 );
-
-
 -- ============================================================
 -- 5. Controlled examiner status update RPC
 -- ============================================================
@@ -300,8 +279,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 6. Controlled examiner scheduling RPC
 -- ============================================================
@@ -394,8 +371,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 7. Controlled examiner notes RPC
 -- ============================================================
@@ -434,8 +409,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 8. Function permissions
 -- ============================================================
@@ -443,7 +416,6 @@ $function$;
 revoke all on function
   public.examiner_update_practical_test_request_status(uuid, text, text)
 from public;
-
 revoke all on function
   public.examiner_schedule_practical_test_request(
     uuid,
@@ -454,15 +426,12 @@ revoke all on function
     text
   )
 from public;
-
 revoke all on function
   public.examiner_update_practical_test_request_notes(uuid, text)
 from public;
-
 grant execute on function
   public.examiner_update_practical_test_request_status(uuid, text, text)
 to authenticated;
-
 grant execute on function
   public.examiner_schedule_practical_test_request(
     uuid,
@@ -473,9 +442,7 @@ grant execute on function
     text
   )
 to authenticated;
-
 grant execute on function
   public.examiner_update_practical_test_request_notes(uuid, text)
 to authenticated;
-
 commit;

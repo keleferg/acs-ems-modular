@@ -1,5 +1,4 @@
 begin;
-
 create or replace function public.examiner_update_practical_test_request_status(
   p_request_id uuid,
   p_new_status text,
@@ -145,7 +144,6 @@ begin
   return v_request;
 end;
 $function$;
-
 revoke all
 on function public.examiner_update_practical_test_request_status(
   uuid,
@@ -153,7 +151,6 @@ on function public.examiner_update_practical_test_request_status(
   text
 )
 from public, anon;
-
 grant execute
 on function public.examiner_update_practical_test_request_status(
   uuid,
@@ -161,5 +158,4 @@ on function public.examiner_update_practical_test_request_status(
   text
 )
 to authenticated;
-
 commit;

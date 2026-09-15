@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- Administrator Examiner Management
 -- ============================================================
@@ -172,17 +171,12 @@ begin
   );
 end;
 $function$;
-
-
 revoke all on function
   public.admin_get_examiner_detail(uuid)
 from public;
-
 grant execute on function
   public.admin_get_examiner_detail(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- Administrator save / create designee profile.
 -- This is required because normal examiner INSERT policy only
@@ -301,8 +295,6 @@ begin
   return v_result;
 end;
 $function$;
-
-
 revoke all on function
   public.admin_save_examiner_designee_profile(
     uuid,
@@ -322,7 +314,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.admin_save_examiner_designee_profile(
     uuid,
@@ -342,8 +333,6 @@ grant execute on function
     text
   )
 to authenticated;
-
-
 -- ============================================================
 -- Administrator examiner account activation.
 -- ============================================================
@@ -393,14 +382,10 @@ begin
   return v_result;
 end;
 $function$;
-
-
 revoke all on function
   public.admin_set_examiner_active(uuid, boolean)
 from public;
-
 grant execute on function
   public.admin_set_examiner_active(uuid, boolean)
 to authenticated;
-
 commit;

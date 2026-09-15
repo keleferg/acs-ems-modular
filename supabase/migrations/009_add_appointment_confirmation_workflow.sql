@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- 1. Update examiner status RPC
 -- When moving to Accepted, copy the active configured fee into
@@ -149,8 +148,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 2. Save DMS preapproval number independently
 -- This may be used at any request status.
@@ -193,8 +190,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 3. Save finalized appointment date and time
 -- This stores the finalized start date/time without changing
@@ -254,8 +249,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 4. Confirm appointment
 -- Requires a finalized appointment date/time.
@@ -304,8 +297,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 5. Permissions
 -- ============================================================
@@ -313,25 +304,19 @@ $function$;
 revoke all on function
   public.examiner_save_dms_preapproval_number(uuid, text)
 from public;
-
 revoke all on function
   public.examiner_save_finalized_appointment(uuid, timestamptz)
 from public;
-
 revoke all on function
   public.examiner_confirm_practical_test_appointment(uuid)
 from public;
-
 grant execute on function
   public.examiner_save_dms_preapproval_number(uuid, text)
 to authenticated;
-
 grant execute on function
   public.examiner_save_finalized_appointment(uuid, timestamptz)
 to authenticated;
-
 grant execute on function
   public.examiner_confirm_practical_test_appointment(uuid)
 to authenticated;
-
 commit;

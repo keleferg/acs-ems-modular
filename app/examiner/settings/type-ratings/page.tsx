@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type TypeRatingDesignation = {
@@ -23,25 +18,23 @@ type TypeRatingAuthorization = {
   type_rating_designation_id: string;
   is_active: boolean;
   authorization_notes: string | null;
+  pilot_ppc_authorized: boolean;
 };
 
 export default function TypeRatingsSettingsPage() {
-  const [designations, setDesignations] = useState<
-    TypeRatingDesignation[]
-  >([]);
+  const [designations, setDesignations] = useState<TypeRatingDesignation[]>([]);
 
   const [authorizations, setAuthorizations] = useState<
     Map<string, TypeRatingAuthorization>
   >(new Map());
 
-  const [examinerProfileId, setExaminerProfileId] =
-    useState("");
+  const [examinerProfileId, setExaminerProfileId] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
+  const [savingPpcId, setSavingPpcId] = useState("");
   const [search, setSearch] = useState("");
-  const [showSelectedOnly, setShowSelectedOnly] =
-    useState(false);
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -66,33 +59,37 @@ export default function TypeRatingsSettingsPage() {
 
     setExaminerProfileId(user.id);
 
-    const [designationResult, authorizationResult] =
-      await Promise.all([
-        supabase
-          .from("faa_type_rating_designations")
-          .select(`
+    const [designationResult, authorizationResult] = await Promise.all([
+      supabase
+        .from("faa_type_rating_designations")
+        .select(
+          `
             id,
             designation,
             is_active,
             sort_order,
             source_document,
             source_effective_date
-          `)
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true })
-          .order("designation", { ascending: true }),
+          `,
+        )
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("designation", { ascending: true }),
 
-        supabase
-          .from("examiner_type_rating_authorizations")
-          .select(`
+      supabase
+        .from("examiner_type_rating_authorizations")
+        .select(
+          `
             id,
             examiner_profile_id,
             type_rating_designation_id,
             is_active,
-            authorization_notes
-          `)
-          .eq("examiner_profile_id", user.id),
-      ]);
+            authorization_notes,
+            pilot_ppc_authorized
+          `,
+        )
+        .eq("examiner_profile_id", user.id),
+    ]);
 
     if (designationResult.error) {
       console.error(
@@ -120,34 +117,24 @@ export default function TypeRatingsSettingsPage() {
       );
 
       setDesignations(
-        (designationResult.data ??
-          []) as TypeRatingDesignation[],
+        (designationResult.data ?? []) as TypeRatingDesignation[],
       );
 
       setLoading(false);
       return;
     }
 
-    const authorizationMap = new Map<
-      string,
-      TypeRatingAuthorization
-    >();
+    const authorizationMap = new Map<string, TypeRatingAuthorization>();
 
-    for (
-      const authorization of
-      (authorizationResult.data ??
-        []) as TypeRatingAuthorization[]
-    ) {
+    for (const authorization of (authorizationResult.data ??
+      []) as TypeRatingAuthorization[]) {
       authorizationMap.set(
         authorization.type_rating_designation_id,
         authorization,
       );
     }
 
-    setDesignations(
-      (designationResult.data ??
-        []) as TypeRatingDesignation[],
-    );
+    setDesignations((designationResult.data ?? []) as TypeRatingDesignation[]);
 
     setAuthorizations(authorizationMap);
     setLoading(false);
@@ -172,15 +159,10 @@ export default function TypeRatingsSettingsPage() {
   const selectedCount = selectedIds.size;
 
   const visibleDesignations = useMemo(() => {
-    const normalizedSearch = search
-      .trim()
-      .toUpperCase();
+    const normalizedSearch = search.trim().toUpperCase();
 
     return designations.filter((designation) => {
-      if (
-        showSelectedOnly &&
-        !selectedIds.has(designation.id)
-      ) {
+      if (showSelectedOnly && !selectedIds.has(designation.id)) {
         return false;
       }
 
@@ -188,31 +170,20 @@ export default function TypeRatingsSettingsPage() {
         return true;
       }
 
-      return designation.designation
-        .toUpperCase()
-        .includes(normalizedSearch);
+      return designation.designation.toUpperCase().includes(normalizedSearch);
     });
-  }, [
-    designations,
-    search,
-    selectedIds,
-    showSelectedOnly,
-  ]);
+  }, [designations, search, selectedIds, showSelectedOnly]);
 
-  async function toggleAuthorization(
-    designation: TypeRatingDesignation,
-  ) {
+  async function toggleAuthorization(designation: TypeRatingDesignation) {
     if (!examinerProfileId || savingId) return;
 
     setSavingId(designation.id);
     setMessage("");
     setErrorMessage("");
 
-    const currentAuthorization =
-      authorizations.get(designation.id);
+    const currentAuthorization = authorizations.get(designation.id);
 
-    const nextActive =
-      !currentAuthorization?.is_active;
+    const nextActive = !currentAuthorization?.is_active;
 
     const supabase = createClient();
 
@@ -221,33 +192,32 @@ export default function TypeRatingsSettingsPage() {
       .upsert(
         {
           examiner_profile_id: examinerProfileId,
-          type_rating_designation_id:
-            designation.id,
+          type_rating_designation_id: designation.id,
           is_active: nextActive,
           authorization_notes:
-            currentAuthorization
-              ?.authorization_notes ?? null,
+            currentAuthorization?.authorization_notes ?? null,
+          pilot_ppc_authorized:
+            currentAuthorization?.pilot_ppc_authorized ?? false,
           updated_at: new Date().toISOString(),
         },
         {
-          onConflict:
-            "examiner_profile_id,type_rating_designation_id",
+          onConflict: "examiner_profile_id,type_rating_designation_id",
         },
       )
-      .select(`
+      .select(
+        `
         id,
         examiner_profile_id,
         type_rating_designation_id,
         is_active,
-        authorization_notes
-      `)
+        authorization_notes,
+        pilot_ppc_authorized
+      `,
+      )
       .single();
 
     if (error) {
-      console.error(
-        "Unable to update type-rating authorization:",
-        error,
-      );
+      console.error("Unable to update type-rating authorization:", error);
 
       setErrorMessage(
         `The ${designation.designation} authorization could not be updated: ${error.message}`,
@@ -257,37 +227,100 @@ export default function TypeRatingsSettingsPage() {
       return;
     }
 
-    const savedAuthorization =
-      data as TypeRatingAuthorization;
+    const savedAuthorization = data as TypeRatingAuthorization;
 
     setAuthorizations((current) => {
       const next = new Map(current);
 
-      next.set(
-        designation.id,
-        savedAuthorization,
-      );
+      next.set(designation.id, savedAuthorization);
 
       return next;
     });
 
     setMessage(
       `${designation.designation} is now ${
-        savedAuthorization.is_active
-          ? "authorized"
-          : "not authorized"
+        savedAuthorization.is_active ? "authorized" : "not authorized"
       }.`,
     );
 
     setSavingId("");
   }
 
+  async function togglePilotPpcAuthorization(
+    designation: TypeRatingDesignation,
+  ) {
+    if (!examinerProfileId || savingPpcId) return;
+
+    setSavingPpcId(designation.id);
+    setMessage("");
+    setErrorMessage("");
+
+    const currentAuthorization = authorizations.get(designation.id);
+
+    const nextPpcAuthorized = !currentAuthorization?.pilot_ppc_authorized;
+
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("examiner_type_rating_authorizations")
+      .upsert(
+        {
+          examiner_profile_id: examinerProfileId,
+          type_rating_designation_id: designation.id,
+          is_active: currentAuthorization?.is_active ?? false,
+          authorization_notes:
+            currentAuthorization?.authorization_notes ?? null,
+          pilot_ppc_authorized: nextPpcAuthorized,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "examiner_profile_id,type_rating_designation_id",
+        },
+      )
+      .select(
+        `
+        id,
+        examiner_profile_id,
+        type_rating_designation_id,
+        is_active,
+        authorization_notes,
+        pilot_ppc_authorized
+      `,
+      )
+      .single();
+
+    if (error) {
+      console.error("Unable to update Pilot PPC authorization:", error);
+
+      setErrorMessage(
+        `The ${designation.designation} Pilot PPC authorization could not be updated: ${error.message}`,
+      );
+
+      setSavingPpcId("");
+      return;
+    }
+
+    const savedAuthorization = data as TypeRatingAuthorization;
+
+    setAuthorizations((current) => {
+      const next = new Map(current);
+      next.set(designation.id, savedAuthorization);
+      return next;
+    });
+
+    setMessage(
+      `${designation.designation} is now ${
+        savedAuthorization.pilot_ppc_authorized
+          ? "authorized"
+          : "not authorized"
+      } for Pilot Proficiency Checks.`,
+    );
+
+    setSavingPpcId("");
+  }
+
   async function clearAllSelections() {
-    if (
-      !examinerProfileId ||
-      selectedCount === 0 ||
-      savingId
-    ) {
+    if (!examinerProfileId || selectedCount === 0 || savingId) {
       return;
     }
 
@@ -313,10 +346,7 @@ export default function TypeRatingsSettingsPage() {
       .eq("is_active", true);
 
     if (error) {
-      console.error(
-        "Unable to clear type-rating authorizations:",
-        error,
-      );
+      console.error("Unable to clear type-rating authorizations:", error);
 
       setErrorMessage(
         `The type-rating authorizations could not be cleared: ${error.message}`,
@@ -339,9 +369,7 @@ export default function TypeRatingsSettingsPage() {
       return next;
     });
 
-    setMessage(
-      "All type-rating authorizations were cleared.",
-    );
+    setMessage("All type-rating authorizations were cleared.");
 
     setSavingId("");
   }
@@ -358,8 +386,8 @@ export default function TypeRatingsSettingsPage() {
         </h2>
 
         <p className="mt-2 max-w-3xl text-slate-600">
-          Select each FAA aircraft type rating for which you
-          are authorized to administer practical tests.
+          Select each FAA aircraft type rating for which you are authorized to
+          administer practical tests and Pilot Proficiency Checks.
         </p>
       </div>
 
@@ -395,9 +423,7 @@ export default function TypeRatingsSettingsPage() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-medium text-slate-500">
-                Authorized
-              </p>
+              <p className="text-sm font-medium text-slate-500">Authorized</p>
 
               <p className="mt-2 text-3xl font-bold text-emerald-700">
                 {selectedCount}
@@ -405,17 +431,13 @@ export default function TypeRatingsSettingsPage() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-medium text-slate-500">
-                Source
-              </p>
+              <p className="text-sm font-medium text-slate-500">Source</p>
 
               <p className="mt-2 text-sm font-semibold text-slate-900">
                 FAA Order 8900.1
               </p>
 
-              <p className="mt-1 text-xs text-slate-500">
-                Figure 5-88
-              </p>
+              <p className="mt-1 text-xs text-slate-500">Figure 5-88</p>
             </div>
           </section>
 
@@ -433,9 +455,7 @@ export default function TypeRatingsSettingsPage() {
                   id="type-rating-search"
                   type="search"
                   value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
+                  onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search A-320, B-737, CE-525S…"
                   className="w-full rounded-lg border border-slate-300 px-4 py-3 uppercase outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
                 />
@@ -446,30 +466,20 @@ export default function TypeRatingsSettingsPage() {
                   type="checkbox"
                   checked={showSelectedOnly}
                   onChange={(event) =>
-                    setShowSelectedOnly(
-                      event.target.checked,
-                    )
+                    setShowSelectedOnly(event.target.checked)
                   }
                   className="h-5 w-5 rounded border-slate-300"
                 />
-
                 Show selected only
               </label>
 
               <button
                 type="button"
-                disabled={
-                  selectedCount === 0 ||
-                  savingId === "clear-all"
-                }
-                onClick={() =>
-                  void clearAllSelections()
-                }
+                disabled={selectedCount === 0 || savingId === "clear-all"}
+                onClick={() => void clearAllSelections()}
                 className="rounded-lg border border-red-300 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {savingId === "clear-all"
-                  ? "Clearing…"
-                  : "Clear All"}
+                {savingId === "clear-all" ? "Clearing…" : "Clear All"}
               </button>
             </div>
           </section>
@@ -480,71 +490,87 @@ export default function TypeRatingsSettingsPage() {
                 <h3 className="font-bold text-slate-900">
                   FAA Type-Rating Library
                 </h3>
-
                 <p className="mt-1 text-sm text-slate-500">
                   {visibleDesignations.length} ratings shown
                 </p>
               </div>
-
-              <p className="text-sm font-semibold text-emerald-700">
-                {selectedCount} selected
-              </p>
             </div>
 
             {visibleDesignations.length > 0 ? (
-              <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3">
-                {visibleDesignations.map(
-                  (designation) => {
-                    const selected =
-                      selectedIds.has(designation.id);
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px] border-collapse">
+                  <thead className="bg-slate-50">
+                    <tr className="border-b border-slate-200">
+                      <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                        FAA Type Rating
+                      </th>
+                      <th className="w-48 px-5 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
+                        Type Rating
+                      </th>
+                      <th className="w-64 px-5 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
+                        Pilot Proficiency Check
+                      </th>
+                    </tr>
+                  </thead>
 
-                    const saving =
-                      savingId === designation.id;
+                  <tbody className="divide-y divide-slate-100">
+                    {visibleDesignations.map((designation) => {
+                      const authorization = authorizations.get(designation.id);
 
-                    return (
-                      <label
-                        key={designation.id}
-                        className={`flex cursor-pointer items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 transition ${
-                          selected
-                            ? "bg-emerald-50"
-                            : "bg-white hover:bg-slate-50"
-                        }`}
-                      >
-                        <div>
-                          <p
-                            className={`font-mono text-base font-bold ${
-                              selected
-                                ? "text-emerald-900"
-                                : "text-slate-900"
-                            }`}
-                          >
-                            {designation.designation}
-                          </p>
+                      const selected = Boolean(authorization?.is_active);
 
-                          <p className="mt-1 text-xs text-slate-500">
-                            {selected
-                              ? "Authorized"
-                              : "Not selected"}
-                          </p>
-                        </div>
+                      const ppcSelected = Boolean(
+                        authorization?.pilot_ppc_authorized,
+                      );
 
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          disabled={
-                            Boolean(savingId) && !saving
-                          }
-                          onChange={() =>
-                            void toggleAuthorization(
-                              designation,
-                            )
-                          }
-                          className="h-5 w-5 rounded border-slate-300 accent-emerald-700"
-                        />
-                      </label>
-                    );
-                  },
-                )}
+                      const saving = savingId === designation.id;
+
+                      const savingPpc = savingPpcId === designation.id;
+
+                      return (
+                        <tr key={designation.id} className="hover:bg-slate-50">
+                          <td className="px-5 py-4">
+                            <p className="font-mono text-base font-bold text-slate-900">
+                              {designation.designation}
+                            </p>
+                          </td>
+
+                          <td className="px-5 py-4 text-center">
+                            <input
+                              type="checkbox"
+                              aria-label={`${designation.designation} type-rating authorization`}
+                              checked={selected}
+                              disabled={
+                                (Boolean(savingId) && !saving) ||
+                                Boolean(savingPpcId)
+                              }
+                              onChange={() =>
+                                void toggleAuthorization(designation)
+                              }
+                              className="h-5 w-5 rounded border-slate-300 accent-emerald-700"
+                            />
+                          </td>
+
+                          <td className="px-5 py-4 text-center">
+                            <input
+                              type="checkbox"
+                              aria-label={`${designation.designation} Pilot Proficiency Check authorization`}
+                              checked={ppcSelected}
+                              disabled={
+                                (Boolean(savingPpcId) && !savingPpc) ||
+                                Boolean(savingId)
+                              }
+                              onChange={() =>
+                                void togglePilotPpcAuthorization(designation)
+                              }
+                              className="h-5 w-5 rounded border-slate-300 accent-sky-700"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div className="p-10 text-center text-slate-600">
@@ -554,10 +580,9 @@ export default function TypeRatingsSettingsPage() {
           </section>
 
           <p className="mt-5 text-xs leading-5 text-slate-500">
-            Selecting a type rating records it as an examiner
-            authorization in this system. It does not replace
-            or modify the examiner&apos;s official FAA
-            designation or authorization records.
+            Selecting a type rating records it as an examiner authorization in
+            this system. It does not replace or modify the examiner&apos;s
+            official FAA designation or authorization records.
           </p>
         </>
       ) : null}

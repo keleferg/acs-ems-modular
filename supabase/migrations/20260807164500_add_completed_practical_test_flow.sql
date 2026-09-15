@@ -1,5 +1,4 @@
 begin;
-
 create table if not exists public.practical_test_grades (
   id uuid primary key default gen_random_uuid(),
 
@@ -27,18 +26,14 @@ create table if not exists public.practical_test_grades (
       grade_component
     )
 );
-
 create index if not exists practical_test_grades_test_idx
 on public.practical_test_grades (
   practical_test_id
 );
-
 alter table public.practical_test_grades
 enable row level security;
-
 drop policy if exists practical_test_grades_examiner_manage
 on public.practical_test_grades;
-
 create policy practical_test_grades_examiner_manage
 on public.practical_test_grades
 for all
@@ -49,10 +44,8 @@ using (
 with check (
   public.is_examiner_or_admin()
 );
-
 drop policy if exists practical_test_grades_related_select
 on public.practical_test_grades;
-
 create or replace function public.examiner_submit_emt_practical_test(
   p_practical_test_request_id uuid,
   p_evaluation_state jsonb,
@@ -304,7 +297,6 @@ begin
   );
 end;
 $function$;
-
 revoke all
 on function public.examiner_submit_emt_practical_test(
   uuid,
@@ -317,7 +309,6 @@ on function public.examiner_submit_emt_practical_test(
   text
 )
 from public, anon;
-
 grant execute
 on function public.examiner_submit_emt_practical_test(
   uuid,
@@ -330,7 +321,6 @@ on function public.examiner_submit_emt_practical_test(
   text
 )
 to authenticated;
-
 create or replace function public.examiner_finalize_emt_practical_test(
   p_practical_test_id uuid
 )
@@ -610,13 +600,10 @@ begin
   );
 end;
 $function$;
-
 revoke all
 on function public.examiner_finalize_emt_practical_test(uuid)
 from public, anon;
-
 grant execute
 on function public.examiner_finalize_emt_practical_test(uuid)
 to authenticated;
-
 commit;

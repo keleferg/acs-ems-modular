@@ -1,0 +1,2531 @@
+[
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Aérospatiale, France",
+    "prior_model_designation": "SN 601 Corvette",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SN-601",
+    "source_line": 19,
+    "sort_order": 10
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Airbus",
+    "prior_model_designation": "A340-200 Series:",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-340",
+    "source_line": 22,
+    "sort_order": 20
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Airbus Canada Limited",
+    "prior_model_designation": "BD-500-1A10",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BD500",
+    "source_line": 30,
+    "sort_order": 30
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Airbus Defense and Space S.A.",
+    "prior_model_designation": "Model: C-212-CB, C-212-CC,",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CA-212",
+    "source_line": 32,
+    "sort_order": 40
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Model CN-235,",
+    "prior_model_designation": "CN-235",
+    "equivalent_military_designation": "CN-235 Series",
+    "type_rating_designation": "C-295",
+    "source_line": 36,
+    "sort_order": 50
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Airbus SAS",
+    "prior_model_designation": "A300, Model B2-1A",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-300",
+    "source_line": 39,
+    "sort_order": 60
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "A300, Model B4-601",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-310",
+    "source_line": 46,
+    "sort_order": 70
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Airbus SAS (continued)",
+    "prior_model_designation": "A300, Model B4-622",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-310",
+    "source_line": 65,
+    "sort_order": 80
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "A-318 Series (*)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-320",
+    "source_line": 74,
+    "sort_order": 90
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "A330-200 Series:",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-330",
+    "source_line": 78,
+    "sort_order": 100
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "A350-941, A350-1041",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-350",
+    "source_line": 92,
+    "sort_order": 110
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "A380-841, A380-842,",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "A-380",
+    "source_line": 93,
+    "sort_order": 120
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "Aircraft Industries, a.s.",
+    "prior_model_designation": "L-420, L 410 UVP-E20",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-420",
+    "source_line": 95,
+    "sort_order": 130
+  },
+  {
+    "type_certificate_holder": null,
+    "civil_model_designation": "ATR – GIE Avions de Transport",
+    "prior_model_designation": "ATR42-200, ATR42-300,",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "ATR-42, ATR-72",
+    "source_line": 100,
+    "sort_order": 140
+  },
+  {
+    "type_certificate_holder": "BAE SYSTEMS (Operations)",
+    "civil_model_designation": "BAe 146-Series-100,",
+    "prior_model_designation": "BAE-146",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BAE-146, AVR-",
+    "source_line": 109,
+    "sort_order": 150
+  },
+  {
+    "type_certificate_holder": "BAE SYSTEMS (Operations)",
+    "civil_model_designation": "Limited",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "BAe 146-Series-200,",
+    "type_rating_designation": "146",
+    "source_line": 110,
+    "sort_order": 160
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "B-17",
+    "prior_model_designation": "Boeing B-17, B-",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-17",
+    "source_line": 128,
+    "sort_order": 170
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "247-D",
+    "prior_model_designation": "Boeing 247",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-247",
+    "source_line": 130,
+    "sort_order": 180
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "S-307, SA-307",
+    "prior_model_designation": "Boeing 307",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-307",
+    "source_line": 131,
+    "sort_order": 190
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "314",
+    "prior_model_designation": "Boeing 314",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-314",
+    "source_line": 132,
+    "sort_order": 200
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "377, C-97, YC-97",
+    "prior_model_designation": "Boeing 377",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-377",
+    "source_line": 133,
+    "sort_order": 210
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "707-100 Long Body",
+    "prior_model_designation": "Boeing 707/720",
+    "equivalent_military_designation": "C-135 (all variants);",
+    "type_rating_designation": "B-707, B-720",
+    "source_line": 134,
+    "sort_order": 220
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "B-727, B-727-100, B-727-200",
+    "prior_model_designation": "Boeing 727",
+    "equivalent_military_designation": "C-22A, C-22B",
+    "type_rating_designation": "B-727",
+    "source_line": 162,
+    "sort_order": 230
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "737-100, 737-200, 737-200C,",
+    "prior_model_designation": "Boeing 737",
+    "equivalent_military_designation": "C-40A, T-43A",
+    "type_rating_designation": "B-737",
+    "source_line": 163,
+    "sort_order": 240
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "747, 747-100, 747-200,",
+    "prior_model_designation": "Boeing 747",
+    "equivalent_military_designation": "E-4A, E-4B",
+    "type_rating_designation": "B-747",
+    "source_line": 168,
+    "sort_order": 250
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "747-400, 747-400D,",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-747-4",
+    "source_line": 170,
+    "sort_order": 260
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "757-200 Series",
+    "prior_model_designation": "Boeing 757",
+    "equivalent_military_designation": "C-32A, C32B",
+    "type_rating_designation": "B-757, B-767",
+    "source_line": 172,
+    "sort_order": 270
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "767-200 Series",
+    "prior_model_designation": "Boeing 767",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-767, B-757",
+    "source_line": 186,
+    "sort_order": 280
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "777-200 Series",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-777",
+    "source_line": 190,
+    "sort_order": 290
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "787-8, 787-9, 787-10",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "B-787",
+    "source_line": 195,
+    "sort_order": 300
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "DC3-G102, DC3-G102A",
+    "prior_model_designation": "Douglas DC-3",
+    "equivalent_military_designation": "C-47 Series",
+    "type_rating_designation": "DC-3",
+    "source_line": 196,
+    "sort_order": 310
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "Super DC-3",
+    "prior_model_designation": "Douglas DC-3S",
+    "equivalent_military_designation": "C-117D",
+    "type_rating_designation": "DC-3S",
+    "source_line": 204,
+    "sort_order": 320
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "DC3A-S1C3G (*)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DC-3TP",
+    "source_line": 205,
+    "sort_order": 330
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "DC-4",
+    "prior_model_designation": "Douglas DC-4",
+    "equivalent_military_designation": "C-54",
+    "type_rating_designation": "DC-4",
+    "source_line": 212,
+    "sort_order": 340
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "DC-6",
+    "prior_model_designation": "Douglas DC-6,",
+    "equivalent_military_designation": "C-118, C-74",
+    "type_rating_designation": "DC-6, DC-7",
+    "source_line": 218,
+    "sort_order": 350
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "DC-8-11, DC-8-12, DC-8-21,",
+    "prior_model_designation": "Douglas DC-8",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DC-8",
+    "source_line": 222,
+    "sort_order": 360
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "DC-9-11, DC-9-12, DC-9-13,",
+    "prior_model_designation": "Douglas DC-9",
+    "equivalent_military_designation": "C-9 Series",
+    "type_rating_designation": "DC-9",
+    "source_line": 243,
+    "sort_order": 370
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "DC-10-10",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "KC-10 Series",
+    "type_rating_designation": "DC-10",
+    "source_line": 252,
+    "sort_order": 380
+  },
+  {
+    "type_certificate_holder": "The Boeing Company (continued)",
+    "civil_model_designation": "MD-10-10F, MD-10-30F",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "MD-11",
+    "source_line": 259,
+    "sort_order": 390
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "BD-100-1A10",
+    "prior_model_designation": "Challenger 300",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-30",
+    "source_line": 265,
+    "sort_order": 400
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "BD-700-1A10",
+    "prior_model_designation": "Global Express,",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BBD-700",
+    "source_line": 266,
+    "sort_order": 410
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "BD-700-2A12",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G7500",
+    "source_line": 268,
+    "sort_order": 420
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "CL-44D4",
+    "prior_model_designation": "Canadair",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-44",
+    "source_line": 269,
+    "sort_order": 430
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "CL-600-2E25",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-66",
+    "source_line": 271,
+    "sort_order": 440
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "CL-600-1A11",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-600",
+    "source_line": 272,
+    "sort_order": 450
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "CL-600-2B16 (CL-604",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-604",
+    "source_line": 276,
+    "sort_order": 460
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "Breguet, France",
+    "prior_model_designation": "Fauvette 905A",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BG-905",
+    "source_line": 281,
+    "sort_order": 470
+  },
+  {
+    "type_certificate_holder": "Bombardier Inc.",
+    "civil_model_designation": "Bristol Aircraft Ltd., UK",
+    "prior_model_designation": "Britannia 305",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BR-305",
+    "source_line": 282,
+    "sort_order": 480
+  },
+  {
+    "type_certificate_holder": "British Aerospace (Commercial",
+    "civil_model_designation": "Argosy AW 650",
+    "prior_model_designation": "Armstrong",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "AW-650",
+    "source_line": 283,
+    "sort_order": 490
+  },
+  {
+    "type_certificate_holder": "British Aerospace (Commercial",
+    "civil_model_designation": "British Aerospace Corporation",
+    "prior_model_designation": "BAE-ATP",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BAE-ATP",
+    "source_line": 288,
+    "sort_order": 500
+  },
+  {
+    "type_certificate_holder": "British Aerospace (Commercial",
+    "civil_model_designation": "BAE-125-1000",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BAE-125",
+    "source_line": 289,
+    "sort_order": 510
+  },
+  {
+    "type_certificate_holder": "British Aerospace (Commercial",
+    "civil_model_designation": "HP.137, MK.1,",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BA-3100",
+    "source_line": 290,
+    "sort_order": 520
+  },
+  {
+    "type_certificate_holder": "British Aerospace (Commercial",
+    "civil_model_designation": "Jetstream 4100",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BA-4100",
+    "source_line": 294,
+    "sort_order": 530
+  },
+  {
+    "type_certificate_holder": "British Aerospace (Commercial",
+    "civil_model_designation": "British Aerospace Corporation,",
+    "prior_model_designation": "Concorde SST",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CONCRD",
+    "source_line": 305,
+    "sort_order": 540
+  },
+  {
+    "type_certificate_holder": "British Aircraft Corporation, UK",
+    "civil_model_designation": "BAC 1-11",
+    "prior_model_designation": "BAC 1-11",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BA-111",
+    "source_line": 307,
+    "sort_order": 550
+  },
+  {
+    "type_certificate_holder": "British Aircraft Corporation, UK",
+    "civil_model_designation": "Bushmaster Aircraft Corporation,",
+    "prior_model_designation": "Bushmaster 2000",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BU-2000",
+    "source_line": 308,
+    "sort_order": 560
+  },
+  {
+    "type_certificate_holder": "Chase, USA (Also Roberts",
+    "civil_model_designation": "YC-122",
+    "prior_model_designation": "Chase YC-122Y",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "YC-122",
+    "source_line": 314,
+    "sort_order": 570
+  },
+  {
+    "type_certificate_holder": "Cirrus Design Corporation",
+    "civil_model_designation": "SF50",
+    "prior_model_designation": "N/A",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SF-50",
+    "source_line": 316,
+    "sort_order": 580
+  },
+  {
+    "type_certificate_holder": "Coulson Aviation (USA) Inc.",
+    "civil_model_designation": "EC-130Q, C-130H",
+    "prior_model_designation": "EC-130Q",
+    "equivalent_military_designation": "Lockheed Martin",
+    "type_rating_designation": "L-382",
+    "source_line": 321,
+    "sort_order": 590
+  },
+  {
+    "type_certificate_holder": "Curtiss-Wright Corporation, USA",
+    "civil_model_designation": "Commando CW-20",
+    "prior_model_designation": "Curtis-Wright C-46",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CW-46",
+    "source_line": 326,
+    "sort_order": 600
+  },
+  {
+    "type_certificate_holder": "De Havilland Aircraft of Canada",
+    "civil_model_designation": "DHC-8-100 Series",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "E-9A",
+    "type_rating_designation": "DHC-8",
+    "source_line": 328,
+    "sort_order": 610
+  },
+  {
+    "type_certificate_holder": "De Havilland Aircraft of Canada",
+    "civil_model_designation": "Limited.",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "DHC-8-200 Series",
+    "type_rating_designation": "C147A",
+    "source_line": 329,
+    "sort_order": 620
+  },
+  {
+    "type_certificate_holder": "Dassault Aviation",
+    "civil_model_designation": "Falcon 6X",
+    "prior_model_designation": "N/A",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-6X",
+    "source_line": 332,
+    "sort_order": 630
+  },
+  {
+    "type_certificate_holder": "Dassault Aviation",
+    "civil_model_designation": "Falcon 7X",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-7X",
+    "source_line": 333,
+    "sort_order": 640
+  },
+  {
+    "type_certificate_holder": "Dassault Aviation",
+    "civil_model_designation": "(*) These models are identified in",
+    "prior_model_designation": "Falcon 10",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-10",
+    "source_line": 334,
+    "sort_order": 650
+  },
+  {
+    "type_certificate_holder": "the TCDS as commercial model",
+    "civil_model_designation": "Fan Jet Falcon",
+    "prior_model_designation": "GAMD/SUD-20",
+    "equivalent_military_designation": "HU25 Series",
+    "type_rating_designation": "DA-20",
+    "source_line": 335,
+    "sort_order": 660
+  },
+  {
+    "type_certificate_holder": "the TCDS as commercial model",
+    "civil_model_designation": "Mystère Falcon 50",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-50",
+    "source_line": 345,
+    "sort_order": 670
+  },
+  {
+    "type_certificate_holder": "the TCDS as commercial model",
+    "civil_model_designation": "Mystère Falcon 200",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-200",
+    "source_line": 348,
+    "sort_order": 680
+  },
+  {
+    "type_certificate_holder": "the TCDS as commercial model",
+    "civil_model_designation": "Falcon 2000",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-2000",
+    "source_line": 349,
+    "sort_order": 690
+  },
+  {
+    "type_certificate_holder": "the TCDS as commercial model",
+    "civil_model_designation": "Falcon 900EX EASy (*)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-EASY",
+    "source_line": 351,
+    "sort_order": 700
+  },
+  {
+    "type_certificate_holder": "the TCDS as commercial model",
+    "civil_model_designation": "Falcon 2000EX EASy (*)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DA-2EASY",
+    "source_line": 352,
+    "sort_order": 710
+  },
+  {
+    "type_certificate_holder": "Dee Howard Co., USA",
+    "civil_model_designation": "Howard 500",
+    "prior_model_designation": "Howard 500",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "HW-500",
+    "source_line": 353,
+    "sort_order": 720
+  },
+  {
+    "type_certificate_holder": "Dee Howard Co., USA",
+    "civil_model_designation": "Deutsche Aircraft GmbH",
+    "prior_model_designation": "Dornier 328-100",
+    "equivalent_military_designation": "C-146A",
+    "type_rating_designation": "DO-328",
+    "source_line": 364,
+    "sort_order": 730
+  },
+  {
+    "type_certificate_holder": "Dee Howard Co., USA",
+    "civil_model_designation": "Dornier 328-300",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "D-328JET",
+    "source_line": 365,
+    "sort_order": 740
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "A-20",
+    "prior_model_designation": "Douglas A-20",
+    "equivalent_military_designation": "A-20 Series",
+    "type_rating_designation": "DC-A20",
+    "source_line": 371,
+    "sort_order": 750
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "A-24B, SBD-5",
+    "prior_model_designation": "Douglas A-24",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DC-A24",
+    "source_line": 372,
+    "sort_order": 760
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "B-18, B-18A,",
+    "prior_model_designation": "Douglas B-18",
+    "equivalent_military_designation": "B-18, B-18A,",
+    "type_rating_designation": "DC-B18",
+    "source_line": 373,
+    "sort_order": 770
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "B-23, UC-67",
+    "prior_model_designation": "Douglas B-23",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DC-B23",
+    "source_line": 375,
+    "sort_order": 780
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "DC-2",
+    "prior_model_designation": "Douglas DC-2",
+    "equivalent_military_designation": "C-32 Series",
+    "type_rating_designation": "DC-2",
+    "source_line": 376,
+    "sort_order": 790
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "PB26",
+    "prior_model_designation": "Douglas B-26",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DC-B26",
+    "source_line": 380,
+    "sort_order": 800
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "Eclipse Aerospace, Inc.",
+    "prior_model_designation": "EA-500 (SIC Required)",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EA-500",
+    "source_line": 381,
+    "sort_order": 810
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "EA-500S (Single Pilot)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EA-500S",
+    "source_line": 382,
+    "sort_order": 820
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "Embraer S.A.",
+    "prior_model_designation": "EMB-110P1, EMB-110P2",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EMB-110",
+    "source_line": 387,
+    "sort_order": 830
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "NOTE: See Note 5 in TCDS",
+    "prior_model_designation": "EMB-120, EMB-120RT,",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EMB-120",
+    "source_line": 390,
+    "sort_order": 840
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "designation is applicable to the",
+    "prior_model_designation": "EMB-135ER, EMB-135LR,",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EMB-145",
+    "source_line": 393,
+    "sort_order": 850
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "ERJ 170-100 STD",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "ERJ-170, ERJ-190",
+    "source_line": 399,
+    "sort_order": 860
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "Embraer S.A. (continued)",
+    "prior_model_designation": "EMB-500 (Single Pilot)",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EMB-500",
+    "source_line": 425,
+    "sort_order": 870
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "EMB-505 (Single Pilot)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EMB-505",
+    "source_line": 428,
+    "sort_order": 880
+  },
+  {
+    "type_certificate_holder": "Douglas Aircraft Co.",
+    "civil_model_designation": "EMB-545, EMB-550",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EMB-550",
+    "source_line": 431,
+    "sort_order": 890
+  },
+  {
+    "type_certificate_holder": "Fairchild Aircraft Corporation,",
+    "civil_model_designation": "Friendship F-27, F-227",
+    "prior_model_designation": "Fairchild F-27/227",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "F-27",
+    "source_line": 433,
+    "sort_order": 900
+  },
+  {
+    "type_certificate_holder": "Fairchild Aircraft Corporation,",
+    "civil_model_designation": "USA and Fokker, Netherlands",
+    "prior_model_designation": "C-119C",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "FA-119C",
+    "source_line": 434,
+    "sort_order": 910
+  },
+  {
+    "type_certificate_holder": "Fairchild Aircraft Corporation,",
+    "civil_model_designation": "C-123",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "FA-C123",
+    "source_line": 435,
+    "sort_order": 920
+  },
+  {
+    "type_certificate_holder": "Fairchild Aircraft Corporation,",
+    "civil_model_designation": "Fairchild Hiller",
+    "prior_model_designation": "C-82A",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "C-82A",
+    "source_line": 436,
+    "sort_order": 930
+  },
+  {
+    "type_certificate_holder": "Fairchild Aircraft Corporation,",
+    "civil_model_designation": "Fokker Services B.V.",
+    "prior_model_designation": "Fellowship F-28",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "FK-28",
+    "source_line": 438,
+    "sort_order": 940
+  },
+  {
+    "type_certificate_holder": "Fairchild Aircraft Corporation,",
+    "civil_model_designation": "Fokker 28 Mk 0100",
+    "prior_model_designation": "Fokker 28 Mk",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "FK-100",
+    "source_line": 440,
+    "sort_order": 950
+  },
+  {
+    "type_certificate_holder": "Ford Motor Corporation, USA",
+    "civil_model_designation": "Tri-Motor 4-AT, 5-AT, FO-5",
+    "prior_model_designation": "Ford 5",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "FO-5",
+    "source_line": 442,
+    "sort_order": 960
+  },
+  {
+    "type_certificate_holder": "Ford Motor Corporation, USA",
+    "civil_model_designation": "General Atomics AeroTec",
+    "prior_model_designation": "Dornier 228-100",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DO-228",
+    "source_line": 444,
+    "sort_order": 970
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "PB2Y, PB2Y-5",
+    "prior_model_designation": "Consolidated-",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-PB2Y",
+    "source_line": 450,
+    "sort_order": 980
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "PB4Y-2, OP-4B",
+    "prior_model_designation": "Consolidated-",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-P4Y",
+    "source_line": 452,
+    "sort_order": 990
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "PBY-5, 28-4, 28-5",
+    "prior_model_designation": "Consolidated-",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-PBY5",
+    "source_line": 454,
+    "sort_order": 1000
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "LB-30, C87A, RB-24",
+    "prior_model_designation": "Consolidated-",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-LB30",
+    "source_line": 456,
+    "sort_order": 1010
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "240, 340, 440, T-29, C-131",
+    "prior_model_designation": "Convair",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-240, CV-340,",
+    "source_line": 458,
+    "sort_order": 1020
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "Convair 340, 440, 580",
+    "prior_model_designation": "Allison 340/440",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-A340, CV-",
+    "source_line": 460,
+    "sort_order": 1030
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "Dart Convair 240, 340, 440",
+    "prior_model_designation": "Convair 600/640",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-600, CV-640",
+    "source_line": 462,
+    "sort_order": 1040
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "22, 22M, (880) (990)",
+    "prior_model_designation": "Convair 880/990",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-880, CV-990",
+    "source_line": 463,
+    "sort_order": 1050
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "Napier-Eland",
+    "prior_model_designation": "Napier-Eland",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CV-N1, CV-N2",
+    "source_line": 464,
+    "sort_order": 1060
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "S2F/C1A, S2F-1, S2F-3",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G-S2",
+    "source_line": 467,
+    "sort_order": 1070
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "TBF, TBM, AF-2S",
+    "prior_model_designation": "Grumman TBF",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G-TBM",
+    "source_line": 468,
+    "sort_order": 1080
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "G-64 Albatross, GSA16",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "HU-16, SA-16",
+    "type_rating_designation": "G-111",
+    "source_line": 470,
+    "sort_order": 1090
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "G-73",
+    "prior_model_designation": "Grumman G-73",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G-73",
+    "source_line": 471,
+    "sort_order": 1100
+  },
+  {
+    "type_certificate_holder": "General Dynamics Corporation,",
+    "civil_model_designation": "G-73 Turbo Mallard",
+    "prior_model_designation": "FS-73T",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G-73T",
+    "source_line": 472,
+    "sort_order": 1110
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "G-1159, G-1159A, G-1159B,",
+    "prior_model_designation": "Grumman G-1159",
+    "equivalent_military_designation": "C-20A, C-20B, C-",
+    "type_rating_designation": "G-1159",
+    "source_line": 487,
+    "sort_order": 1120
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "G-IV, G-IV (G300),",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "C-20F, C-20G, C-",
+    "type_rating_designation": "G-IV",
+    "source_line": 489,
+    "sort_order": 1130
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "GIV-X, GIV-X (G350),",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "C-37A, C-37B, EA-",
+    "type_rating_designation": "G-V",
+    "source_line": 491,
+    "sort_order": 1140
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "GVI (G650)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "GVI",
+    "source_line": 494,
+    "sort_order": 1150
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "GVII-G500",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "GVII",
+    "source_line": 495,
+    "sort_order": 1160
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "GVIII-G700",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "GVIII",
+    "source_line": 497,
+    "sort_order": 1170
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "Gulfstream Aerospace LP",
+    "prior_model_designation": "1125 Westwind Astra,",
+    "equivalent_military_designation": "C-38, C-38A",
+    "type_rating_designation": "IA-1125, G-100",
+    "source_line": 498,
+    "sort_order": 1180
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "Gulfstream G150",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G150",
+    "source_line": 501,
+    "sort_order": 1190
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "Galaxy,",
+    "prior_model_designation": "Galaxy",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G-200",
+    "source_line": 502,
+    "sort_order": 1200
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "Gulfstream G280",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "G280",
+    "source_line": 504,
+    "sort_order": 1210
+  },
+  {
+    "type_certificate_holder": "Corporation",
+    "civil_model_designation": "Hamburger Flugzeubau",
+    "prior_model_designation": "Hansa Jet 320",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "HF-320",
+    "source_line": 505,
+    "sort_order": 1220
+  },
+  {
+    "type_certificate_holder": "Handley Page Aircraft Co., Ltd.,",
+    "civil_model_designation": "Herald 300",
+    "prior_model_designation": "Handley Page 300",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "HP-300",
+    "source_line": 507,
+    "sort_order": 1230
+  },
+  {
+    "type_certificate_holder": "Handley Page Aircraft Co., Ltd.,",
+    "civil_model_designation": "Harbin Hafei Aviation Industry",
+    "prior_model_designation": "Y12F",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "Y-12F",
+    "source_line": 509,
+    "sort_order": 1240
+  },
+  {
+    "type_certificate_holder": "Hawker Siddeley Aviation Ltd.,",
+    "civil_model_designation": "DH-106, Comet 4C",
+    "prior_model_designation": "deHavilland 4C",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "HS-106",
+    "source_line": 512,
+    "sort_order": 1250
+  },
+  {
+    "type_certificate_holder": "UK (Also see Raytheon",
+    "civil_model_designation": "DH-114 Heron",
+    "prior_model_designation": "Hawker Siddeley",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "HS-114",
+    "source_line": 513,
+    "sort_order": 1260
+  },
+  {
+    "type_certificate_holder": "UK (Also see Raytheon",
+    "civil_model_designation": "Hawker Siddeley 748",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "HS-748",
+    "source_line": 515,
+    "sort_order": 1270
+  },
+  {
+    "type_certificate_holder": "UK (Also see Raytheon",
+    "civil_model_designation": "Honda Aircraft Company LLC",
+    "prior_model_designation": "HA-420",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "HA-420",
+    "source_line": 516,
+    "sort_order": 1280
+  },
+  {
+    "type_certificate_holder": "Israel Aircraft Industries Ltd.",
+    "civil_model_designation": "1121, 1121A, 1121B, 1123,",
+    "prior_model_designation": "AC-1121",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "IA-JET",
+    "source_line": 518,
+    "sort_order": 1290
+  },
+  {
+    "type_certificate_holder": "Israel Aircraft Industries Ltd.",
+    "civil_model_designation": "ARAVA 101B",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "IA-101",
+    "source_line": 520,
+    "sort_order": 1300
+  },
+  {
+    "type_certificate_holder": "Israel Aircraft Industries Ltd.",
+    "civil_model_designation": "Kal-Aero, Inc.",
+    "prior_model_designation": "AD-4N",
+    "equivalent_military_designation": "A-1",
+    "type_rating_designation": "AD-4N",
+    "source_line": 521,
+    "sort_order": 1310
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "23,",
+    "prior_model_designation": "LR-23, LR-24, LR-",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "LR-JET",
+    "source_line": 522,
+    "sort_order": 1320
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "35A",
+    "prior_model_designation": "LR-35A",
+    "equivalent_military_designation": "C-21A, NC-21A",
+    "type_rating_designation": "LR-JET",
+    "source_line": 528,
+    "sort_order": 1330
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "45",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "LR-45",
+    "source_line": 529,
+    "sort_order": 1340
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "60",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "LR-60",
+    "source_line": 530,
+    "sort_order": 1350
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "Lockheed Aircraft Corp., USA",
+    "prior_model_designation": "P2V7 (Restricted), LP2V-5F",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-P2V",
+    "source_line": 532,
+    "sort_order": 1360
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "Series 14",
+    "prior_model_designation": "Lockheed 14",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-14",
+    "source_line": 533,
+    "sort_order": 1370
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "18",
+    "prior_model_designation": "Lockheed 18",
+    "equivalent_military_designation": "C-56, C-57, C-59,",
+    "type_rating_designation": "L-18",
+    "source_line": 534,
+    "sort_order": 1380
+  },
+  {
+    "type_certificate_holder": "Learjet Inc.",
+    "civil_model_designation": "B-34, PV-1, PV-2",
+    "prior_model_designation": "Lockheed B-34",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-B34",
+    "source_line": 546,
+    "sort_order": 1390
+  },
+  {
+    "type_certificate_holder": "Lockheed Aircraft Corp., USA",
+    "civil_model_designation": "Lightning",
+    "prior_model_designation": "Lockheed P-38",
+    "equivalent_military_designation": "P-38",
+    "type_rating_designation": "L-P38",
+    "source_line": 547,
+    "sort_order": 1400
+  },
+  {
+    "type_certificate_holder": "(continued)",
+    "civil_model_designation": "300",
+    "prior_model_designation": "Lockheed 300",
+    "equivalent_military_designation": "C-141 Series",
+    "type_rating_designation": "L-300",
+    "source_line": 548,
+    "sort_order": 1410
+  },
+  {
+    "type_certificate_holder": "(continued)",
+    "civil_model_designation": "L-1011 Tristar",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-1011",
+    "source_line": 549,
+    "sort_order": 1420
+  },
+  {
+    "type_certificate_holder": "(continued)",
+    "civil_model_designation": "Constellation",
+    "prior_model_designation": "Lockheed",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-1049",
+    "source_line": 550,
+    "sort_order": 1430
+  },
+  {
+    "type_certificate_holder": "(continued)",
+    "civil_model_designation": "Jetstar, C-140, Jetstar II",
+    "prior_model_designation": "Lockheed 1329",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-1329",
+    "source_line": 553,
+    "sort_order": 1440
+  },
+  {
+    "type_certificate_holder": "(continued)",
+    "civil_model_designation": "T-33",
+    "prior_model_designation": "LT-33",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "T-33",
+    "source_line": 554,
+    "sort_order": 1450
+  },
+  {
+    "type_certificate_holder": "Lockheed Martin Corporation",
+    "civil_model_designation": "188A, 188C",
+    "prior_model_designation": "Lockheed 188",
+    "equivalent_military_designation": "P-3 Series",
+    "type_rating_designation": "L-188",
+    "source_line": 555,
+    "sort_order": 1460
+  },
+  {
+    "type_certificate_holder": "Lockheed Martin Corporation",
+    "civil_model_designation": "382, 382B,",
+    "prior_model_designation": "Lockheed 382",
+    "equivalent_military_designation": "All 130 Series (ex-",
+    "type_rating_designation": "L-382",
+    "source_line": 556,
+    "sort_order": 1470
+  },
+  {
+    "type_certificate_holder": "Lockheed Martin Corporation",
+    "civil_model_designation": "382J",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "L-382J",
+    "source_line": 558,
+    "sort_order": 1480
+  },
+  {
+    "type_certificate_holder": "Lockheed Martin Corporation",
+    "civil_model_designation": "M7 Aerospace LLC",
+    "prior_model_designation": "SA226-AT (*)",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SA-227",
+    "source_line": 559,
+    "sort_order": 1490
+  },
+  {
+    "type_certificate_holder": "Lockheed Martin Corporation",
+    "civil_model_designation": "(**) Type rating not required",
+    "prior_model_designation": "SA227-AC",
+    "equivalent_military_designation": "C-26A, C-26B, UC-",
+    "type_rating_designation": "SA-227",
+    "source_line": 568,
+    "sort_order": 1500
+  },
+  {
+    "type_certificate_holder": "Lockheed Martin Corporation",
+    "civil_model_designation": "when operating in compliance",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "SA227-BC",
+    "type_rating_designation": "26C",
+    "source_line": 569,
+    "sort_order": 1510
+  },
+  {
+    "type_certificate_holder": "Lockheed Martin Corporation",
+    "civil_model_designation": "with Notes 11 and 14 from TCDS",
+    "prior_model_designation": "SA227-DC",
+    "equivalent_military_designation": "C-26D, RC-26B, C-",
+    "type_rating_designation": "SA-227",
+    "source_line": 570,
+    "sort_order": 1520
+  },
+  {
+    "type_certificate_holder": "Martin-Marietta Corporation,",
+    "civil_model_designation": "B-26 Marauder",
+    "prior_model_designation": "Martin B-26C",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "M-B26",
+    "source_line": 572,
+    "sort_order": 1530
+  },
+  {
+    "type_certificate_holder": "USA",
+    "civil_model_designation": "PBM-5, C-162",
+    "prior_model_designation": "Martin PBM-5",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "M-PBM5",
+    "source_line": 573,
+    "sort_order": 1540
+  },
+  {
+    "type_certificate_holder": "USA",
+    "civil_model_designation": "Mariner 202/404",
+    "prior_model_designation": "Martin 202/404",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "M-202, M-404",
+    "source_line": 574,
+    "sort_order": 1550
+  },
+  {
+    "type_certificate_holder": "USA",
+    "civil_model_designation": "MHI RJ Aviation ULC",
+    "prior_model_designation": "CL-600-2B19",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-65",
+    "source_line": 578,
+    "sort_order": 1560
+  },
+  {
+    "type_certificate_holder": "Morane-Saulnier, France",
+    "civil_model_designation": "MS760",
+    "prior_model_designation": "Morane-Saulnier",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "MS-760",
+    "source_line": 585,
+    "sort_order": 1570
+  },
+  {
+    "type_certificate_holder": "Nihon Aeroplane Manufacturing",
+    "civil_model_designation": "YS-11",
+    "prior_model_designation": "NAMC YS-11",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "YS-11",
+    "source_line": 587,
+    "sort_order": 1580
+  },
+  {
+    "type_certificate_holder": "Nord Aviation",
+    "civil_model_designation": "262A Super",
+    "prior_model_designation": "Nord 262",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "ND-262",
+    "source_line": 589,
+    "sort_order": 1590
+  },
+  {
+    "type_certificate_holder": "Northrop Corporation, USA",
+    "civil_model_designation": "P-61 Black Widow",
+    "prior_model_designation": "Northrop P-61",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "NH-P61",
+    "source_line": 595,
+    "sort_order": 1600
+  },
+  {
+    "type_certificate_holder": "Piaggio, Italy",
+    "civil_model_designation": "Piaggio-Douglas 808",
+    "prior_model_designation": "Piaggio Douglas",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "P-808",
+    "source_line": 596,
+    "sort_order": 1610
+  },
+  {
+    "type_certificate_holder": "Piaggio, Italy",
+    "civil_model_designation": "Pilatus Aircraft Ltd.",
+    "prior_model_designation": "PC-24",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "PC-24",
+    "source_line": 598,
+    "sort_order": 1620
+  },
+  {
+    "type_certificate_holder": "Piaggio, Italy",
+    "civil_model_designation": "Piper Aircraft, USA",
+    "prior_model_designation": "PA-42-720 (Restricted)",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "PA-42R",
+    "source_line": 599,
+    "sort_order": 1630
+  },
+  {
+    "type_certificate_holder": "Piaggio, Italy",
+    "civil_model_designation": "Polskie Zaklady Lotnicze Sp. z",
+    "prior_model_designation": "PZL M28 05",
+    "equivalent_military_designation": "C-145A",
+    "type_rating_designation": "PZL-M28",
+    "source_line": 612,
+    "sort_order": 1640
+  },
+  {
+    "type_certificate_holder": "S and R Aviation Services, Inc.",
+    "civil_model_designation": "RB-25, B-25, B-25A, B-25B,",
+    "prior_model_designation": "North American,",
+    "equivalent_military_designation": "B-25 series",
+    "type_rating_designation": "N-B25",
+    "source_line": 618,
+    "sort_order": 1650
+  },
+  {
+    "type_certificate_holder": "S and R Aviation Services, Inc.",
+    "civil_model_designation": "Saab AB, Support and Services",
+    "prior_model_designation": "Model SAAB 2000",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SA-2000",
+    "source_line": 625,
+    "sort_order": 1660
+  },
+  {
+    "type_certificate_holder": "S and R Aviation Services, Inc.",
+    "civil_model_designation": "340A (SAAB/SF340A)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SF-340",
+    "source_line": 626,
+    "sort_order": 1670
+  },
+  {
+    "type_certificate_holder": "Sabreliner Aviation LLC",
+    "civil_model_designation": "NA-265",
+    "prior_model_designation": "North American",
+    "equivalent_military_designation": "T-39A, CT-39A,",
+    "type_rating_designation": "N-265",
+    "source_line": 632,
+    "sort_order": 1680
+  },
+  {
+    "type_certificate_holder": "Sabreliner Aviation LLC",
+    "civil_model_designation": "NA-265-20, NA-265-30",
+    "prior_model_designation": "North American",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "N-265",
+    "source_line": 637,
+    "sort_order": 1690
+  },
+  {
+    "type_certificate_holder": "Sabreliner Aviation LLC",
+    "civil_model_designation": "(continued)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "NA-265-40",
+    "type_rating_designation": "NA-265",
+    "source_line": 638,
+    "sort_order": 1700
+  },
+  {
+    "type_certificate_holder": "Sikorsky Aircraft Division of",
+    "civil_model_designation": "S-43 Series",
+    "prior_model_designation": "Sikorsky S-43",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SK-43",
+    "source_line": 645,
+    "sort_order": 1710
+  },
+  {
+    "type_certificate_holder": "United Aircraft Corporation,",
+    "civil_model_designation": "VS-44, AC-32, C34",
+    "prior_model_designation": "Sikorsky VS-44",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SK-44",
+    "source_line": 646,
+    "sort_order": 1720
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "SA Caravelle I, II, VIR",
+    "prior_model_designation": "SUD 210",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "S-210",
+    "source_line": 650,
+    "sort_order": 1730
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "SyberJet Aircraft",
+    "prior_model_designation": "SJ30-2 (SIC Required)",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SJ30",
+    "source_line": 653,
+    "sort_order": 1740
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "SJ30-2 (Single Pilot)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SJ30S",
+    "source_line": 654,
+    "sort_order": 1750
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "Textron Aviation, Inc.",
+    "prior_model_designation": "500, 501, 550, S550, 551",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-500",
+    "source_line": 655,
+    "sort_order": 1760
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "552",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "T-47A, OT-47B",
+    "type_rating_designation": "CE-500",
+    "source_line": 656,
+    "sort_order": 1770
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "560",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UC-35A, UC-35B,",
+    "type_rating_designation": "CE-500",
+    "source_line": 657,
+    "sort_order": 1780
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "560XL, 560XLS, 560XLS+",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-560XL",
+    "source_line": 659,
+    "sort_order": 1790
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "510 (SIC Required)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-510",
+    "source_line": 660,
+    "sort_order": 1800
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "Textron Aviation, Inc.",
+    "prior_model_designation": "510 (Single Pilot)",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-510S",
+    "source_line": 671,
+    "sort_order": 1810
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "(continued)",
+    "prior_model_designation": "525, 525A, 525B, 525C",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-525",
+    "source_line": 672,
+    "sort_order": 1820
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "525, 525A, 525B, 525C",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-525S",
+    "source_line": 674,
+    "sort_order": 1830
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "number of the aircraft determines",
+    "prior_model_designation": "650",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-650",
+    "source_line": 676,
+    "sort_order": 1840
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "if the BE-200 or BE-300 type",
+    "prior_model_designation": "680, 680A",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-680",
+    "source_line": 677,
+    "sort_order": 1850
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "rating designation is appropriate",
+    "prior_model_designation": "700",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-700",
+    "source_line": 678,
+    "sort_order": 1860
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "for the applicable aircraft.",
+    "prior_model_designation": "750",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-750",
+    "source_line": 679,
+    "sort_order": 1870
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "200T, 200CT, A200CT,",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "See BE-200 FSB",
+    "type_rating_designation": "BE-200",
+    "source_line": 680,
+    "sort_order": 1880
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "Refer to Appendix 5 and 6 of the",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "B200C, B200T, B200CT,",
+    "type_rating_designation": "report, Appendix 5.",
+    "source_line": 681,
+    "sort_order": 1890
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "300, 300LW, B300, B300C",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "See BE-300 FSB",
+    "type_rating_designation": "BE-300",
+    "source_line": 692,
+    "sort_order": 1900
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "300 with FF serial numbers",
+    "prior_model_designation": "BE-300F",
+    "equivalent_military_designation": "See BE-300 FSB",
+    "type_rating_designation": "BE-300",
+    "source_line": 694,
+    "sort_order": 1910
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "1900, 1900C, 1900D",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "C-12J",
+    "type_rating_designation": "BE-1900",
+    "source_line": 702,
+    "sort_order": 1920
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "2000 (SIC Required)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BE-2000",
+    "source_line": 703,
+    "sort_order": 1930
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "2000 (Single Pilot)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BE-2000S",
+    "source_line": 704,
+    "sort_order": 1940
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "MU-300, MU-300-10, 400,",
+    "prior_model_designation": "MU-300",
+    "equivalent_military_designation": "T-1A",
+    "type_rating_designation": "MU-300, BE-400",
+    "source_line": 705,
+    "sort_order": 1950
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "DH.125 Series",
+    "prior_model_designation": "Hawker Siddeley",
+    "equivalent_military_designation": "C-29A",
+    "type_rating_designation": "HS-125",
+    "source_line": 707,
+    "sort_order": 1960
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "BH.125 Series",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "125",
+    "type_rating_designation": "U-125",
+    "source_line": 708,
+    "sort_order": 1970
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "Bae.125 Series 1000",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BAE-125",
+    "source_line": 715,
+    "sort_order": 1980
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "390 (SIC Required)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "RA-390",
+    "source_line": 717,
+    "sort_order": 1990
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "390 (Single Pilot)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "RA-390S",
+    "source_line": 718,
+    "sort_order": 2000
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "4000",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "RA-4000",
+    "source_line": 719,
+    "sort_order": 2010
+  },
+  {
+    "type_certificate_holder": "Sud Aviation, France",
+    "civil_model_designation": "Model 408",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CE-408",
+    "source_line": 720,
+    "sort_order": 2020
+  },
+  {
+    "type_certificate_holder": "Vickers-Armstrong British",
+    "civil_model_designation": "700 & 800 Series",
+    "prior_model_designation": "Vickers Viscount",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "VC-700, VC-800",
+    "source_line": 731,
+    "sort_order": 2030
+  },
+  {
+    "type_certificate_holder": "Viking Air Limited",
+    "civil_model_designation": "CL-215-1A10",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-215",
+    "source_line": 733,
+    "sort_order": 2040
+  },
+  {
+    "type_certificate_holder": "(*) Only applies to aircraft model",
+    "civil_model_designation": "CL-215-6B11 (CL-415)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "CL-415",
+    "source_line": 735,
+    "sort_order": 2050
+  },
+  {
+    "type_certificate_holder": "described in Report RAL-K215T-",
+    "civil_model_designation": "DHC-4, DHC-4A",
+    "prior_model_designation": "deHavilland",
+    "equivalent_military_designation": "C-7A, CV-2",
+    "type_rating_designation": "DHC-4",
+    "source_line": 738,
+    "sort_order": 2060
+  },
+  {
+    "type_certificate_holder": "described in Report RAL-K215T-",
+    "civil_model_designation": "DHC-6-300 (**)",
+    "prior_model_designation": "DH-6",
+    "equivalent_military_designation": "UV-18A, UV-18B,",
+    "type_rating_designation": "DHC-6",
+    "source_line": 741,
+    "sort_order": 2070
+  },
+  {
+    "type_certificate_holder": "described in Report RAL-K215T-",
+    "civil_model_designation": "pounds maximum takeoff weight.",
+    "prior_model_designation": "DHC-6-300HG (***)",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "DHC-6HG",
+    "source_line": 745,
+    "sort_order": 2080
+  },
+  {
+    "type_certificate_holder": "applied, aircraft is in commuter",
+    "civil_model_designation": "DHC-7-1, DHC-7-100, DHC-",
+    "prior_model_designation": "DH-7",
+    "equivalent_military_designation": "O-5A, EO-5B, EO-",
+    "type_rating_designation": "DHC-7",
+    "source_line": 748,
+    "sort_order": 2090
+  },
+  {
+    "type_certificate_holder": "applied, aircraft is in commuter",
+    "civil_model_designation": "category and PIC must hold this",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "7-101, DHC-7-102, DHC-7-",
+    "type_rating_designation": "5C",
+    "source_line": 749,
+    "sort_order": 2100
+  },
+  {
+    "type_certificate_holder": "applied, aircraft is in commuter",
+    "civil_model_designation": "SD3-30, SD3-60, SD3-",
+    "prior_model_designation": "SD3-30",
+    "equivalent_military_designation": "C-23 Series",
+    "type_rating_designation": "SD-3",
+    "source_line": 751,
+    "sort_order": 2110
+  },
+  {
+    "type_certificate_holder": "HOLDER",
+    "civil_model_designation": "DESIGNATION",
+    "prior_model_designation": "DESIGNATION",
+    "equivalent_military_designation": "MILITARY",
+    "type_rating_designation": "TYPE RATING",
+    "source_line": 768,
+    "sort_order": 2120
+  },
+  {
+    "type_certificate_holder": "ACE Aeronautics, LLC",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 770,
+    "sort_order": 2130
+  },
+  {
+    "type_certificate_holder": "ACE Aeronautics, LLC",
+    "civil_model_designation": "(R00005RC)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60L* VFR Only",
+    "type_rating_designation": "UH-60L",
+    "source_line": 771,
+    "sort_order": 2140
+  },
+  {
+    "type_certificate_holder": "ACE Aeronautics, LLC",
+    "civil_model_designation": "UH-60A(#)",
+    "prior_model_designation": "UH-60A* VFR",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "S-70",
+    "source_line": 772,
+    "sort_order": 2150
+  },
+  {
+    "type_certificate_holder": "ACE Aeronautics, LLC",
+    "civil_model_designation": "(#) When STC No.",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60L(#)",
+    "type_rating_designation": "Only",
+    "source_line": 773,
+    "sort_order": 2160
+  },
+  {
+    "type_certificate_holder": "Air Resources Helicopters,",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 783,
+    "sort_order": 2170
+  },
+  {
+    "type_certificate_holder": "Air Resources Helicopters,",
+    "civil_model_designation": "Inc.",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60L* VFR Only",
+    "type_rating_designation": "UH-60L",
+    "source_line": 784,
+    "sort_order": 2180
+  },
+  {
+    "type_certificate_holder": "Aircrane Inc.",
+    "civil_model_designation": "CH-37B (H-37B)*",
+    "prior_model_designation": "SK-56",
+    "equivalent_military_designation": "H-37",
+    "type_rating_designation": "SK-56",
+    "source_line": 786,
+    "sort_order": 2190
+  },
+  {
+    "type_certificate_holder": "Aircrane Inc.",
+    "civil_model_designation": "(H7EA)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "CH-37C (HR2S-1)*",
+    "type_rating_designation": "HR2S-1",
+    "source_line": 787,
+    "sort_order": 2200
+  },
+  {
+    "type_certificate_holder": "Airbus Helicopters",
+    "civil_model_designation": "EC225LP",
+    "prior_model_designation": "EC225LP",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "EC225LP",
+    "source_line": 788,
+    "sort_order": 2210
+  },
+  {
+    "type_certificate_holder": "Airbus Helicopters",
+    "civil_model_designation": "SA330J, AS332C, AS332C1,",
+    "prior_model_designation": "S-330",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "S-330",
+    "source_line": 789,
+    "sort_order": 2220
+  },
+  {
+    "type_certificate_holder": "Airbus Helicopters",
+    "civil_model_designation": "AS332C1 (#), AS332L1 (#)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "AS332E",
+    "source_line": 794,
+    "sort_order": 2230
+  },
+  {
+    "type_certificate_holder": "Airbus Helicopters",
+    "civil_model_designation": "H160-B",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "H160-B",
+    "source_line": 795,
+    "sort_order": 2240
+  },
+  {
+    "type_certificate_holder": "BHI H60 Helicopters, LLC",
+    "civil_model_designation": "BHI H60",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A**",
+    "type_rating_designation": "S-70",
+    "source_line": 802,
+    "sort_order": 2250
+  },
+  {
+    "type_certificate_holder": "BHI Productions, LLC",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A**",
+    "type_rating_designation": "S-70",
+    "source_line": 804,
+    "sort_order": 2260
+  },
+  {
+    "type_certificate_holder": "Billings Flying Service, Inc.",
+    "civil_model_designation": "CH-47D* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "CH-47D**",
+    "type_rating_designation": "BV-234",
+    "source_line": 806,
+    "sort_order": 2270
+  },
+  {
+    "type_certificate_holder": "Billings Flying Service, Inc.",
+    "civil_model_designation": "CH-47D* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BV-234",
+    "source_line": 819,
+    "sort_order": 2280
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "114A",
+    "prior_model_designation": "BV-234",
+    "equivalent_military_designation": "CH-47A",
+    "type_rating_designation": "BV-234",
+    "source_line": 821,
+    "sort_order": 2290
+  },
+  {
+    "type_certificate_holder": "The Boeing Company",
+    "civil_model_designation": "42A, 42B, 44A, 44B",
+    "prior_model_designation": "Vertol 44",
+    "equivalent_military_designation": "H21B, H-21C",
+    "type_rating_designation": "BV-44",
+    "source_line": 822,
+    "sort_order": 2300
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 825,
+    "sort_order": 2310
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "Helicopters Inc.",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "HH-60L* VFR Only",
+    "type_rating_designation": "HH-60L",
+    "source_line": 826,
+    "sort_order": 2320
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "Centerpointe Aerospace Inc",
+    "prior_model_designation": "S-58A, S-58B,",
+    "equivalent_military_designation": "S-58, S-581T None",
+    "type_rating_designation": "SK-58",
+    "source_line": 828,
+    "sort_order": 2330
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "Central Copters Inc. (R00029LA) HH-60L* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "HH-60L",
+    "type_rating_designation": "S-70",
+    "source_line": 832,
+    "sort_order": 2340
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "Columbia Helicopters, Inc.",
+    "prior_model_designation": "234",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BV-234",
+    "source_line": 834,
+    "sort_order": 2350
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "107-II",
+    "prior_model_designation": "107 II",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BV-107",
+    "source_line": 836,
+    "sort_order": 2360
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "(R00051SE) CH-47D",
+    "prior_model_designation": "CH-47D*",
+    "equivalent_military_designation": "CH-47D**",
+    "type_rating_designation": "BV-234",
+    "source_line": 837,
+    "sort_order": 2370
+  },
+  {
+    "type_certificate_holder": "Capitol",
+    "civil_model_designation": "Erickson Air- Crane DBA",
+    "prior_model_designation": "CH-54A*",
+    "equivalent_military_designation": "CH-54A**",
+    "type_rating_designation": "SK-64",
+    "source_line": 838,
+    "sort_order": 2380
+  },
+  {
+    "type_certificate_holder": "Erickson Air- Crane DBA",
+    "civil_model_designation": "S-64A",
+    "prior_model_designation": "S-64",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SK-64",
+    "source_line": 841,
+    "sort_order": 2390
+  },
+  {
+    "type_certificate_holder": "Erickson Air- Crane DBA",
+    "civil_model_designation": "S-64E",
+    "prior_model_designation": "S-64",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SK-64",
+    "source_line": 844,
+    "sort_order": 2400
+  },
+  {
+    "type_certificate_holder": "Erickson Incorporated, DBA",
+    "civil_model_designation": "S-64E, S-64F",
+    "prior_model_designation": "S-64",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "SK-64",
+    "source_line": 847,
+    "sort_order": 2410
+  },
+  {
+    "type_certificate_holder": "Erickson Incorporated, DBA",
+    "civil_model_designation": "Eurocopter (formerly Sud",
+    "prior_model_designation": "SA-321F",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "S-321",
+    "source_line": 850,
+    "sort_order": 2420
+  },
+  {
+    "type_certificate_holder": "H-60, LLC",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 852,
+    "sort_order": 2430
+  },
+  {
+    "type_certificate_holder": "H-60, LLC",
+    "civil_model_designation": "(R00113SE)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60L* VFR Only",
+    "type_rating_designation": "UH-60L",
+    "source_line": 853,
+    "sort_order": 2440
+  },
+  {
+    "type_certificate_holder": "Hagglund Helicopters, LLC",
+    "civil_model_designation": "UH-60A* VFR only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 854,
+    "sort_order": 2450
+  },
+  {
+    "type_certificate_holder": "Hallux Aerospace, LLC",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 856,
+    "sort_order": 2460
+  },
+  {
+    "type_certificate_holder": "Hallux Aerospace, LLC",
+    "civil_model_designation": "(R00035LA)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60L* VFR Only",
+    "type_rating_designation": "UH-60L",
+    "source_line": 857,
+    "sort_order": 2470
+  },
+  {
+    "type_certificate_holder": "Helicopter Transport Services,",
+    "civil_model_designation": "CH-53D",
+    "prior_model_designation": "S-65",
+    "equivalent_military_designation": "CH-53D**",
+    "type_rating_designation": "SK-65",
+    "source_line": 858,
+    "sort_order": 2480
+  },
+  {
+    "type_certificate_holder": "Helicopter Transport Services,",
+    "civil_model_designation": "Helicopter Transport Services,",
+    "prior_model_designation": "CH-54A*",
+    "equivalent_military_designation": "CH-54A**",
+    "type_rating_designation": "SK-64",
+    "source_line": 860,
+    "sort_order": 2490
+  },
+  {
+    "type_certificate_holder": "Helicopter Transport Services,",
+    "civil_model_designation": "Helicopter Transport Services,",
+    "prior_model_designation": "CH-54B*",
+    "equivalent_military_designation": "CH-54B**",
+    "type_rating_designation": "SK-64",
+    "source_line": 864,
+    "sort_order": 2500
+  },
+  {
+    "type_certificate_holder": "HeliQwest International Inc.",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 875,
+    "sort_order": 2510
+  },
+  {
+    "type_certificate_holder": "HeliQwest International Inc.",
+    "civil_model_designation": "(R00027LA)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "EH-60A* VFR Only",
+    "type_rating_designation": "EH-60A",
+    "source_line": 876,
+    "sort_order": 2520
+  },
+  {
+    "type_certificate_holder": "High Performance Helicopters",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 879,
+    "sort_order": 2530
+  },
+  {
+    "type_certificate_holder": "Kawasaki Heavy Industries,",
+    "civil_model_designation": "KV107-II,",
+    "prior_model_designation": "107 II",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BV-107",
+    "source_line": 882,
+    "sort_order": 2540
+  },
+  {
+    "type_certificate_holder": "Kawasaki Heavy Industries,",
+    "civil_model_designation": "Leonardo S.p.a.",
+    "prior_model_designation": "AB139, AW139",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "AB-139, AW-139",
+    "source_line": 886,
+    "sort_order": 2550
+  },
+  {
+    "type_certificate_holder": "Kawasaki Heavy Industries,",
+    "civil_model_designation": "AW189",
+    "prior_model_designation": null,
+    "equivalent_military_designation": null,
+    "type_rating_designation": "AW189",
+    "source_line": 887,
+    "sort_order": 2560
+  },
+  {
+    "type_certificate_holder": "McDermott 214 Holdings, LLC.",
+    "civil_model_designation": "214B",
+    "prior_model_designation": "BH-214",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BH-214",
+    "source_line": 888,
+    "sort_order": 2570
+  },
+  {
+    "type_certificate_holder": "McDermott 214 Holdings, LLC.",
+    "civil_model_designation": "214TH",
+    "prior_model_designation": "BH-214ST",
+    "equivalent_military_designation": null,
+    "type_rating_designation": "BH-214ST",
+    "source_line": 889,
+    "sort_order": 2580
+  },
+  {
+    "type_certificate_holder": "Northwest Rotorcraft, LLC",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 890,
+    "sort_order": 2590
+  },
+  {
+    "type_certificate_holder": "Pickering Aviation Inc.",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 892,
+    "sort_order": 2600
+  },
+  {
+    "type_certificate_holder": "Pickering Aviation Inc.",
+    "civil_model_designation": "(R00003AC)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "EH-60A* VFR Only",
+    "type_rating_designation": "EH-60A",
+    "source_line": 893,
+    "sort_order": 2610
+  },
+  {
+    "type_certificate_holder": "PJ Helicopters Inc.",
+    "civil_model_designation": "UH-60A*",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A**",
+    "type_rating_designation": "S-70",
+    "source_line": 895,
+    "sort_order": 2620
+  },
+  {
+    "type_certificate_holder": "Reeder Flying Service Inc.",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 897,
+    "sort_order": 2630
+  },
+  {
+    "type_certificate_holder": "Reeder Flying Service Inc.",
+    "civil_model_designation": "Siller Helicopters, Inc.",
+    "prior_model_designation": "CH-54A*",
+    "equivalent_military_designation": "CH-54A**",
+    "type_rating_designation": "SK-64",
+    "source_line": 899,
+    "sort_order": 2640
+  },
+  {
+    "type_certificate_holder": "Sikorsky Aircraft",
+    "civil_model_designation": "S-61L, S-61N, S-61R,",
+    "prior_model_designation": "S-61",
+    "equivalent_military_designation": "CH-3C, CH-3E**",
+    "type_rating_designation": "SK-61",
+    "source_line": 901,
+    "sort_order": 2650
+  },
+  {
+    "type_certificate_holder": "Sikorsky Aircraft Corporation",
+    "civil_model_designation": "S-61A, S-61D, S-61E, S-61V",
+    "prior_model_designation": "S-61",
+    "equivalent_military_designation": "SH-3A, HSS-2, CH-",
+    "type_rating_designation": "SK-61",
+    "source_line": 903,
+    "sort_order": 2660
+  },
+  {
+    "type_certificate_holder": "60M, HH-60W models. These",
+    "civil_model_designation": "S-70A, S-70C",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "HH-60 Series***",
+    "type_rating_designation": "S-70",
+    "source_line": 906,
+    "sort_order": 2670
+  },
+  {
+    "type_certificate_holder": "designation only.",
+    "civil_model_designation": "S-70M",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60M",
+    "type_rating_designation": "S-70M",
+    "source_line": 912,
+    "sort_order": 2680
+  },
+  {
+    "type_certificate_holder": "designation only.",
+    "civil_model_designation": "S-92A",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "VH-92A",
+    "type_rating_designation": "SK-92",
+    "source_line": 915,
+    "sort_order": 2690
+  },
+  {
+    "type_certificate_holder": "SIXTYHAWK TC, LLC",
+    "civil_model_designation": "EH-60A*",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "EH-60A**",
+    "type_rating_designation": "S-70",
+    "source_line": 916,
+    "sort_order": 2700
+  },
+  {
+    "type_certificate_holder": "SIXTYHAWK TC, LLC",
+    "civil_model_designation": "Sky Aviation Corporation",
+    "prior_model_designation": "CH-46E (*)",
+    "equivalent_military_designation": "CH-46E**",
+    "type_rating_designation": "H46E",
+    "source_line": 919,
+    "sort_order": 2710
+  },
+  {
+    "type_certificate_holder": "HOLDER",
+    "civil_model_designation": "Skydance Blackhawk Operations, UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 930,
+    "sort_order": 2720
+  },
+  {
+    "type_certificate_holder": "Timberline Helicopters Inc.",
+    "civil_model_designation": "UH-60A* VFR Only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 933,
+    "sort_order": 2730
+  },
+  {
+    "type_certificate_holder": "Timberline Helicopters Inc.",
+    "civil_model_designation": "(R00052SE)",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60L* VFR Only",
+    "type_rating_designation": "UH-60L",
+    "source_line": 934,
+    "sort_order": 2740
+  },
+  {
+    "type_certificate_holder": "Unical Aviation, Inc.",
+    "civil_model_designation": "UH-60A* VFR only",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "UH-60A",
+    "type_rating_designation": "S-70",
+    "source_line": 935,
+    "sort_order": 2750
+  },
+  {
+    "type_certificate_holder": "Unical Aviation, Inc.",
+    "civil_model_designation": "HOLDER",
+    "prior_model_designation": "DESIGNATION",
+    "equivalent_military_designation": "DESIGNATION",
+    "type_rating_designation": "DATE",
+    "source_line": 964,
+    "sort_order": 2760
+  },
+  {
+    "type_certificate_holder": "Unical Aviation, Inc.",
+    "civil_model_designation": "Billings Flying Service, Inc",
+    "prior_model_designation": "UH-60A",
+    "equivalent_military_designation": "S-70",
+    "type_rating_designation": "31-Dec-26",
+    "source_line": 967,
+    "sort_order": 2770
+  },
+  {
+    "type_certificate_holder": "Unical Aviation, Inc.",
+    "civil_model_designation": "Croman Corporation",
+    "prior_model_designation": "SH-3H",
+    "equivalent_military_designation": "SK-61",
+    "type_rating_designation": "31-Dec-26",
+    "source_line": 975,
+    "sort_order": 2780
+  },
+  {
+    "type_certificate_holder": "Unical Aviation, Inc.",
+    "civil_model_designation": "Delta Enterprise",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "S-70",
+    "type_rating_designation": "31-Dec-26",
+    "source_line": 977,
+    "sort_order": 2790
+  },
+  {
+    "type_certificate_holder": "Unical Aviation, Inc.",
+    "civil_model_designation": "Tandem Rotor, LLC",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "CH-47D",
+    "type_rating_designation": "BV-234",
+    "source_line": 985,
+    "sort_order": 2800
+  },
+  {
+    "type_certificate_holder": "Unical Aviation, Inc.",
+    "civil_model_designation": "Unical Aviation, Inc.",
+    "prior_model_designation": null,
+    "equivalent_military_designation": "CH-47D",
+    "type_rating_designation": "BV-234",
+    "source_line": 988,
+    "sort_order": 2810
+  }
+]

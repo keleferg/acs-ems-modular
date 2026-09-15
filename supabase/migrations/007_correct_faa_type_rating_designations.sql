@@ -5,7 +5,6 @@
 -- Corrected active options: 213
 
 begin;
-
 create temporary table corrected_faa_type_ratings (
   designation text primary key,
   sort_order integer not null,
@@ -13,7 +12,6 @@ create temporary table corrected_faa_type_ratings (
   source_effective_date date,
   source_url text
 );
-
 insert into corrected_faa_type_ratings (
   designation,
   sort_order,
@@ -235,7 +233,6 @@ values
   ('Y-12F', 2110, 'FAA Order 8900.1, Figure 5-88', '2026-07-22'::date, 'https://registry.faa.gov/TypeRatings/Type_Rating_Table.pdf'),
   ('YC-122', 2120, 'FAA Order 8900.1, Figure 5-88', '2026-07-22'::date, 'https://registry.faa.gov/TypeRatings/Type_Rating_Table.pdf'),
   ('YS-11', 2130, 'FAA Order 8900.1, Figure 5-88', '2026-07-22'::date, 'https://registry.faa.gov/TypeRatings/Type_Rating_Table.pdf');
-
 insert into public.faa_type_rating_designations (
   designation,
   is_active,
@@ -261,7 +258,6 @@ do update set
     excluded.source_effective_date,
   source_url = excluded.source_url,
   updated_at = now();
-
 -- Keep obsolete rows for referential history, but prevent
 -- them from appearing in the examiner selection library.
 update public.faa_type_rating_designations d
@@ -275,7 +271,6 @@ where d.source_document =
     from corrected_faa_type_ratings c
     where c.designation = d.designation
   );
-
 -- Disable any authorization attached to an obsolete split
 -- designation so it is not counted as an active selection.
 update public.examiner_type_rating_authorizations a
@@ -289,11 +284,8 @@ where a.is_active = true
     where d.id = a.type_rating_designation_id
       and d.is_active = false
   );
-
 drop table if exists corrected_faa_type_ratings;
-
 commit;
-
 select
   count(*) filter (
     where is_active = true
@@ -302,7 +294,6 @@ select
     where is_active = false
   ) as inactive_historical_options
 from public.faa_type_rating_designations;
-
 select designation
 from public.faa_type_rating_designations
 where is_active = true

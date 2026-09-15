@@ -222,11 +222,9 @@ begin
   return v_wizard;
 end;
 $function$;
-
 revoke all
 on function public.examiner_disposition_pretest_qualification(uuid, text, text)
 from public;
-
 grant execute
 on function public.examiner_disposition_pretest_qualification(uuid, text, text)
 to authenticated;

@@ -1350,6 +1350,7 @@ function formatRatingLabel(rating) {
     ASES: "ASES",
     AMES: "AMES",
     GLIDER: "Glider",
+    RH: "Rotorcraft Helicopter",
     "Instrument Airplane": "Instrument Airplane",
     "Pilot Proficiency Check (61.58)":
       "Pilot Proficiency Check (61.58)",
@@ -1724,6 +1725,18 @@ function normalizeEmtRating(appointment) {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  if (
+    joined === "rh" ||
+    joined.includes("rotorcraft helicopter") ||
+    joined.includes("helicopter rating")
+  ) {
+    return "RH";
+  }
+
+  if (joined === "glider" || joined.includes("glider rating")) {
+    return "GLIDER";
+  }
 
   if (joined.includes("ases") || joined.includes("single engine sea")) {
     return "ASES";
@@ -5404,12 +5417,23 @@ async function finalizePpcEvaluationInEmt() {
 }
 
 function getDatasetKey() {
-  if (
-    store.applicant.appCertificate === "Private" &&
-    store.applicant.appRating === "GLIDER"
-  ) {
-    return "PrivateGlider";
-  }
+  const categoryDatasets = {
+    Private: {
+      GLIDER: "PrivateGlider",
+      RH: "PrivateHelicopter",
+    },
+    Commercial: {
+      GLIDER: "CommercialGlider",
+      RH: "CommercialHelicopter",
+    },
+  };
+
+  const categoryDataset =
+    categoryDatasets[store.applicant.appCertificate]?.[
+      store.applicant.appRating
+    ];
+
+  if (categoryDataset) return categoryDataset;
 
   return store.applicant.appCertificate;
 }
@@ -5434,6 +5458,76 @@ function getCurrentAreas() {
 
 function getCurrentTasks(areas = getCurrentAreas()) {
   return modules.getFlatTasks(areas);
+}
+
+
+function syncAmelInstrumentFieldVisibility() {
+
+  const group =
+    document.getElementById("amelInstrumentGroup");
+
+  if (!group) {
+    return;
+  }
+
+  const certificate =
+    String(
+      store.applicant?.appCertificate || ""
+    ).trim();
+
+  const rating =
+    String(
+      store.applicant?.appRating || ""
+    ).trim();
+
+  /*
+   * AME Instrument Privileges applies whenever AMEL
+   * is the rating sought on a Private or Commercial
+   * practical test.
+   *
+   * Exam type is intentionally NOT part of this rule:
+   *   Private AMEL Initial
+   *   Private AMEL Additional
+   *   Commercial AMEL Initial
+   *   Commercial AMEL Additional
+   * must all display the field.
+   */
+  const shouldShow =
+    rating === "AMEL" &&
+    (
+      certificate === "Private" ||
+      certificate === "Commercial"
+    );
+
+  group.hidden = !shouldShow;
+  group.classList.toggle(
+    "hidden",
+    !shouldShow
+  );
+
+  if (shouldShow) {
+
+    /*
+     * .form-group/.hidden stylesheet rules can otherwise
+     * override the HTML hidden state, so make the visible
+     * state explicit.
+     */
+    group.style.setProperty(
+      "display",
+      "block",
+      "important"
+    );
+
+  } else {
+
+    group.style.setProperty(
+      "display",
+      "none",
+      "important"
+    );
+
+  }
+
 }
 
 function renderApp() {
@@ -5475,6 +5569,8 @@ function renderApp() {
   }
 
   modules.renderHeader?.(store);
+
+  syncAmelInstrumentFieldVisibility();
 
   const flatTasks = getCurrentTasks(areas);
   renderAcsCodeDecoder(flatTasks);
@@ -5588,7 +5684,67 @@ function syncActiveView() {
   }
 }
 
+function clearAllGradesForCurrentTest() {
+  const applicantName =
+    store.applicant?.appName ||
+    store.applicant?.Name ||
+    "the current applicant";
+
+  const confirmed = window.confirm(
+    `Clear ALL grades for ${applicantName}?\n\n` +
+      "This clears grades for the currently loaded evaluation only. " +
+      "Applicant information, appointment information, notes, eligibility " +
+      "items, and required briefings will not be removed."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  /*
+   * PPC and normal ACS evaluations maintain separate grade stores.
+   * Clear only the family belonging to the currently loaded test.
+   */
+  if (isCurrentEmtPpc()) {
+    store.ppcGrades = {};
+  } else {
+    store.grades = {};
+    store.oralQuestionGrades = {};
+
+    /*
+     * Reason codes belong to individual grades. Once the grades are
+     * removed their associated reason selections must also be removed.
+     */
+    store.gradeReasons = {};
+    store.oralGradeReasons = {};
+  }
+
+  /*
+   * Outcome may have been automatically derived from the previous
+   * grades. Return it to the ungraded state without disturbing notes.
+   */
+  store.practicalTestOutcome = "";
+
+  if (isCurrentEmtPpc()) {
+    store.ppcPracticalTestOutcome = "";
+  }
+
+  /*
+   * Notify performs the normal EMT render/autosave cycle so every
+   * grade control and summary updates immediately.
+   */
+  modules.notify();
+
+  window.setTimeout(() => {
+    alert("All grades for the current evaluation have been cleared.");
+  }, 0);
+}
+
 function wireFullAppEvents() {
+  document
+    .getElementById("btnClearAllGrades")
+    ?.addEventListener("click", clearAllGradesForCurrentTest);
+
   /*
    * Some existing grading actions update select values directly,
    * including task and Flight Portion checkboxes. Synchronize the

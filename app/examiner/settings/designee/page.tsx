@@ -10,6 +10,7 @@ type DesigneeProfile = {
   designee_name: string;
   business_name: string;
   designation_number: string;
+  designation_expiration_date: string;
 
   email: string;
   reply_to_email: string;
@@ -34,6 +35,7 @@ function emptyProfile(profileId: string): DesigneeProfile {
     designee_name: "",
     business_name: "",
     designation_number: "",
+    designation_expiration_date: "",
 
     email: "",
     reply_to_email: "",
@@ -93,6 +95,7 @@ export default function DesigneeInformationSettingsPage() {
         designee_name,
         business_name,
         designation_number,
+        designation_expiration_date,
         email,
         reply_to_email,
         phone,
@@ -125,6 +128,8 @@ export default function DesigneeInformationSettingsPage() {
         business_name: data.business_name ?? "",
         designation_number: data.designation_number ?? "",
 
+        designation_expiration_date:
+          data.designation_expiration_date ?? "",
         email: data.email ?? "",
         reply_to_email: data.reply_to_email ?? "",
         phone: data.phone ?? "",
@@ -171,8 +176,40 @@ export default function DesigneeInformationSettingsPage() {
       return;
     }
 
+    if (!profile.designation_number.trim()) {
+      setErrorMessage("Enter your Designation Number.");
+      return;
+    }
+
+    if (!profile.designation_expiration_date) {
+      setErrorMessage("Enter your Designation Expiration Date.");
+      return;
+    }
+
+    const expirationDate = new Date(
+      `${profile.designation_expiration_date}T12:00:00`,
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (
+      Number.isNaN(expirationDate.getTime()) ||
+      expirationDate < today
+    ) {
+      setErrorMessage(
+        "Your Designation Expiration Date must be today or a future date.",
+      );
+      return;
+    }
+
     if (!profile.email.trim()) {
       setErrorMessage("Enter the examiner contact email.");
+      return;
+    }
+
+    if (!profile.phone.trim()) {
+      setErrorMessage("Enter the examiner contact phone number.");
       return;
     }
 
@@ -188,6 +225,8 @@ export default function DesigneeInformationSettingsPage() {
       designee_name: cleaned(profile.designee_name),
       business_name: cleaned(profile.business_name),
       designation_number: cleaned(profile.designation_number),
+      designation_expiration_date:
+        profile.designation_expiration_date || null,
 
       email: cleaned(profile.email),
       reply_to_email: cleaned(profile.reply_to_email),
@@ -219,6 +258,7 @@ export default function DesigneeInformationSettingsPage() {
         designee_name,
         business_name,
         designation_number,
+        designation_expiration_date,
         email,
         reply_to_email,
         phone,
@@ -250,6 +290,8 @@ export default function DesigneeInformationSettingsPage() {
       business_name: data.business_name ?? "",
       designation_number: data.designation_number ?? "",
 
+      designation_expiration_date:
+        data.designation_expiration_date ?? "",
       email: data.email ?? "",
       reply_to_email: data.reply_to_email ?? "",
       phone: data.phone ?? "",
@@ -367,7 +409,8 @@ export default function DesigneeInformationSettingsPage() {
                   htmlFor="designation-number"
                   className="mb-2 block text-sm font-semibold text-slate-800"
                 >
-                  Designation number
+                  Designation Number
+                  <span className="ml-1 text-red-600">*</span>
                 </label>
 
                 <input
@@ -379,6 +422,33 @@ export default function DesigneeInformationSettingsPage() {
                   placeholder="DPE designation number"
                   className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
                 />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="designation-expiration-date"
+                  className="mb-2 block text-sm font-semibold text-slate-800"
+                >
+                  Designation Expiration Date
+                  <span className="ml-1 text-red-600">*</span>
+                </label>
+
+                <input
+                  id="designation-expiration-date"
+                  type="date"
+                  value={profile.designation_expiration_date}
+                  onChange={(event) =>
+                    updateField(
+                      "designation_expiration_date",
+                      event.target.value,
+                    )
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                />
+
+                <p className="mt-2 text-xs text-slate-500">
+                  A current designation is required for Active examiner status.
+                </p>
               </div>
 
               <div>
@@ -454,6 +524,7 @@ export default function DesigneeInformationSettingsPage() {
                   className="mb-2 block text-sm font-semibold text-slate-800"
                 >
                   Phone
+                  <span className="ml-1 text-red-600">*</span>
                 </label>
 
                 <input

@@ -60,6 +60,11 @@ const adminNavigation = [
     icon: CalendarCheck,
   },
   {
+    label: "Applicant Info",
+    href: "/admin/applicants",
+    icon: Users,
+  },
+  {
     label: "Schools",
     href: "/admin/schools",
     icon: Building2,
@@ -232,7 +237,7 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
             width={1265}
             height={371}
             priority
-            className="h-12 w-auto object-contain"
+            className="h-auto w-full object-contain"
           />
         </Link>
 

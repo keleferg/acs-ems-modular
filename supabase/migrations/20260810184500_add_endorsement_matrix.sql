@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- ENDORSEMENT CATALOG
 -- AC 61-65K Appendix A references.
@@ -21,7 +20,6 @@ create table if not exists public.qualification_endorsement_catalog (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 insert into public.qualification_endorsement_catalog (
   endorsement_code,
   title,
@@ -150,8 +148,6 @@ do update set
   sort_order = excluded.sort_order,
   is_active = true,
   updated_at = now();
-
-
 -- ============================================================
 -- MATRIX TABLE
 -- One row per exact X appearing in the uploaded matrix.
@@ -181,12 +177,9 @@ create table if not exists public.qualification_endorsement_matrix (
     endorsement_code
   )
 );
-
 -- Replace only spreadsheet-derived matrix rows.
 delete from public.qualification_endorsement_matrix
 where source = 'Endorsement Matrix.xlsx';
-
-
 -- ============================================================
 -- PRIVATE PILOT — ORIGINAL
 -- Matrix X values:
@@ -214,8 +207,6 @@ cross join unnest(
     'A9','A10','A14','A36','A37'
   ]
 ) as endorsement_code;
-
-
 -- ============================================================
 -- PRIVATE PILOT — ADDITIONAL
 -- ============================================================
@@ -239,7 +230,6 @@ from unnest(
     'A76','A78'
   ]
 ) as endorsement_code;
-
 -- Other listed Private Pilot additional ratings.
 insert into public.qualification_endorsement_matrix (
   certificate,
@@ -258,8 +248,6 @@ from unnest(
 cross join unnest(
   array['A1','A2','A3','A4','A76','A78']
 ) as endorsement_code;
-
-
 -- ============================================================
 -- PRIVATE PILOT — INSTRUMENT
 -- ============================================================
@@ -278,8 +266,6 @@ select
 from unnest(array['IA','IH','IP']) as rating
 cross join unnest(array['Original','Additional']) as issuance
 cross join unnest(array['A42','A43','A44']) as endorsement_code;
-
-
 -- ============================================================
 -- COMMERCIAL PILOT — ORIGINAL
 -- ============================================================
@@ -301,8 +287,6 @@ from unnest(
 cross join unnest(
   array['A1','A2','A38','A39']
 ) as endorsement_code;
-
-
 -- ============================================================
 -- COMMERCIAL PILOT — ADDITIONAL
 -- ============================================================
@@ -324,7 +308,6 @@ from unnest(
 cross join unnest(
   array['A1','A2','A38','A39','A78']
 ) as endorsement_code;
-
 -- Glider has additional matrix X entries A45/A46/A47.
 insert into public.qualification_endorsement_matrix (
   certificate,
@@ -343,8 +326,6 @@ from unnest(
     'A45','A46','A47','A78'
   ]
 ) as endorsement_code;
-
-
 -- ============================================================
 -- FLIGHT INSTRUCTOR — ORIGINAL
 -- ============================================================
@@ -364,7 +345,6 @@ from unnest(array['ASE','AME','GLI']) as rating
 cross join unnest(
   array['A1','A2','A45','A46','A47','A49']
 ) as endorsement_code;
-
 insert into public.qualification_endorsement_matrix (
   certificate,
   rating,
@@ -380,7 +360,6 @@ from unnest(array['RH','RG']) as rating
 cross join unnest(
   array['A1','A2','A45','A46','A47','A50']
 ) as endorsement_code;
-
 insert into public.qualification_endorsement_matrix (
   certificate,
   rating,
@@ -396,8 +375,6 @@ from unnest(array['IA','IH']) as rating
 cross join unnest(
   array['A1','A2','A48']
 ) as endorsement_code;
-
-
 -- ============================================================
 -- FLIGHT INSTRUCTOR — ADDITIONAL
 -- ============================================================
@@ -417,7 +394,6 @@ from unnest(array['ASE','AME','GLI']) as rating
 cross join unnest(
   array['A1','A2','A45','A46','A47','A49']
 ) as endorsement_code;
-
 insert into public.qualification_endorsement_matrix (
   certificate,
   rating,
@@ -433,7 +409,6 @@ from unnest(array['RH','RG']) as rating
 cross join unnest(
   array['A1','A2','A45','A46','A47']
 ) as endorsement_code;
-
 insert into public.qualification_endorsement_matrix (
   certificate,
   rating,
@@ -449,8 +424,6 @@ from unnest(array['IA','IH']) as rating
 cross join unnest(
   array['A1','A2','A48','A50']
 ) as endorsement_code;
-
-
 -- ============================================================
 -- CURRENT ACTIVE RULE SET:
 -- PRIVATE PILOT / ASEL / ORIGINAL
@@ -464,8 +437,6 @@ set
   is_active = false,
   updated_at = now()
 where section_code = 'endorsements';
-
-
 -- Add one requirement for each X in the Private Pilot ASEL
 -- Original matrix row.
 insert into public.qualification_requirements (
@@ -570,6 +541,4 @@ do update set
   sort_order = excluded.sort_order,
   is_active = true,
   updated_at = now();
-
-
 commit;

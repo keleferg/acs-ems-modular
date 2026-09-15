@@ -1,12 +1,14 @@
 import { determinePracticalTestOutcome } from '../logic/outcome.js';
 
 export function renderOutcome(summary) {
+
   const outcome =
     window.store?.discontinuanceManuallySelected
       ? 'discontinuance'
       : determinePracticalTestOutcome(summary);
 
   document.querySelectorAll('.outcome-btn').forEach(btn => {
+
     btn.classList.remove(
       'selected-sat',
       'selected-unsat',
@@ -33,43 +35,113 @@ export function renderOutcome(summary) {
     ) {
       btn.classList.add('selected-disc');
     }
+
   });
 
-  const content = document.getElementById('incompleteTasksContent');
+  const content =
+    document.getElementById('incompleteTasksContent');
 
   if (content) {
+
     const flagged = summary.statuses.filter(row =>
       row.status === 'fail' ||
-      (row.task.isRequired && row.status === 'incomplete')
+      (
+        row.task.isRequired &&
+        row.status === 'incomplete'
+      )
     );
 
-    content.innerHTML = flagged.length
-      ? flagged.map(row => `
+    const alternativeGroups =
+      summary.incompleteAlternativeGroups || [];
+
+    const normalHtml =
+      flagged.map(row => `
+        <div class="incomplete-task-item">
+
+          <span class="itask-status ${
+            row.status === 'fail'
+              ? 'badge-fail'
+              : 'badge-incomplete'
+          }">
+            ${row.status}
+          </span>
+
+          ${row.task.code} - ${row.task.title}
+
+        </div>
+      `).join('');
+
+    const alternativeHtml =
+      alternativeGroups.map(group => {
+
+        const optionText =
+          (group.options || [])
+            .map(option =>
+              (option || [])
+                .map(code =>
+                  code.replaceAll('_', '.')
+                )
+                .join(' + ')
+            )
+            .join(' OR ');
+
+        return `
           <div class="incomplete-task-item">
-            <span class="itask-status ${
-              row.status === 'fail'
-                ? 'badge-fail'
-                : 'badge-incomplete'
-            }">
-              ${row.status}
+
+            <span
+              class="itask-status badge-incomplete"
+            >
+              incomplete
             </span>
-            ${row.task.code} - ${row.task.title}
-          </div>
-        `).join('')
-      : `
-          <div class="incomplete-task-item">
-            <span class="itask-status badge-pass">Clear</span>
-            No incomplete or failed required tasks.
+
+            Alternative Requirement:
+            ${group.label || optionText}
+
           </div>
         `;
+
+      }).join('');
+
+    if (
+      flagged.length ||
+      alternativeGroups.length
+    ) {
+
+      content.innerHTML =
+        normalHtml +
+        alternativeHtml;
+
+    } else {
+
+      content.innerHTML = `
+        <div class="incomplete-task-item">
+
+          <span class="itask-status badge-pass">
+            Clear
+          </span>
+
+          No incomplete or failed required tasks.
+
+        </div>
+      `;
+
+    }
+
   }
 
-  const spBtn = document.getElementById('btnSharePoint');
+  const spBtn =
+    document.getElementById('btnSharePoint');
 
   if (spBtn) {
-    spBtn.disabled = summary.overall === 'INCOMPLETE';
-    spBtn.title = spBtn.disabled
-      ? 'Complete all required tasks first'
-      : 'Ready to submit';
+
+    spBtn.disabled =
+      summary.overall === 'INCOMPLETE';
+
+    spBtn.title =
+      spBtn.disabled
+        ? 'Complete all required tasks first'
+        : 'Ready to submit';
+
   }
+
 }

@@ -12,7 +12,6 @@
 --   public.poa_question_practical_test_types
 
 begin;
-
 do $import$
 declare
   v_examiner_id uuid;
@@ -178,9 +177,7 @@ begin
   raise notice 'Instrument POA import complete: % valid questions inserted; % mappings added.', v_inserted, v_mapped;
 end
 $import$;
-
 commit;
-
 -- Verification
 select
   count(*) as instrument_airplane_question_count
@@ -194,7 +191,6 @@ where ptt.certificate_code = 'INSTRUMENT'
   and ptt.category_code = 'AIRPLANE'
   and ptt.rating_code = 'INSTRUMENT_AIRPLANE'
   and q.is_active = true;
-
 select
   q.acs_reference,
   count(*) as question_count

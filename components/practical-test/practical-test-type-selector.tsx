@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+
 import { createClient } from "@/lib/supabase/client";
 
 export type PracticalTestType = {
@@ -29,12 +30,32 @@ export type PracticalTestTypeSelection = {
   categorySought: string;
   classSought: string;
   ratingSought: string;
+
+  ppcTypeRatingAircraftId?: string;
+  ppcTypeRatingDesignation?: string;
+  ppcAircraftTypeCertificateHolder?: string;
+  ppcAircraftCivilModelDesignation?: string;
+};
+
+type PpcAircraftOption = {
+  id: string;
+  type_rating_designation_id: string;
+  type_rating_designation: string;
+  type_certificate_holder: string | null;
+  civil_model_designation: string | null;
+  prior_model_designation: string | null;
+  equivalent_military_designation: string | null;
+  sort_order: number;
 };
 
 type Props = {
+  examinerProfileId?: string;
   selection: PracticalTestTypeSelection;
   onChange: (selection: PracticalTestTypeSelection) => void;
 };
+
+const PILOT_PPC = "Pilot Proficiency Check (61.58)";
+const FE_PPC = "Flight Engineer Proficiency Check (91.529)";
 
 const certificateTypeOrder = [
   "Pilot",
@@ -50,6 +71,7 @@ const pilotCertificateOrder = [
   "Instrument Rating",
   "Commercial Pilot",
   "Airline Transport Pilot",
+  PILOT_PPC,
 ];
 
 function uniqueStrings(values: string[]) {
@@ -75,10 +97,15 @@ function orderedValues(values: string[], preferredOrder: string[]) {
 }
 
 function getCertificateType(item: PracticalTestType) {
-  if (
-    pilotCertificateOrder.includes(item.certificate_name)
-  ) {
+  if (pilotCertificateOrder.includes(item.certificate_name)) {
     return "Pilot";
+  }
+
+  if (
+    item.certificate_name === "Flight Engineer" ||
+    item.certificate_name === FE_PPC
+  ) {
+    return "Flight Engineer";
   }
 
   return item.certificate_name;
@@ -95,11 +122,7 @@ function flightInstructorClassLabel(item: PracticalTestType) {
     CFI_GLIDER: "Glider",
   };
 
-  return (
-    labels[item.rating_code] ??
-    item.class_name ??
-    item.rating_name
-  );
+  return labels[item.rating_code] ?? item.class_name ?? item.rating_name;
 }
 
 function SelectField({
@@ -134,13 +157,47 @@ function SelectField({
   );
 }
 
+function ppcAircraftLabel(option: PpcAircraftOption) {
+  const aircraft = [
+    option.type_certificate_holder,
+    option.civil_model_designation,
+  ]
+    .filter(Boolean)
+    .join(" — ");
+
+  return aircraft
+    ? `${option.type_rating_designation} — ${aircraft}`
+    : option.type_rating_designation;
+}
+
 export default function PracticalTestTypeSelector({
+  examinerProfileId,
   selection,
   onChange,
 }: Props) {
   const [testTypes, setTestTypes] = useState<PracticalTestType[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+
+  const [ppcAircraft, setPpcAircraft] = useState<PpcAircraftOption[]>([]);
+
+  const [ppcAircraftLoading, setPpcAircraftLoading] = useState(false);
+
+  const [ppcAircraftError, setPpcAircraftError] = useState("");
+
+  const [ppcSearch, setPpcSearch] = useState("");
+
+  const selectedPracticalTestType =
+    testTypes.find((item) => item.id === selection.practicalTestTypeId) ?? null;
+
+  const isPpc =
+    selection.certificateSought === PILOT_PPC ||
+    selection.certificateSought === FE_PPC ||
+    selectedPracticalTestType?.certificate_code === "PILOT_PPC_6158" ||
+    selectedPracticalTestType?.certificate_code ===
+      "FLIGHT_ENGINEER_PPC_91529" ||
+    selectedPracticalTestType?.issuance_code === "PPC";
 
   useEffect(() => {
     let cancelled = false;
@@ -151,36 +208,23 @@ export default function PracticalTestTypeSelector({
 
       const supabase = createClient();
 
-      const { data, error } = await supabase
-        .from("practical_test_types")
-        .select(`
-          id,
-          certificate_code,
-          issuance_code,
-          category_code,
-          class_code,
-          rating_code,
-          certificate_name,
-          issuance_name,
-          category_name,
-          class_name,
-          rating_name,
-          display_name,
-          default_fee,
-          default_duration_minutes,
-          sort_order
-        `)
-        .eq("is_active", true)
-        .eq("is_offered", true)
-        .order("sort_order", { ascending: true });
+      if (!examinerProfileId) {
+        setTestTypes([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } =
+        examinerProfileId === "__ANY__"
+          ? await supabase.rpc("applicant_get_any_examiner_test_types")
+          : await supabase.rpc("applicant_get_examiner_test_types", {
+              p_examiner_profile_id: examinerProfileId,
+            });
 
       if (cancelled) return;
 
       if (error) {
-        console.error(
-          "Unable to load practical test types:",
-          error,
-        );
+        console.error("Unable to load practical test types:", error);
 
         setLoadError(
           "The available practical test types could not be loaded. Please refresh the page.",
@@ -199,22 +243,79 @@ export default function PracticalTestTypeSelector({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [examinerProfileId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isPpc) {
+      setPpcAircraft([]);
+      setPpcAircraftLoading(false);
+      setPpcAircraftError("");
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setPpcAircraftLoading(true);
+      setPpcAircraftError("");
+
+      const supabase = createClient();
+
+      const { data, error } = await supabase.rpc(
+        "applicant_search_ppc_aircraft_types",
+        {
+          p_query: ppcSearch.trim() || null,
+          p_limit: 250,
+          p_examiner_profile_id:
+            examinerProfileId && examinerProfileId !== "__ANY__"
+              ? examinerProfileId
+              : null,
+          p_certificate_code:
+            selectedPracticalTestType?.certificate_code ??
+            (selection.certificateSought === PILOT_PPC
+              ? "PILOT_PPC_6158"
+              : selection.certificateSought === FE_PPC
+                ? "FLIGHT_ENGINEER_PPC_91529"
+                : null),
+        },
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Unable to load PPC aircraft types:", error);
+
+        setPpcAircraft([]);
+        setPpcAircraftError("Aircraft types could not be loaded.");
+      } else {
+        setPpcAircraft((data ?? []) as PpcAircraftOption[]);
+      }
+
+      setPpcAircraftLoading(false);
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    isPpc,
+    ppcSearch,
+    examinerProfileId,
+    selectedPracticalTestType?.certificate_code,
+    selection.certificateSought,
+  ]);
 
   const certificateTypes = useMemo(
     () =>
-      orderedValues(
-        testTypes.map(getCertificateType),
-        certificateTypeOrder,
-      ),
+      orderedValues(testTypes.map(getCertificateType), certificateTypeOrder),
     [testTypes],
   );
 
   const certificateTypeOptions = useMemo(
     () =>
       testTypes.filter(
-        (item) =>
-          getCertificateType(item) === selection.certificateType,
+        (item) => getCertificateType(item) === selection.certificateType,
       ),
     [selection.certificateType, testTypes],
   );
@@ -222,10 +323,17 @@ export default function PracticalTestTypeSelector({
   const pilotCertificates = useMemo(
     () =>
       orderedValues(
-        certificateTypeOptions.map(
-          (item) => item.certificate_name,
-        ),
+        certificateTypeOptions.map((item) => item.certificate_name),
         pilotCertificateOrder,
+      ),
+    [certificateTypeOptions],
+  );
+
+  const flightEngineerCertificates = useMemo(
+    () =>
+      orderedValues(
+        certificateTypeOptions.map((item) => item.certificate_name),
+        ["Flight Engineer", FE_PPC],
       ),
     [certificateTypeOptions],
   );
@@ -233,10 +341,12 @@ export default function PracticalTestTypeSelector({
   const selectedCertificateOptions = useMemo(() => {
     if (!selection.certificateType) return [];
 
-    if (selection.certificateType === "Pilot") {
+    if (
+      selection.certificateType === "Pilot" ||
+      selection.certificateType === "Flight Engineer"
+    ) {
       return certificateTypeOptions.filter(
-        (item) =>
-          item.certificate_name === selection.certificateSought,
+        (item) => item.certificate_name === selection.certificateSought,
       );
     }
 
@@ -250,15 +360,8 @@ export default function PracticalTestTypeSelector({
   const issuances = useMemo(
     () =>
       orderedValues(
-        selectedCertificateOptions.map(
-          (item) => item.issuance_name,
-        ),
-        [
-          "Original Issuance",
-          "Additional Rating",
-          "Renewal",
-          "Reinstatement",
-        ],
+        selectedCertificateOptions.map((item) => item.issuance_name),
+        ["Original Issuance", "Additional Rating", "Renewal", "Reinstatement"],
       ),
     [selectedCertificateOptions],
   );
@@ -266,8 +369,7 @@ export default function PracticalTestTypeSelector({
   const issuanceOptions = useMemo(
     () =>
       selectedCertificateOptions.filter(
-        (item) =>
-          item.issuance_name === selection.issuanceType,
+        (item) => item.issuance_name === selection.issuanceType,
       ),
     [selectedCertificateOptions, selection.issuanceType],
   );
@@ -280,32 +382,29 @@ export default function PracticalTestTypeSelector({
     selection.certificateType === "Pilot" &&
     selection.certificateSought === "Instrument Rating";
 
-  const isFlightInstructor =
-    selection.certificateType === "Flight Instructor";
+  const isFlightInstructor = selection.certificateType === "Flight Instructor";
 
   const usesRating =
-    isInstrumentRating ||
-    selection.certificateType === "Flight Engineer" ||
-    selection.certificateType === "Mechanic" ||
-    selection.certificateType === "Ground Instructor";
+    !isPpc &&
+    (isInstrumentRating ||
+      selection.certificateType === "Flight Engineer" ||
+      selection.certificateType === "Mechanic" ||
+      selection.certificateType === "Ground Instructor");
 
   const usesCategory =
-    isSportPilot ||
-    isFlightInstructor ||
-    (
-      selection.certificateType === "Pilot" &&
-      Boolean(selection.certificateSought) &&
-      !isInstrumentRating
-    );
+    !isPpc &&
+    (isSportPilot ||
+      isFlightInstructor ||
+      (selection.certificateType === "Pilot" &&
+        Boolean(selection.certificateSought) &&
+        !isInstrumentRating));
 
   const categories = useMemo(
     () =>
       uniqueStrings(
         issuanceOptions
           .map((item) => item.category_name)
-          .filter(
-            (value): value is string => Boolean(value),
-          ),
+          .filter((value): value is string => Boolean(value)),
       ),
     [issuanceOptions],
   );
@@ -314,8 +413,7 @@ export default function PracticalTestTypeSelector({
     if (!selection.categorySought) return [];
 
     return issuanceOptions.filter(
-      (item) =>
-        item.category_name === selection.categorySought,
+      (item) => item.category_name === selection.categorySought,
     );
   }, [issuanceOptions, selection.categorySought]);
 
@@ -324,9 +422,7 @@ export default function PracticalTestTypeSelector({
       uniqueStrings(
         categoryOptions
           .map((item) => item.class_name)
-          .filter(
-            (value): value is string => Boolean(value),
-          ),
+          .filter((value): value is string => Boolean(value)),
       ),
     [categoryOptions],
   );
@@ -335,9 +431,7 @@ export default function PracticalTestTypeSelector({
     (item) => item.id === selection.practicalTestTypeId,
   );
 
-  function resetSelection(
-    changes: Partial<PracticalTestTypeSelection>,
-  ) {
+  function resetSelection(changes: Partial<PracticalTestTypeSelection>) {
     onChange({
       practicalTestTypeId: "",
       certificateType: selection.certificateType,
@@ -346,23 +440,50 @@ export default function PracticalTestTypeSelector({
       categorySought: "",
       classSought: "",
       ratingSought: "",
+
+      ppcTypeRatingAircraftId: "",
+      ppcTypeRatingDesignation: "",
+      ppcAircraftTypeCertificateHolder: "",
+      ppcAircraftCivilModelDesignation: "",
+
       ...changes,
     });
+
+    setPpcSearch("");
   }
 
   function selectCertificateType(value: string) {
     resetSelection({
       certificateType: value,
       certificateSought:
-        value && value !== "Pilot" ? value : "",
+        value && value !== "Pilot" && value !== "Flight Engineer" ? value : "",
+    });
+  }
+
+  function resolveCertificateSelection(
+    certificateType: string,
+    certificateName: string,
+  ) {
+    const ppc = certificateName === PILOT_PPC || certificateName === FE_PPC;
+
+    const ppcTestType = ppc
+      ? testTypes.find((item) => item.certificate_name === certificateName)
+      : undefined;
+
+    resetSelection({
+      certificateType,
+      certificateSought: certificateName,
+      practicalTestTypeId: ppcTestType?.id ?? "",
+      issuanceType: ppcTestType ? "Proficiency Check" : "",
     });
   }
 
   function selectPilotCertificate(value: string) {
-    resetSelection({
-      certificateType: "Pilot",
-      certificateSought: value,
-    });
+    resolveCertificateSelection("Pilot", value);
+  }
+
+  function selectFlightEngineerCertificate(value: string) {
+    resolveCertificateSelection("Flight Engineer", value);
   }
 
   function selectIssuance(value: string) {
@@ -371,26 +492,25 @@ export default function PracticalTestTypeSelector({
     );
 
     const canResolveImmediately =
-      matching.length === 1 &&
-      !usesRating &&
-      !usesCategory;
+      matching.length === 1 && !usesRating && !usesCategory;
 
     onChange({
       ...selection,
-      practicalTestTypeId: canResolveImmediately
-        ? matching[0].id
-        : "",
+      practicalTestTypeId: canResolveImmediately ? matching[0].id : "",
       issuanceType: value,
       categorySought: "",
       classSought: "",
       ratingSought: "",
+
+      ppcTypeRatingAircraftId: "",
+      ppcTypeRatingDesignation: "",
+      ppcAircraftTypeCertificateHolder: "",
+      ppcAircraftCivilModelDesignation: "",
     });
   }
 
   function selectRating(testTypeId: string) {
-    const option = testTypes.find(
-      (item) => item.id === testTypeId,
-    );
+    const option = testTypes.find((item) => item.id === testTypeId);
 
     if (!option) return;
 
@@ -423,14 +543,11 @@ export default function PracticalTestTypeSelector({
     }
 
     if (!isFlightInstructor) {
-      const matchingClasses = matching.filter(
-        (item) => Boolean(item.class_name),
+      const matchingClasses = matching.filter((item) =>
+        Boolean(item.class_name),
       );
 
-      if (
-        matching.length === 1 &&
-        matchingClasses.length === 0
-      ) {
+      if (matching.length === 1 && matchingClasses.length === 0) {
         onChange({
           ...selection,
           practicalTestTypeId: matching[0].id,
@@ -453,9 +570,7 @@ export default function PracticalTestTypeSelector({
   }
 
   function selectStandardClass(value: string) {
-    const option = categoryOptions.find(
-      (item) => item.class_name === value,
-    );
+    const option = categoryOptions.find((item) => item.class_name === value);
 
     onChange({
       ...selection,
@@ -466,9 +581,7 @@ export default function PracticalTestTypeSelector({
   }
 
   function selectInstructorClass(testTypeId: string) {
-    const option = testTypes.find(
-      (item) => item.id === testTypeId,
-    );
+    const option = testTypes.find((item) => item.id === testTypeId);
 
     if (!option) return;
 
@@ -477,6 +590,30 @@ export default function PracticalTestTypeSelector({
       practicalTestTypeId: option.id,
       classSought: flightInstructorClassLabel(option),
       ratingSought: "",
+    });
+  }
+
+  function selectPpcAircraft(id: string) {
+    const option = ppcAircraft.find((item) => item.id === id);
+
+    if (!option) {
+      onChange({
+        ...selection,
+        ppcTypeRatingAircraftId: "",
+        ppcTypeRatingDesignation: "",
+        ppcAircraftTypeCertificateHolder: "",
+        ppcAircraftCivilModelDesignation: "",
+      });
+
+      return;
+    }
+
+    onChange({
+      ...selection,
+      ppcTypeRatingAircraftId: option.id,
+      ppcTypeRatingDesignation: option.type_rating_designation,
+      ppcAircraftTypeCertificateHolder: option.type_certificate_holder ?? "",
+      ppcAircraftCivilModelDesignation: option.civil_model_designation ?? "",
     });
   }
 
@@ -515,10 +652,7 @@ export default function PracticalTestTypeSelector({
           <option value="">Select certificate type</option>
 
           {certificateTypes.map((certificateType) => (
-            <option
-              key={certificateType}
-              value={certificateType}
-            >
+            <option key={certificateType} value={certificateType}>
               {certificateType}
             </option>
           ))}
@@ -543,26 +677,45 @@ export default function PracticalTestTypeSelector({
         </div>
       ) : null}
 
-      <SelectField
-        label="Issuance Type"
-        value={selection.issuanceType}
-        onChange={selectIssuance}
-        disabled={
-          !selection.certificateType ||
-          (
-            selection.certificateType === "Pilot" &&
-            !selection.certificateSought
-          )
-        }
-      >
-        <option value="">Select issuance type</option>
+      {selection.certificateType === "Flight Engineer" ? (
+        <div>
+          <SelectField
+            label="Flight Engineer Certificate"
+            value={selection.certificateSought}
+            onChange={selectFlightEngineerCertificate}
+          >
+            <option value="">Select flight engineer certificate</option>
 
-        {issuances.map((issuance) => (
-          <option key={issuance} value={issuance}>
-            {issuance}
-          </option>
-        ))}
-      </SelectField>
+            {flightEngineerCertificates.map((certificate) => (
+              <option key={certificate} value={certificate}>
+                {certificate}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+      ) : null}
+
+      {!isPpc ? (
+        <SelectField
+          label="Issuance Type"
+          value={selection.issuanceType}
+          onChange={selectIssuance}
+          disabled={
+            !selection.certificateType ||
+            ((selection.certificateType === "Pilot" ||
+              selection.certificateType === "Flight Engineer") &&
+              !selection.certificateSought)
+          }
+        >
+          <option value="">Select issuance type</option>
+
+          {issuances.map((issuance) => (
+            <option key={issuance} value={issuance}>
+              {issuance}
+            </option>
+          ))}
+        </SelectField>
+      ) : null}
 
       {usesRating ? (
         <SelectField
@@ -598,8 +751,7 @@ export default function PracticalTestTypeSelector({
         </SelectField>
       ) : null}
 
-      {isFlightInstructor &&
-      selection.categorySought ? (
+      {isFlightInstructor && selection.categorySought ? (
         <SelectField
           label="Class"
           value={selection.practicalTestTypeId}
@@ -634,10 +786,72 @@ export default function PracticalTestTypeSelector({
         </SelectField>
       ) : null}
 
+      {isPpc ? (
+        <div className="sm:col-span-2 rounded-xl border border-sky-200 bg-sky-50/50 p-5">
+          <label className="mb-2 block text-sm font-semibold text-slate-800">
+            Aircraft Type
+            <span className="ml-1 text-red-600">*</span>
+          </label>
+
+          <p className="mb-4 text-sm text-slate-600">
+            Select the FAA type-rated aircraft/model for this proficiency check.
+          </p>
+
+          <input
+            type="search"
+            value={ppcSearch}
+            onChange={(event) => setPpcSearch(event.target.value)}
+            placeholder="Search type rating, manufacturer, or model"
+            className="mb-3 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+          />
+
+          <select
+            value={selection.ppcTypeRatingAircraftId}
+            onChange={(event) => selectPpcAircraft(event.target.value)}
+            disabled={ppcAircraftLoading}
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-100"
+          >
+            <option value="">
+              {ppcAircraftLoading
+                ? "Loading aircraft types..."
+                : "Select aircraft type"}
+            </option>
+
+            {ppcAircraft.map((option) => (
+              <option key={option.id} value={option.id}>
+                {ppcAircraftLabel(option)}
+              </option>
+            ))}
+          </select>
+
+          {ppcAircraftError ? (
+            <p className="mt-3 text-sm text-red-700">{ppcAircraftError}</p>
+          ) : null}
+
+          {!ppcAircraftLoading &&
+          !ppcAircraftError &&
+          ppcAircraft.length === 0 ? (
+            <p className="mt-3 text-sm text-amber-800">
+              No matching FAA aircraft types were found.
+            </p>
+          ) : null}
+
+          {selection.ppcTypeRatingAircraftId ? (
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+              <strong>FAA type rating:</strong>{" "}
+              {selection.ppcTypeRatingDesignation}
+              {selection.ppcAircraftCivilModelDesignation ? (
+                <> · {selection.ppcAircraftCivilModelDesignation}</>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {selectedTestType ? (
         <div className="sm:col-span-2 rounded-xl border border-sky-200 bg-sky-50 p-5">
           <p className="text-sm font-semibold uppercase tracking-wide text-sky-800">
-            Selected practical test
+            Selected flight check
           </p>
 
           <p className="mt-2 text-lg font-bold text-slate-900">
@@ -649,26 +863,18 @@ export default function PracticalTestTypeSelector({
               <span>
                 Published fee:{" "}
                 <strong>
-                  ${Number(
-                    selectedTestType.default_fee,
-                  ).toFixed(2)}
+                  ${Number(selectedTestType.default_fee).toFixed(2)}
                 </strong>
               </span>
             ) : (
-              <span>
-                Fee will be confirmed during review.
-              </span>
+              <span>Fee will be confirmed during review.</span>
             )}
 
-            {selectedTestType.default_duration_minutes !==
-            null ? (
+            {selectedTestType.default_duration_minutes !== null ? (
               <span>
                 Estimated duration:{" "}
                 <strong>
-                  {Math.round(
-                    selectedTestType.default_duration_minutes /
-                      60,
-                  )}{" "}
+                  {Math.round(selectedTestType.default_duration_minutes / 60)}{" "}
                   hours
                 </strong>
               </span>

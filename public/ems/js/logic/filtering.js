@@ -1,4 +1,8 @@
-import { ADDITIONAL_MAPS } from '../config/config.js';
+import {
+  ADDITIONAL_MAPS,
+  ADDITIONAL_ALTERNATIVE_GROUPS,
+  INITIAL_ALTERNATIVE_GROUPS
+} from '../config/config.js';
 
 export function getFlatTasks(areas = []) {
   return areas.flatMap(area =>
@@ -38,6 +42,36 @@ export function getRequiredAdditionalCodes(applicant) {
   return new Set(
     ADDITIONAL_MAPS?.[applicant.appCertificate]?.[key] ?? []
   );
+}
+
+export function getInitialAlternativeGroups(applicant) {
+
+  if (applicant.appExamType !== 'Initial') {
+    return [];
+  }
+
+  return (
+    INITIAL_ALTERNATIVE_GROUPS?.[
+      applicant.appCertificate
+    ]?.[applicant.appRating] ?? []
+  );
+
+}
+
+export function getAlternativeAdditionalGroups(applicant) {
+
+  const key = getAdditionalKey(applicant);
+
+  if (!key) {
+    return [];
+  }
+
+  return (
+    ADDITIONAL_ALTERNATIVE_GROUPS?.[
+      applicant.appCertificate
+    ]?.[key] ?? []
+  );
+
 }
 
 function isRetest(applicant) {
@@ -92,41 +126,100 @@ function shouldMakeNotRequiredForAmeInstrumentPrivileges(applicant, code) {
 }
 
 export function buildVisibleAreas(areas, applicant) {
+
   const requiredSet = getRequiredAdditionalCodes(applicant);
-  const isAdditional = applicant.appExamType === 'Additional';
+
+  const isAdditional =
+    applicant.appExamType === 'Additional';
+
+  const alternativeGroups =
+    isAdditional
+      ? getAlternativeAdditionalGroups(applicant)
+      : getInitialAlternativeGroups(applicant);
+
   const retestMode = isRetest(applicant);
 
   return areas
-    .map(area => {
-      const tasks = area.tasks
-        .map(task => {
-          const code = normalizeTaskCode(area, task);
 
-          if (shouldRemoveForAmeInstrumentPrivileges(applicant, code)) {
+    .map(area => {
+
+      const tasks = area.tasks
+
+        .map(task => {
+
+          const code =
+            normalizeTaskCode(area, task);
+
+          if (
+            shouldRemoveForAmeInstrumentPrivileges(
+              applicant,
+              code
+            )
+          ) {
             return null;
           }
 
-          const appliesToRating = taskAppliesToRating(
-            task,
-            applicant.appRating
-          );
+          const appliesToRating =
+            taskAppliesToRating(
+              task,
+              applicant.appRating
+            );
+
+          const alternativeRequirementGroups =
+            alternativeGroups.filter(group =>
+              Array.isArray(group.options) &&
+              group.options.some(option =>
+                Array.isArray(option) &&
+                option.includes(code)
+              )
+            );
+
+          const isAlternativeRequired =
+            !retestMode &&
+            alternativeRequirementGroups.length > 0;
 
           let isRequired = retestMode
+
             ? false
+
             : isAdditional
+
               ? requiredSet
                 ? requiredSet.has(code)
                 : false
+
               : appliesToRating;
 
-          if (shouldMakeNotRequiredForAmeInstrumentPrivileges(applicant, code)) {
+          if (
+            shouldMakeNotRequiredForAmeInstrumentPrivileges(
+              applicant,
+              code
+            )
+          ) {
+            isRequired = false;
+          }
+
+          /*
+           * A task participating in an FAA OR-group is not
+           * independently required. Completion of one full
+           * permitted option satisfies the requirement.
+           */
+          if (isAlternativeRequired) {
             isRequired = false;
           }
 
           const shouldShow = retestMode
+
             ? appliesToRating
+
             : isAdditional
-              ? appliesToRating || isRequired
+
+              ? (
+                  appliesToRating ||
+                  isRequired ||
+                  isAlternativeRequired
+                )
+
               : appliesToRating;
 
           if (!shouldShow) {
@@ -134,25 +227,47 @@ export function buildVisibleAreas(areas, applicant) {
           }
 
           return {
+
             ...task,
+
             areaId: area.id,
+
             areaTitle: area.title,
+
             areaRoman: area.roman,
+
             phase: area.phase,
+
             filterCode: code,
+
             isRequired,
+
+            isAlternativeRequired,
+
+            alternativeRequirementGroups,
+
             isAdditional,
+
             isRetest: retestMode
+
           };
+
         })
+
         .filter(Boolean);
 
       return {
+
         ...area,
+
         tasks
+
       };
+
     })
+
     .filter(area => area.tasks.length > 0);
+
 }
 
 export function getFilterMessage(applicant) {

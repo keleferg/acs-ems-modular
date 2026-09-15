@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ExaminerSidebar } from "@/components/portal/examiner-sidebar";
 
 export default function ExaminerLayout({
@@ -5,5 +6,13 @@ export default function ExaminerLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <ExaminerSidebar>{children}</ExaminerSidebar>;
+  return <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50">
+          {children}
+        </div>
+      }
+    >
+      <ExaminerSidebar>{children}</ExaminerSidebar>
+    </Suspense>;
 }

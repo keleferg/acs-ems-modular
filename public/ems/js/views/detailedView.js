@@ -89,20 +89,35 @@ const isChecked = hasAllKrsNumericGrades;
     return val && val !== 'NP';
   });
 
-const isSelectionMode = task.isAdditional || task.isRetest;
+const isSelectionMode =
+  task.isAdditional ||
+  task.isRetest ||
+  task.isAlternativeRequired ||
+  task.isRequired === false;
 
 const requiredClass = isSelectionMode
-  ? (task.isRequired || hasUserInteraction
-      ? 'required-addon'
-      : 'not-addon-required'
+  ? (
+      task.isRequired ||
+      task.isAlternativeRequired ||
+      hasUserInteraction
+        ? 'required-addon'
+        : 'not-addon-required'
     )
   : '';
 
 const requiredLabel = task.isRetest
-  ? (hasUserInteraction ? 'Selected Retest Task' : 'Retest Task / Not Selected')
-  : task.isAdditional
-    ? (task.isRequired ? 'Required Additional Task' : 'Not Required / Optional')
-    : 'Required Task';
+  ? (
+      hasUserInteraction
+        ? 'Selected Retest Task'
+        : 'Retest Task / Not Selected'
+    )
+  : task.isAlternativeRequired
+    ? 'Alternative Required Task'
+    : task.isRequired === false
+      ? 'Not Required / Optional'
+      : task.isAdditional
+        ? 'Required Additional Task'
+        : 'Required Task';
 
   return `
   <div class="task-card ${requiredClass}" data-task-card="${task.filterCode}">

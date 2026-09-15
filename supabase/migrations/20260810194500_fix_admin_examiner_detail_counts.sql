@@ -1,5 +1,4 @@
 begin;
-
 create or replace function public.admin_get_examiner_detail(
   p_profile_id uuid
 )
@@ -274,13 +273,10 @@ begin
   );
 end;
 $function$;
-
 revoke all on function
   public.admin_get_examiner_detail(uuid)
 from public;
-
 grant execute on function
   public.admin_get_examiner_detail(uuid)
 to authenticated;
-
 commit;

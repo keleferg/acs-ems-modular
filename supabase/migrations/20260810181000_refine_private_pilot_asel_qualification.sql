@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- PRIVATE PILOT ASEL QUALIFICATION REFINEMENTS
 -- Endorsements intentionally not modified in this migration.
@@ -33,8 +32,6 @@ set
     ),
   updated_at = now()
 where requirement_code = 'ELIGIBILITY_AGE';
-
-
 -- ------------------------------------------------------------
 -- 2. Knowledge test
 -- Remove report number. Keep only test date and score.
@@ -61,8 +58,6 @@ set
     'Enter the private pilot knowledge-test date and score and provide the report for review.',
   updated_at = now()
 where requirement_code = 'KNOWLEDGE_TEST_REPORT';
-
-
 -- ------------------------------------------------------------
 -- 3. Medical qualification
 -- DOB is collected once under Minimum Age / ELIGIBILITY_AGE.
@@ -104,8 +99,6 @@ set
     'Enter the medical qualification that will be used for the practical test. Your date of birth from the Minimum Age section will be used for the medical-validity calculation.',
   updated_at = now()
 where requirement_code = 'MEDICAL_QUALIFICATION';
-
-
 -- ------------------------------------------------------------
 -- 4. Aeronautical experience
 -- Requirements the applicant should NOT enter in this workflow.
@@ -126,8 +119,6 @@ where requirement_code in (
   'ASEL_SOLO_TOTAL',
   'ASEL_SOLO_CROSS_COUNTRY_TOTAL'
 );
-
-
 -- ------------------------------------------------------------
 -- 5. Explicitly preserve the three requested experience items.
 -- ------------------------------------------------------------
@@ -141,5 +132,4 @@ where requirement_code in (
   'ASEL_PRACTICAL_TEST_PREPARATION',
   'ASEL_TOWERED_AIRPORT_OPERATIONS'
 );
-
 commit;

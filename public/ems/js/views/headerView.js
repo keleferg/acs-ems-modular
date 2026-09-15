@@ -1,4 +1,8 @@
-import { CERT_CONFIG } from '../config/config.js';
+import {
+  CERT_CONFIG,
+  getCertificateRatings,
+  getCertificateStandard,
+} from '../config/config.js';
 import { getAvailableHeldRatings, getFilterMessage } from '../logic/filtering.js';
 
 const $ = id => document.getElementById(id);
@@ -27,7 +31,7 @@ export function renderHeader(store) {
 
   if (!cfg) return;
 
-  $('pageSubtitle').textContent = `${cfg.label} ACS (${cfg.acs})`;
+  $('pageSubtitle').textContent = `${cfg.label} Standard (${getCertificateStandard(cert, rating)})`;
   $('sidebarRating').textContent = `${cfg.label} ${formatRating(rating)}`;
 
   renderRatingDropdown(store, cfg);
@@ -58,13 +62,18 @@ function renderRatingDropdown(store, cfg) {
 
   const currentRating = store.applicant.appRating || ratingSelect.value;
 
-  ratingSelect.innerHTML = cfg.ratings
+  const ratings = getCertificateRatings(
+    store.applicant.appCertificate,
+    currentRating
+  );
+
+  ratingSelect.innerHTML = ratings
     .map(r => `<option value="${r}">${formatRating(r)}</option>`)
     .join('');
 
-  const selectedRating = cfg.ratings.includes(currentRating)
+  const selectedRating = ratings.includes(currentRating)
     ? currentRating
-    : cfg.ratings[0];
+    : ratings[0] || '';
 
   ratingSelect.value = selectedRating;
   store.applicant.appRating = selectedRating;
@@ -141,6 +150,7 @@ function formatRating(value) {
     AMEL: 'AMEL',
     AMES: 'AMES',
     GLIDER: 'Glider',
+    RH: 'Rotorcraft Helicopter',
     'Instrument Airplane': 'Instrument Airplane'
   };
 

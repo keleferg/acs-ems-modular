@@ -1,5 +1,4 @@
 begin;
-
 create table if not exists public.practical_test_email_log (
   id uuid primary key default gen_random_uuid(),
 
@@ -36,25 +35,20 @@ create table if not exists public.practical_test_email_log (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index if not exists
   practical_test_email_log_request_idx
 on public.practical_test_email_log (
   practical_test_request_id,
   created_at desc
 );
-
 create index if not exists
   practical_test_email_log_type_idx
 on public.practical_test_email_log (
   email_type,
   created_at desc
 );
-
 alter table public.practical_test_email_log
   enable row level security;
-
-
 /*
  * Users may inspect email history associated with requests they
  * are authorized to see. Direct INSERT/UPDATE access is deliberately
@@ -63,7 +57,6 @@ alter table public.practical_test_email_log
 drop policy if exists
   practical_test_email_log_select
 on public.practical_test_email_log;
-
 create policy practical_test_email_log_select
 on public.practical_test_email_log
 for select
@@ -83,12 +76,9 @@ using (
       )
   )
 );
-
 grant select
 on public.practical_test_email_log
 to authenticated;
-
-
 /*
  * Claim an email event before sending it.
  *
@@ -251,8 +241,6 @@ begin
     v_log.status;
 end;
 $function$;
-
-
 /*
  * Record the outcome returned by the email provider.
  */
@@ -301,8 +289,6 @@ begin
   end if;
 end;
 $function$;
-
-
 revoke all
 on function public.claim_practical_test_email(
   uuid,
@@ -313,7 +299,6 @@ on function public.claim_practical_test_email(
   text
 )
 from public, anon;
-
 grant execute
 on function public.claim_practical_test_email(
   uuid,
@@ -324,8 +309,6 @@ on function public.claim_practical_test_email(
   text
 )
 to authenticated;
-
-
 revoke all
 on function public.complete_practical_test_email(
   uuid,
@@ -334,7 +317,6 @@ on function public.complete_practical_test_email(
   text
 )
 from public, anon;
-
 grant execute
 on function public.complete_practical_test_email(
   uuid,
@@ -343,5 +325,4 @@ on function public.complete_practical_test_email(
   text
 )
 to authenticated;
-
 commit;

@@ -46,6 +46,26 @@ function taskParent(reference: string) {
   return match?.[1] ?? null;
 }
 
+/*
+ * Flight portion rule:
+ *
+ * Area of Operation I is Preflight Preparation and belongs
+ * in the oral/ground portion of the practical test.
+ *
+ * Never create an ACS Flight Task from AOA I.
+ */
+export function isPreflightPreparationTask(
+  taskCode: string | null | undefined,
+) {
+  const cleaned = String(taskCode ?? "")
+    .trim()
+    .toUpperCase();
+
+  const parts = cleaned.split(".");
+
+  return parts.length >= 3 && parts[1] === "I";
+}
+
 function acsPrefix(reference: string) {
   const match = reference
     .trim()
@@ -204,6 +224,14 @@ function buildTasks(
   const result: FlightTaskDraft[] = [];
 
   for (const [parent, mappedTaskName] of parents.entries()) {
+    /*
+     * AOA I / Preflight Preparation is completed during
+     * the oral section and must not appear as a Flight Task.
+     */
+    if (isPreflightPreparationTask(parent)) {
+      continue;
+    }
+
     const prefix = acsPrefix(parent);
 
     if (

@@ -11,6 +11,10 @@ type PracticalTestRequest = {
   status_reason: string | null;
 
   fee_amount: number | null;
+  travel_fee_amount: number;
+  fees_finalized_at: string | null;
+  fee_response_status: string | null;
+  fee_responded_at: string | null;
   dms_preapproval_number: string | null;
   scheduled_start_at: string | null;
   scheduled_end_at: string | null;
@@ -79,9 +83,35 @@ type PracticalTestRequest = {
   request_acknowledged: boolean;
 
   submitted_at: string | null;
+  followup_anchor_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
   created_at: string;
+};
+
+type AssignmentProposal = {
+  proposal_id: string;
+  practical_test_request_id: string;
+  request_number: string;
+
+  examiner_profile_id: string;
+  examiner_name: string;
+  designation_number: string | null;
+
+  proposed_start_at: string;
+  proposed_end_at: string;
+  proposed_location: string;
+
+  fee_amount: number | null;
+  examiner_notes: string | null;
+
+  proposal_status: string;
+
+  certificate_sought: string;
+  issuance_type: string | null;
+  category_sought: string | null;
+  class_sought: string | null;
+  rating_sought: string;
 };
 
 type ApplicantRequestPortalDetail = {
@@ -118,18 +148,10 @@ type RequestStatusAudit = {
   changed_at: string;
 };
 
-const closedStatuses = new Set([
-  "completed",
-  "declined",
-  "cancelled",
-  "cancelled_by_applicant",
-  "cancelled_by_examiner",
-  "no_show",
-]);
-
 const activeRequestStatuses = new Set([
   "submitted",
   "under_review",
+  "schedule_proposed",
   "awaiting_applicant_information",
   "accepted",
   "scheduling",
@@ -153,6 +175,10 @@ function isHistoricalRequest(status: string) {
 }
 
 function formatStatus(status: string) {
+  if (status === "unable_to_accommodate") {
+    return "Unable to Accommodate";
+  }
+
   return status
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -272,6 +298,14 @@ function getNextAction(request: PracticalTestRequest) {
         description:
           "The examiner is reviewing your request, qualifications, and scheduling information.",
         classes: "border-sky-200 bg-sky-50 text-sky-950",
+      };
+
+    case "schedule_proposed":
+      return {
+        title: "Schedule Proposed",
+        description:
+          "An examiner has proposed an appointment for your practical test.",
+        classes: "border-amber-300 bg-amber-50 text-amber-950",
       };
 
     case "awaiting_applicant_information":
@@ -485,6 +519,21 @@ function qualificationPresentation(wizard: ApplicantQualificationWizard) {
   }
 }
 
+function isRequestFollowupDue(request: PracticalTestRequest) {
+  if (request.status !== "submitted" && request.status !== "under_review") {
+    return false;
+  }
+
+  const anchor =
+    request.followup_anchor_at || request.submitted_at || request.created_at;
+
+  if (!anchor) {
+    return false;
+  }
+
+  return Date.now() - new Date(anchor).getTime() >= 15 * 24 * 60 * 60 * 1000;
+}
+
 function statusClasses(status: string) {
   switch (status) {
     case "submitted":
@@ -498,6 +547,7 @@ function statusClasses(status: string) {
       return "border-emerald-200 bg-emerald-50 text-emerald-800";
 
     case "awaiting_applicant_information":
+    case "schedule_proposed":
     case "scheduling":
     case "reschedule_required":
       return "border-amber-200 bg-amber-50 text-amber-800";
@@ -552,6 +602,23 @@ function DetailSection({
 
 export default function ApplicantRequestsPage() {
   const [requests, setRequests] = useState<PracticalTestRequest[]>([]);
+  const [proposalsByRequest, setProposalsByRequest] = useState<
+    Record<string, AssignmentProposal>
+  >({});
+  const [respondingProposalId, setRespondingProposalId] = useState<
+    string | null
+  >(null);
+  const [proposalToDecline, setProposalToDecline] =
+    useState<AssignmentProposal | null>(null);
+  const [proposalDeclineReason, setProposalDeclineReason] = useState("");
+  const [proposalDeclineError, setProposalDeclineError] = useState("");
+
+  const [proposalToAccept, setProposalToAccept] =
+    useState<AssignmentProposal | null>(null);
+  const [requestToAcceptProposal, setRequestToAcceptProposal] =
+    useState<PracticalTestRequest | null>(null);
+  const [proposalFeeAcknowledged, setProposalFeeAcknowledged] = useState(false);
+  const [proposalAcceptError, setProposalAcceptError] = useState("");
   const [auditByRequest, setAuditByRequest] = useState<
     Record<string, RequestStatusAudit[]>
   >({});
@@ -646,6 +713,10 @@ export default function ApplicantRequestsPage() {
           status_reason,
 
           fee_amount,
+          travel_fee_amount,
+          fees_finalized_at,
+          fee_response_status,
+          fee_responded_at,
           dms_preapproval_number,
           scheduled_start_at,
           scheduled_end_at,
@@ -709,6 +780,7 @@ export default function ApplicantRequestsPage() {
           request_acknowledged,
 
           submitted_at,
+          followup_anchor_at,
           cancelled_at,
           cancellation_reason,
           created_at
@@ -764,6 +836,33 @@ export default function ApplicantRequestsPage() {
             examiner_phone: detail?.examiner_phone ?? null,
           };
         });
+
+        const { data: proposalRows, error: proposalError } = await supabase.rpc(
+          "applicant_list_assignment_proposals",
+        );
+
+        if (cancelled) return;
+
+        if (proposalError) {
+          console.error("Unable to load assignment proposals:", proposalError);
+          setProposalsByRequest({});
+        } else {
+          const proposalMap: Record<string, AssignmentProposal> = {};
+
+          for (const proposal of (proposalRows ?? []) as AssignmentProposal[]) {
+            if (!proposalMap[proposal.practical_test_request_id]) {
+              proposalMap[proposal.practical_test_request_id] = proposal;
+            }
+          }
+
+          setProposalsByRequest(proposalMap);
+
+          for (const request of loadedRequests) {
+            if (proposalMap[request.id] && request.status === "under_review") {
+              request.status = "schedule_proposed";
+            }
+          }
+        }
 
         setRequests(loadedRequests);
 
@@ -899,6 +998,187 @@ export default function ApplicantRequestsPage() {
     }));
   }
 
+  async function acceptAssignmentProposal(
+    request: PracticalTestRequest,
+    proposal: AssignmentProposal,
+  ) {
+    if (respondingProposalId) return;
+
+    setRespondingProposalId(proposal.proposal_id);
+    setErrorMessage("");
+    setProposalAcceptError("");
+
+    if (!proposalFeeAcknowledged) {
+      setProposalAcceptError(
+        "You must acknowledge the proposed fee before accepting this appointment.",
+      );
+      setRespondingProposalId(null);
+      return;
+    }
+
+    const supabase = createClient();
+
+    const { error } = await supabase.rpc(
+      "applicant_accept_assignment_proposal",
+      {
+        p_proposal_id: proposal.proposal_id,
+      },
+    );
+
+    if (error) {
+      setProposalAcceptError(
+        `The proposed appointment could not be accepted: ${error.message}`,
+      );
+      setRespondingProposalId(null);
+      return;
+    }
+
+    setRequests((current) =>
+      current.map((item) =>
+        item.id === request.id
+          ? {
+              ...item,
+              status: "scheduled",
+              status_reason: null,
+              assigned_examiner_profile_id: proposal.examiner_profile_id,
+              examiner_name: proposal.examiner_name,
+              scheduled_start_at: proposal.proposed_start_at,
+              scheduled_end_at: proposal.proposed_end_at,
+              scheduled_location: proposal.proposed_location,
+              fee_amount:
+                proposal.fee_amount === null
+                  ? item.fee_amount
+                  : proposal.fee_amount,
+              appointment_response_status: "accepted",
+              appointment_responded_at: new Date().toISOString(),
+              appointment_response_notes: null,
+            }
+          : item,
+      ),
+    );
+
+    setProposalsByRequest((current) => {
+      const next = { ...current };
+      delete next[request.id];
+      return next;
+    });
+
+    addLocalAudit(request, "scheduled", null);
+
+    try {
+      const emailResponse = await fetch("/api/email/practical-test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          eventType: "assignment_proposal_accepted",
+          requestId: request.id,
+          proposalId: proposal.proposal_id,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        console.warn("Proposal accepted, but notification email was not sent.");
+      }
+    } catch (emailError) {
+      console.warn(
+        "Proposal accepted, but notification email request failed:",
+        emailError,
+      );
+    }
+
+    setRespondingProposalId(null);
+    setProposalToAccept(null);
+    setRequestToAcceptProposal(null);
+    setProposalFeeAcknowledged(false);
+    setProposalAcceptError("");
+  }
+
+  async function declineAssignmentProposal() {
+    if (!proposalToDecline || respondingProposalId) return;
+
+    setRespondingProposalId(proposalToDecline.proposal_id);
+    setProposalDeclineError("");
+
+    const supabase = createClient();
+
+    const { error } = await supabase.rpc(
+      "applicant_decline_assignment_proposal",
+      {
+        p_proposal_id: proposalToDecline.proposal_id,
+        p_decline_reason: proposalDeclineReason.trim() || null,
+      },
+    );
+
+    if (error) {
+      setProposalDeclineError(error.message);
+      setRespondingProposalId(null);
+      return;
+    }
+
+    const requestId = proposalToDecline.practical_test_request_id;
+
+    setProposalsByRequest((current) => {
+      const next = { ...current };
+      delete next[requestId];
+      return next;
+    });
+
+    setRequests((current) =>
+      current.map((item) =>
+        item.id === requestId
+          ? {
+              ...item,
+              status: "under_review",
+              status_reason: null,
+              appointment_response_status: null,
+              appointment_responded_at: null,
+              appointment_response_notes: null,
+            }
+          : item,
+      ),
+    );
+
+    const request = requests.find((item) => item.id === requestId);
+
+    if (request) {
+      addLocalAudit(
+        request,
+        "under_review",
+        proposalDeclineReason.trim() || null,
+      );
+    }
+
+    try {
+      const emailResponse = await fetch("/api/email/practical-test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          eventType: "assignment_proposal_declined",
+          requestId,
+          proposalId: proposalToDecline.proposal_id,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        console.warn("Proposal declined, but notification email was not sent.");
+      }
+    } catch (emailError) {
+      console.warn(
+        "Proposal declined, but notification email request failed:",
+        emailError,
+      );
+    }
+
+    setProposalToDecline(null);
+    setProposalDeclineReason("");
+    setProposalDeclineError("");
+    setRespondingProposalId(null);
+  }
+
   async function acceptAppointment(request: PracticalTestRequest) {
     if (respondingRequestId) return;
 
@@ -949,33 +1229,106 @@ export default function ApplicantRequestsPage() {
       ),
     );
 
-    addLocalAudit(request, "confirmed", null);
+    if (updatedRequest.status !== request.status) {
+      addLocalAudit(request, updatedRequest.status, null);
+    }
 
-    try {
-      const emailResponse = await fetch("/api/email/practical-test", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          eventType: "appointment_accepted_examiner",
-          requestId: request.id,
-        }),
-      });
+    if (updatedRequest.status === "confirmed")
+      try {
+        const emailResponse = await fetch("/api/email/practical-test", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventType: "appointment_accepted_examiner",
+            requestId: request.id,
+          }),
+        });
 
-      if (!emailResponse.ok) {
-        const emailResult = await emailResponse.json().catch(() => null);
+        if (!emailResponse.ok) {
+          const emailResult = await emailResponse.json().catch(() => null);
 
+          console.warn(
+            "Appointment was accepted, but the examiner notification email was not sent:",
+            emailResult,
+          );
+        }
+      } catch (emailError) {
         console.warn(
-          "Appointment was accepted, but the examiner notification email was not sent:",
-          emailResult,
+          "Appointment was accepted, but the examiner notification request failed:",
+          emailError,
         );
       }
-    } catch (emailError) {
-      console.warn(
-        "Appointment was accepted, but the examiner notification request failed:",
-        emailError,
+
+    setRespondingRequestId(null);
+  }
+
+  async function acceptFees(request: PracticalTestRequest) {
+    if (respondingRequestId) return;
+
+    setRespondingRequestId(request.id);
+    setErrorMessage("");
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc(
+      "applicant_accept_practical_test_fees",
+      { p_request_id: request.id },
+    );
+
+    if (error) {
+      setErrorMessage(`The fees could not be accepted: ${error.message}`);
+      setRespondingRequestId(null);
+      return;
+    }
+
+    const updatedRequest = Array.isArray(data) ? data[0] : data;
+    if (!updatedRequest) {
+      setErrorMessage(
+        "The fee response completed without returning the updated request.",
       );
+      setRespondingRequestId(null);
+      return;
+    }
+
+    setRequests((current) =>
+      current.map((item) =>
+        item.id === request.id
+          ? {
+              ...item,
+              status: updatedRequest.status,
+              status_reason: updatedRequest.status_reason,
+              fee_response_status: updatedRequest.fee_response_status,
+              fee_responded_at: updatedRequest.fee_responded_at,
+            }
+          : item,
+      ),
+    );
+
+    if (updatedRequest.status !== request.status) {
+      addLocalAudit(request, updatedRequest.status, null);
+    }
+
+    if (updatedRequest.status === "confirmed") {
+      try {
+        const emailResponse = await fetch("/api/email/practical-test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventType: "appointment_accepted_examiner",
+            requestId: request.id,
+          }),
+        });
+        if (!emailResponse.ok) {
+          console.warn(
+            "Fees were accepted, but the examiner notification was not sent.",
+          );
+        }
+      } catch (emailError) {
+        console.warn(
+          "Fees were accepted, but the notification request failed:",
+          emailError,
+        );
+      }
     }
 
     setRespondingRequestId(null);
@@ -1072,6 +1425,37 @@ export default function ApplicantRequestsPage() {
     setRescheduleReason("");
     setRescheduleError("");
     setRespondingRequestId(null);
+  }
+
+  async function respondToRequestFollowup(
+    request: PracticalTestRequest,
+    action: "remain_active" | "cancel_request",
+  ) {
+    if (
+      action === "cancel_request" &&
+      !window.confirm(
+        `Cancel practical test request ${request.request_number}?`,
+      )
+    ) {
+      return;
+    }
+
+    const supabase = createClient();
+
+    const { error } = await supabase.rpc(
+      "applicant_respond_to_practical_test_followup",
+      {
+        p_request_id: request.id,
+        p_action: action,
+      },
+    );
+
+    if (error) {
+      window.alert(error.message);
+      return;
+    }
+
+    window.location.reload();
   }
 
   async function cancelRequest() {
@@ -1218,6 +1602,8 @@ export default function ApplicantRequestsPage() {
               );
             })
             .map((request, index, sortedRequests) => {
+              const proposal = proposalsByRequest[request.id] ?? null;
+
               const expanded = expandedRequestId === request.id;
 
               const historical = isHistoricalRequest(request.status);
@@ -1388,29 +1774,99 @@ export default function ApplicantRequestsPage() {
                     {expanded ? (
                       <div className="border-t border-slate-200 px-6 py-6">
                         <div className="space-y-5">
-                          {(() => {
-                            const nextAction = getNextAction(request);
+                          {proposal ? (
+                            <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+                              <h3 className="text-lg font-bold">
+                                Examiner {proposal.examiner_name} has proposed
+                                the following appointment:
+                              </h3>
 
-                            const qualificationWizard =
-                              qualificationWizardsByRequest[request.id] ?? null;
+                              <dl className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                                <DetailItem
+                                  label="Date / Time"
+                                  value={formatDateTime(
+                                    proposal.proposed_start_at,
+                                  )}
+                                />
 
-                            const qualification = qualificationWizard
-                              ? qualificationPresentation(qualificationWizard)
-                              : null;
+                                <DetailItem
+                                  label="Location"
+                                  value={displayValue(
+                                    proposal.proposed_location,
+                                  )}
+                                />
 
-                            return (
-                              <section
-                                className={`rounded-xl border p-5 ${nextAction.classes}`}
-                              >
-                                <h3 className="font-bold">
-                                  {nextAction.title}
-                                </h3>
-                                <p className="mt-2 text-sm leading-6">
-                                  {nextAction.description}
-                                </p>
-                              </section>
-                            );
-                          })()}
+                                <DetailItem
+                                  label="Examiner"
+                                  value={proposal.examiner_name}
+                                />
+
+                                <DetailItem
+                                  label="Fee"
+                                  value={formatCurrency(proposal.fee_amount)}
+                                />
+                              </dl>
+
+                              {proposal.examiner_notes?.trim() ? (
+                                <div className="mt-5 rounded-lg border border-amber-200 bg-white p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Message from examiner
+                                  </p>
+                                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">
+                                    {proposal.examiner_notes}
+                                  </p>
+                                </div>
+                              ) : null}
+
+                              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                                <button
+                                  type="button"
+                                  disabled={Boolean(respondingProposalId)}
+                                  onClick={() => {
+                                    setRequestToAcceptProposal(request);
+                                    setProposalToAccept(proposal);
+                                    setProposalFeeAcknowledged(false);
+                                    setProposalAcceptError("");
+                                  }}
+                                  className="rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {respondingProposalId === proposal.proposal_id
+                                    ? "Saving…"
+                                    : "Accept"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={Boolean(respondingProposalId)}
+                                  onClick={() => {
+                                    setProposalToDecline(proposal);
+                                    setProposalDeclineReason("");
+                                    setProposalDeclineError("");
+                                  }}
+                                  className="rounded-lg border border-red-300 bg-white px-5 py-3 font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            </section>
+                          ) : (
+                            (() => {
+                              const nextAction = getNextAction(request);
+
+                              return (
+                                <section
+                                  className={`rounded-xl border p-5 ${nextAction.classes}`}
+                                >
+                                  <h3 className="font-bold">
+                                    {nextAction.title}
+                                  </h3>
+                                  <p className="mt-2 text-sm leading-6">
+                                    {nextAction.description}
+                                  </p>
+                                </section>
+                              );
+                            })()
+                          )}
 
                           {request.scheduled_start_at ||
                           request.fee_amount !== null ||
@@ -1431,8 +1887,23 @@ export default function ApplicantRequestsPage() {
                                 value={getAppointmentLocation(request)}
                               />
                               <DetailItem
-                                label="Fee"
+                                label="Test fee"
                                 value={formatCurrency(request.fee_amount)}
+                              />
+                              <DetailItem
+                                label="Travel fee"
+                                value={formatCurrency(
+                                  request.travel_fee_amount,
+                                )}
+                              />
+                              <DetailItem
+                                label="Grand total"
+                                value={formatCurrency(
+                                  request.fee_amount === null
+                                    ? null
+                                    : Number(request.fee_amount) +
+                                        Number(request.travel_fee_amount ?? 0),
+                                )}
                               />
                               <DetailItem
                                 label="DMS preapproval number"
@@ -1470,6 +1941,59 @@ export default function ApplicantRequestsPage() {
                                 value={displayValue(request.examiner_phone)}
                               />
                             </DetailSection>
+                          ) : null}
+
+                          {request.fees_finalized_at &&
+                          request.fee_amount !== null ? (
+                            request.fee_response_status === "accepted" ? (
+                              <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                                <h3 className="font-bold text-emerald-950">
+                                  Fees Accepted
+                                </h3>
+                                <p className="mt-2 text-sm text-emerald-900">
+                                  You accepted the{" "}
+                                  {formatCurrency(
+                                    Number(request.fee_amount) +
+                                      Number(request.travel_fee_amount ?? 0),
+                                  )}{" "}
+                                  total
+                                  {request.fee_responded_at
+                                    ? ` on ${formatDateTime(request.fee_responded_at)}`
+                                    : ""}
+                                  .
+                                </p>
+                              </section>
+                            ) : (
+                              <section className="rounded-xl border border-amber-300 bg-amber-50 p-5">
+                                <h3 className="text-lg font-bold text-amber-950">
+                                  Fee Acceptance Required
+                                </h3>
+                                <p className="mt-2 text-sm leading-6 text-amber-900">
+                                  Your examiner finalized a test fee of{" "}
+                                  {formatCurrency(request.fee_amount)} and a
+                                  travel fee of{" "}
+                                  {formatCurrency(request.travel_fee_amount)},
+                                  for a grand total of{" "}
+                                  {formatCurrency(
+                                    Number(request.fee_amount) +
+                                      Number(request.travel_fee_amount ?? 0),
+                                  )}
+                                  . Accept these fees to finalize your
+                                  appointment after the appointment details are
+                                  also accepted.
+                                </p>
+                                <button
+                                  type="button"
+                                  disabled={Boolean(respondingRequestId)}
+                                  onClick={() => void acceptFees(request)}
+                                  className="mt-5 rounded-lg bg-amber-700 px-5 py-3 font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {respondingRequestId === request.id
+                                    ? "Saving Response…"
+                                    : "Accept Fees"}
+                                </button>
+                              </section>
+                            )
                           ) : null}
 
                           {request.status === "scheduled" &&
@@ -1882,6 +2406,48 @@ export default function ApplicantRequestsPage() {
                             </section>
                           ) : null}
 
+                          {isRequestFollowupDue(request) ? (
+                            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-5">
+                              <p className="text-sm font-bold text-amber-900">
+                                15-Day Request Follow-Up
+                              </p>
+
+                              <p className="mt-2 text-sm leading-6 text-amber-900">
+                                We have not yet been able to find an appointment
+                                time for this request. Please let us know if you
+                                would like the request to remain active.
+                              </p>
+
+                              <div className="mt-4 flex flex-wrap gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void respondToRequestFollowup(
+                                      request,
+                                      "remain_active",
+                                    )
+                                  }
+                                  className="rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700"
+                                >
+                                  Remain Active
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void respondToRequestFollowup(
+                                      request,
+                                      "cancel_request",
+                                    )
+                                  }
+                                  className="rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50"
+                                >
+                                  Cancel Request
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+
                           {cancellableStatuses.has(request.status) ? (
                             <div className="flex justify-end">
                               <button
@@ -1904,6 +2470,221 @@ export default function ApplicantRequestsPage() {
                 </div>
               );
             })}
+        </div>
+      ) : null}
+
+      {proposalToAccept && requestToAcceptProposal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900">
+              Accept Proposed Appointment
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Review the proposed appointment and fee before accepting.
+            </p>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Examiner
+                  </dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
+                    {proposalToAccept.examiner_name}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Date / Time
+                  </dt>
+                  <dd className="mt-1 font-medium text-slate-900">
+                    {formatDateTime(proposalToAccept.proposed_start_at)}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Location
+                  </dt>
+                  <dd className="mt-1 font-medium text-slate-900">
+                    {proposalToAccept.proposed_location || "Not specified"}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Proposed Fee
+                  </dt>
+                  <dd className="mt-1 text-lg font-bold text-slate-900">
+                    {proposalToAccept.fee_amount === null
+                      ? "Not specified"
+                      : new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                        }).format(Number(proposalToAccept.fee_amount))}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <label className="mt-5 flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-5">
+              <input
+                type="checkbox"
+                checked={proposalFeeAcknowledged}
+                onChange={(event) => {
+                  setProposalFeeAcknowledged(event.target.checked);
+                  setProposalAcceptError("");
+                }}
+                className="mt-1 h-5 w-5 rounded border-slate-300"
+              />
+
+              <span>
+                <span className="block font-bold text-slate-900">
+                  Fee acknowledgment
+                </span>
+
+                <span className="mt-1 block text-sm leading-6 text-slate-600">
+                  I acknowledge that I have reviewed the fee information for the
+                  practical test requested and agree to pay the published
+                  testing fee, any agreed travel fees, and any applicable
+                  cancellation or additional testing fees.
+                </span>
+              </span>
+            </label>
+
+            {!proposalFeeAcknowledged ? (
+              <p className="mt-3 text-sm font-medium text-slate-600">
+                Fee acknowledgment is required before accepting this
+                appointment.
+              </p>
+            ) : null}
+
+            {proposalAcceptError ? (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {proposalAcceptError}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={Boolean(respondingProposalId)}
+                onClick={() => {
+                  setProposalToAccept(null);
+                  setRequestToAcceptProposal(null);
+                  setProposalFeeAcknowledged(false);
+                  setProposalAcceptError("");
+                }}
+                className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Go Back
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  !proposalFeeAcknowledged || Boolean(respondingProposalId)
+                }
+                onClick={() =>
+                  void acceptAssignmentProposal(
+                    requestToAcceptProposal,
+                    proposalToAccept,
+                  )
+                }
+                className="rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {respondingProposalId === proposalToAccept.proposal_id
+                  ? "Accepting…"
+                  : "Accept Appointment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {proposalToDecline ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="decline-proposal-title"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
+            <h2
+              id="decline-proposal-title"
+              className="text-2xl font-bold text-slate-900"
+            >
+              Decline Proposed Appointment
+            </h2>
+
+            <p className="mt-3 text-slate-600">
+              This will decline this examiner&apos;s proposal and return your
+              request to Open Assignments so another qualified examiner can
+              propose an appointment.
+            </p>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <p className="font-semibold text-slate-900">
+                Examiner {proposalToDecline.examiner_name}
+              </p>
+              <p className="mt-1">
+                {formatDateTime(proposalToDecline.proposed_start_at)}
+              </p>
+              <p className="mt-1">{proposalToDecline.proposed_location}</p>
+            </div>
+
+            <label
+              htmlFor="proposal-decline-reason"
+              className="mt-6 block text-sm font-semibold text-slate-800"
+            >
+              Reason for declining
+              <span className="ml-2 font-normal text-slate-500">Optional</span>
+            </label>
+
+            <textarea
+              id="proposal-decline-reason"
+              value={proposalDeclineReason}
+              onChange={(event) => setProposalDeclineReason(event.target.value)}
+              rows={5}
+              autoFocus
+              placeholder="Optional reason for declining this appointment..."
+              className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+            />
+
+            {proposalDeclineError ? (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {proposalDeclineError}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={Boolean(respondingProposalId)}
+                onClick={() => {
+                  setProposalToDecline(null);
+                  setProposalDeclineReason("");
+                  setProposalDeclineError("");
+                }}
+                className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                Keep Proposal
+              </button>
+
+              <button
+                type="button"
+                disabled={Boolean(respondingProposalId)}
+                onClick={() => void declineAssignmentProposal()}
+                className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {respondingProposalId === proposalToDecline.proposal_id
+                  ? "Declining…"
+                  : "Decline Proposal"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 

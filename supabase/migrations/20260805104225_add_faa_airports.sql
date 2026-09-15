@@ -1,7 +1,5 @@
 begin;
-
 create extension if not exists pg_trgm;
-
 create table if not exists public.faa_airports (
   id uuid primary key default gen_random_uuid(),
 
@@ -43,53 +41,41 @@ create table if not exists public.faa_airports (
   constraint faa_airports_site_number_key
     unique (site_number)
 );
-
 create index if not exists
   faa_airports_faa_identifier_idx
 on public.faa_airports (faa_identifier);
-
 create index if not exists
   faa_airports_icao_identifier_idx
 on public.faa_airports (icao_identifier);
-
 create index if not exists
   faa_airports_search_text_trgm_idx
 on public.faa_airports
 using gin (search_text gin_trgm_ops);
-
 create index if not exists
   faa_airports_display_name_trgm_idx
 on public.faa_airports
 using gin (display_name gin_trgm_ops);
-
 create index if not exists
   faa_airports_active_idx
 on public.faa_airports (is_active)
 where is_active = true;
-
 alter table public.faa_airports
   enable row level security;
-
 drop policy if exists
   "Authenticated users can view active FAA airports"
 on public.faa_airports;
-
 create policy
   "Authenticated users can view active FAA airports"
 on public.faa_airports
 for select
 to authenticated
 using (is_active = true);
-
 alter table public.practical_test_requests
   add column if not exists flight_airport_id uuid;
-
 alter table public.practical_test_requests
   add column if not exists flight_airport_icao text;
-
 alter table public.practical_test_requests
   add column if not exists flight_airport_name text;
-
 do $$
 begin
   if not exists (
@@ -107,11 +93,9 @@ begin
   end if;
 end;
 $$;
-
 create index if not exists
   practical_test_requests_flight_airport_id_idx
 on public.practical_test_requests (flight_airport_id);
-
 create or replace function public.search_faa_airports(
   p_search text,
   p_limit integer default 25
@@ -207,13 +191,10 @@ as $function$
     least(coalesce(p_limit, 25), 50)
   );
 $function$;
-
 revoke all
 on function public.search_faa_airports(text, integer)
 from public;
-
 grant execute
 on function public.search_faa_airports(text, integer)
 to authenticated;
-
 commit;

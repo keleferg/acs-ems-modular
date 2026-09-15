@@ -7,11 +7,11 @@ import {
   Archive,
   BarChart3,
   CalendarDays,
-  CalendarOff,
   ClipboardList,
   ChevronDown,
   Database,
   FileText,
+  GraduationCap,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getExaminerSetupStatus } from "@/lib/examiner-setup";
 
 type ProfileRow = {
   first_name: string | null;
@@ -51,9 +52,9 @@ const examinerNavigation = [
     icon: FileText,
   },
   {
-    label: "Applicant Info",
+    label: "Applicants",
     href: "/examiner/applicants",
-    icon: UserRound,
+    icon: GraduationCap,
   },
   {
     label: "Calendar",
@@ -103,9 +104,12 @@ export function ExaminerSidebar({ children }: { children: React.ReactNode }) {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [portalMenuOpen, setPortalMenuOpen] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+  const [setupError, setSetupError] = useState("");
   const [loadingAccount, setLoadingAccount] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
+  const isSetupPage = pathname === "/examiner/setup";
 
   useEffect(() => {
     setMobileOpen(false);
@@ -160,9 +164,32 @@ export function ExaminerSidebar({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (loadedRoles.includes("examiner")) {
+        try {
+          const setupStatus = await getExaminerSetupStatus(supabase, user.id);
+
+          if (cancelled) return;
+
+          if (!isSetupPage && !setupStatus.isComplete) {
+            router.replace("/examiner/setup");
+            return;
+          }
+        } catch (error) {
+          if (cancelled) return;
+
+          console.error("Unable to verify examiner setup:", error);
+          setSetupError(
+            "Your examiner account setup could not be verified. Please reload the page or sign out and try again.",
+          );
+          setCheckingSetup(false);
+          return;
+        }
+      }
+
       setProfile(profileResult.data ?? null);
       setRoles(loadedRoles);
       setLoadingAccount(false);
+      setCheckingSetup(false);
     }
 
     void loadAccount();
@@ -170,7 +197,7 @@ export function ExaminerSidebar({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [isSetupPage, router]);
 
   const portalOptions = useMemo<PortalOption[]>(() => {
     const options: PortalOption[] = [];
@@ -229,6 +256,53 @@ export function ExaminerSidebar({ children }: { children: React.ReactNode }) {
     router.refresh();
   }
 
+  if (checkingSetup) {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <main className="mx-auto max-w-3xl px-6 py-12">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8">
+            <p className="text-slate-600">Checking examiner account…</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (setupError) {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <main className="mx-auto max-w-3xl px-6 py-12">
+          <div className="rounded-2xl border border-red-200 bg-white p-8 shadow-sm">
+            <h1 className="text-xl font-bold text-slate-900">
+              Examiner Setup Check Unavailable
+            </h1>
+            <p className="mt-3 text-red-700">{setupError}</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-lg bg-amber-600 px-5 py-3 font-semibold text-white hover:bg-amber-700"
+              >
+                Reload
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (isSetupPage) {
+    return <div className="min-h-screen bg-slate-100">{children}</div>;
+  }
+
   const sidebarContent = (
     <div className="flex h-full flex-col bg-slate-950 text-white">
       <div className="border-b border-slate-800 px-5 py-5">
@@ -243,7 +317,7 @@ export function ExaminerSidebar({ children }: { children: React.ReactNode }) {
             width={1265}
             height={371}
             priority
-            className="h-12 w-auto object-contain"
+            className="h-auto w-full object-contain"
           />
         </Link>
 

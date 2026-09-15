@@ -1,5 +1,4 @@
 begin;
-
 create table if not exists public.examiner_applicant_preferences (
   id uuid primary key default gen_random_uuid(),
 
@@ -24,27 +23,22 @@ create table if not exists public.examiner_applicant_preferences (
       applicant_profile_id
     )
 );
-
 create index if not exists
   examiner_applicant_preferences_examiner_idx
 on public.examiner_applicant_preferences (
   examiner_profile_id,
   updated_at desc
 );
-
 create index if not exists
   examiner_applicant_preferences_applicant_idx
 on public.examiner_applicant_preferences (
   applicant_profile_id
 );
-
 alter table public.examiner_applicant_preferences
   enable row level security;
-
 drop policy if exists
   examiner_applicant_preferences_select_own
 on public.examiner_applicant_preferences;
-
 create policy examiner_applicant_preferences_select_own
 on public.examiner_applicant_preferences
 for select
@@ -52,11 +46,9 @@ to authenticated
 using (
   examiner_profile_id = auth.uid()
 );
-
 drop policy if exists
   examiner_applicant_preferences_insert_own
 on public.examiner_applicant_preferences;
-
 create policy examiner_applicant_preferences_insert_own
 on public.examiner_applicant_preferences
 for insert
@@ -65,11 +57,9 @@ with check (
   examiner_profile_id = auth.uid()
   and public.is_examiner_or_admin()
 );
-
 drop policy if exists
   examiner_applicant_preferences_update_own
 on public.examiner_applicant_preferences;
-
 create policy examiner_applicant_preferences_update_own
 on public.examiner_applicant_preferences
 for update
@@ -82,11 +72,9 @@ with check (
   examiner_profile_id = auth.uid()
   and public.is_examiner_or_admin()
 );
-
 drop policy if exists
   examiner_applicant_preferences_delete_own
 on public.examiner_applicant_preferences;
-
 create policy examiner_applicant_preferences_delete_own
 on public.examiner_applicant_preferences
 for delete
@@ -95,7 +83,6 @@ using (
   examiner_profile_id = auth.uid()
   and public.is_examiner_or_admin()
 );
-
 create or replace function
   public.set_examiner_applicant_preferences_updated_at()
 returns trigger
@@ -107,11 +94,9 @@ begin
   return new;
 end;
 $function$;
-
 drop trigger if exists
   set_examiner_applicant_preferences_updated_at
 on public.examiner_applicant_preferences;
-
 create trigger
   set_examiner_applicant_preferences_updated_at
 before update
@@ -119,7 +104,6 @@ on public.examiner_applicant_preferences
 for each row
 execute function
   public.set_examiner_applicant_preferences_updated_at();
-
 create or replace function
   public.apply_examiner_applicant_auto_decline()
 returns trigger
@@ -197,11 +181,9 @@ begin
   return new;
 end;
 $function$;
-
 drop trigger if exists
   apply_examiner_applicant_auto_decline
 on public.practical_test_requests;
-
 create trigger
   apply_examiner_applicant_auto_decline
 before insert or update of
@@ -211,5 +193,4 @@ on public.practical_test_requests
 for each row
 execute function
   public.apply_examiner_applicant_auto_decline();
-
 commit;

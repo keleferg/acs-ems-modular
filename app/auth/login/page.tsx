@@ -3,21 +3,23 @@ import { LoginForm } from "@/components/login-form";
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center bg-slate-50 p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex justify-center">
+    <main className="flex min-h-screen items-center justify-center bg-black px-6 py-10">
+      <div className="w-full max-w-xl">
+        <div className="mb-8 flex w-full justify-center">
           <Image
-            src="/ats-logo-horizontal-cropped.png"
+            src="/ats-logo-horizontal.png"
             alt="Aviation Training Solutions"
-            width={420}
-            height={140}
+            width={1536}
+            height={1024}
             priority
-            className="h-auto w-full max-w-[320px] object-contain"
+            className="h-auto w-full object-contain"
           />
         </div>
 
-        <LoginForm />
+        <div className="mx-auto w-full max-w-md">
+          <LoginForm />
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- Examiner Aircraft Authorizations
 -- ============================================================
@@ -27,27 +26,21 @@ create table if not exists public.examiner_aircraft_authorizations (
     faa_aircraft_type_id
   )
 );
-
 create index if not exists
   examiner_aircraft_authorizations_examiner_idx
 on public.examiner_aircraft_authorizations(
   examiner_profile_id
 );
-
 create index if not exists
   examiner_aircraft_authorizations_aircraft_idx
 on public.examiner_aircraft_authorizations(
   faa_aircraft_type_id
 );
-
 alter table public.examiner_aircraft_authorizations
   enable row level security;
-
-
 drop policy if exists
   examiner_aircraft_authorizations_select
 on public.examiner_aircraft_authorizations;
-
 create policy
   examiner_aircraft_authorizations_select
 on public.examiner_aircraft_authorizations
@@ -62,12 +55,9 @@ using (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists
   examiner_aircraft_authorizations_insert
 on public.examiner_aircraft_authorizations;
-
 create policy
   examiner_aircraft_authorizations_insert
 on public.examiner_aircraft_authorizations
@@ -82,12 +72,9 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists
   examiner_aircraft_authorizations_update
 on public.examiner_aircraft_authorizations;
-
 create policy
   examiner_aircraft_authorizations_update
 on public.examiner_aircraft_authorizations
@@ -111,12 +98,9 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
 grant select, insert, update
 on public.examiner_aircraft_authorizations
 to authenticated;
-
-
 -- ============================================================
 -- Examiner Location Authorizations
 -- ============================================================
@@ -144,27 +128,21 @@ create table if not exists public.examiner_location_authorizations (
     test_location_id
   )
 );
-
 create index if not exists
   examiner_location_authorizations_examiner_idx
 on public.examiner_location_authorizations(
   examiner_profile_id
 );
-
 create index if not exists
   examiner_location_authorizations_location_idx
 on public.examiner_location_authorizations(
   test_location_id
 );
-
 alter table public.examiner_location_authorizations
   enable row level security;
-
-
 drop policy if exists
   examiner_location_authorizations_select
 on public.examiner_location_authorizations;
-
 create policy
   examiner_location_authorizations_select
 on public.examiner_location_authorizations
@@ -179,12 +157,9 @@ using (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists
   examiner_location_authorizations_insert
 on public.examiner_location_authorizations;
-
 create policy
   examiner_location_authorizations_insert
 on public.examiner_location_authorizations
@@ -199,12 +174,9 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists
   examiner_location_authorizations_update
 on public.examiner_location_authorizations;
-
 create policy
   examiner_location_authorizations_update
 on public.examiner_location_authorizations
@@ -228,12 +200,9 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
 grant select, insert, update
 on public.examiner_location_authorizations
 to authenticated;
-
-
 -- ============================================================
 -- Admin Aircraft Search
 --
@@ -340,7 +309,6 @@ begin
   return v_results;
 end;
 $function$;
-
 revoke all on function
   public.admin_search_examiner_aircraft_authorizations(
     uuid,
@@ -348,7 +316,6 @@ revoke all on function
     integer
   )
 from public;
-
 grant execute on function
   public.admin_search_examiner_aircraft_authorizations(
     uuid,
@@ -356,8 +323,6 @@ grant execute on function
     integer
   )
 to authenticated;
-
-
 -- ============================================================
 -- Admin Set Aircraft Authorization
 -- ============================================================
@@ -435,7 +400,6 @@ begin
     updated_at = now();
 end;
 $function$;
-
 revoke all on function
   public.admin_set_examiner_aircraft_authorization(
     uuid,
@@ -444,7 +408,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.admin_set_examiner_aircraft_authorization(
     uuid,
@@ -453,8 +416,6 @@ grant execute on function
     text
   )
 to authenticated;
-
-
 -- ============================================================
 -- Admin Get Examiner Locations
 -- ============================================================
@@ -520,16 +481,12 @@ begin
   return v_results;
 end;
 $function$;
-
 revoke all on function
   public.admin_get_examiner_location_authorizations(uuid)
 from public;
-
 grant execute on function
   public.admin_get_examiner_location_authorizations(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- Admin Set Location Authorization
 -- ============================================================
@@ -607,7 +564,6 @@ begin
     updated_at = now();
 end;
 $function$;
-
 revoke all on function
   public.admin_set_examiner_location_authorization(
     uuid,
@@ -616,7 +572,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.admin_set_examiner_location_authorization(
     uuid,
@@ -625,5 +580,4 @@ grant execute on function
     text
   )
 to authenticated;
-
 commit;

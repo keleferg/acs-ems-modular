@@ -1,5 +1,4 @@
 begin;
-
 create or replace function public.examiner_submit_emt_practical_test(
   p_practical_test_request_id uuid,
   p_evaluation_state jsonb,
@@ -163,7 +162,6 @@ begin
   );
 end;
 $function$;
-
 revoke all
 on function public.examiner_submit_emt_practical_test(
   uuid,
@@ -176,7 +174,6 @@ on function public.examiner_submit_emt_practical_test(
   text
 )
 from public, anon;
-
 grant execute
 on function public.examiner_submit_emt_practical_test(
   uuid,
@@ -189,5 +186,4 @@ on function public.examiner_submit_emt_practical_test(
   text
 )
 to authenticated;
-
 commit;

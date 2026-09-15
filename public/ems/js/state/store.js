@@ -5,6 +5,7 @@ export const defaultApplicant = {
   appCertificate: 'Private',
   appRating: 'ASEL',
   appExamType: 'Initial',
+  knowledgeTestRequired: null,
   appRatingHeld: '',
   appAmelInstrument: '',
   appAircraftType: '',
@@ -27,6 +28,7 @@ export const defaultApplicant = {
 
 export const store = {
   applicant: { ...defaultApplicant },
+  evaluationMode: 'acs',
   activeAreaId: null,
   activeView: 'detailed',
   grades: {},
@@ -135,6 +137,7 @@ export function resetStore() {
 
   Object.assign(store, {
     applicant: { ...defaultApplicant },
+    evaluationMode: 'acs',
     activeAreaId: null,
     activeView: 'detailed',
 
@@ -159,6 +162,16 @@ export function resetStore() {
     discontinuanceManuallySelected: false,
 
     selectedAcsCodes: [],
+    aktUploadStatus: '',
+    ppc8410AirmanName: '',
+    ppc8410EmployedBy: '',
+    ppc8410BasedAt: '',
+    ppc8410Remarks: null,
+    ppc8410Region: '',
+    ppc8410DistrictOffice: '',
+    ppc8410SignatureDataUrl: '',
+    ppcEventCompleted: false,
+    ppcEventEmailError: '',
     retestSelectedTasks: [],
 
     scenarioState: {},

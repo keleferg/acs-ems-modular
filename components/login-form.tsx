@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { getExaminerSetupStatus } from "@/lib/examiner-setup";
 
 export function LoginForm({
   className,
@@ -33,12 +34,41 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-      router.push("/applicant/dashboard");
+
+      const user = data.user;
+
+      if (!user) {
+        throw new Error("Your login session could not be verified.");
+      }
+
+      const { data: roleRows, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("profile_id", user.id);
+
+      if (roleError) throw roleError;
+
+      const hasExaminerRole = (roleRows ?? []).some(
+        (row) => row.role === "examiner",
+      );
+
+      if (hasExaminerRole) {
+        const setupStatus = await getExaminerSetupStatus(supabase, user.id);
+
+        router.push(
+          setupStatus.isComplete
+            ? "/examiner/dashboard"
+            : "/examiner/setup",
+        );
+      } else {
+        router.push("/applicant/dashboard");
+      }
+
       router.refresh();
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");

@@ -1,5 +1,4 @@
 begin;
-
 create table if not exists public.examiner_designee_profiles (
   id uuid primary key default gen_random_uuid(),
 
@@ -28,19 +27,14 @@ create table if not exists public.examiner_designee_profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index if not exists examiner_designee_profiles_profile_idx
   on public.examiner_designee_profiles(profile_id);
-
 alter table public.examiner_designee_profiles
   enable row level security;
-
-
 -- Examiners may view their own designee profile.
 -- Administrators may view all designee profiles.
 drop policy if exists examiner_designee_profiles_select
   on public.examiner_designee_profiles;
-
 create policy examiner_designee_profiles_select
 on public.examiner_designee_profiles
 for select
@@ -54,12 +48,9 @@ using (
       and ur.role = 'administrator'
   )
 );
-
-
 -- Examiners and administrators may create their own row.
 drop policy if exists examiner_designee_profiles_insert
   on public.examiner_designee_profiles;
-
 create policy examiner_designee_profiles_insert
 on public.examiner_designee_profiles
 for insert
@@ -73,13 +64,10 @@ with check (
       and ur.role in ('examiner', 'administrator')
   )
 );
-
-
 -- Owners may update their own profile.
 -- Administrators may update any profile.
 drop policy if exists examiner_designee_profiles_update
   on public.examiner_designee_profiles;
-
 create policy examiner_designee_profiles_update
 on public.examiner_designee_profiles
 for update
@@ -102,10 +90,7 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
-
 grant select, insert, update
 on public.examiner_designee_profiles
 to authenticated;
-
 commit;

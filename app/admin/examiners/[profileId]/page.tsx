@@ -43,6 +43,7 @@ type DesigneeProfile = {
   designee_name: string | null;
   business_name: string | null;
   designation_number: string | null;
+  designation_expiration_date: string | null;
   email: string | null;
   reply_to_email: string | null;
   phone: string | null;
@@ -162,6 +163,7 @@ type DesigneeForm = {
   designee_name: string;
   business_name: string;
   designation_number: string;
+  designation_expiration_date: string;
   email: string;
   reply_to_email: string;
   phone: string;
@@ -187,6 +189,9 @@ function toForm(
     designee_name: clean(designee?.designee_name),
     business_name: clean(designee?.business_name),
     designation_number: clean(designee?.designation_number),
+    designation_expiration_date: clean(
+      designee?.designation_expiration_date,
+    ),
     email: clean(designee?.email),
     reply_to_email: clean(designee?.reply_to_email),
     phone: clean(designee?.phone),
@@ -558,6 +563,37 @@ export default function AdminManageExaminerPage() {
       return;
     }
 
+    if (!form.designation_number.trim()) {
+      setPageError(
+        "Enter the DPE designation number.",
+      );
+      return;
+    }
+
+    if (!form.designation_expiration_date) {
+      setPageError(
+        "Enter the designation expiration date.",
+      );
+      return;
+    }
+
+    const expirationDate = new Date(
+      `${form.designation_expiration_date}T12:00:00`,
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (
+      Number.isNaN(expirationDate.getTime()) ||
+      expirationDate < today
+    ) {
+      setPageError(
+        "Designation expiration date must be today or a future date.",
+      );
+      return;
+    }
+
     setSaving(true);
     setMessage("");
     setPageError("");
@@ -571,6 +607,8 @@ export default function AdminManageExaminerPage() {
         p_designee_name: form.designee_name,
         p_business_name: form.business_name,
         p_designation_number: form.designation_number,
+        p_designation_expiration_date:
+          form.designation_expiration_date,
         p_email: form.email,
         p_reply_to_email: form.reply_to_email,
         p_phone: form.phone,
@@ -1465,6 +1503,18 @@ export default function AdminManageExaminerPage() {
                   setField("designation_number", value)
                 }
                 placeholder="Designation number"
+              />
+
+              <Field
+                label="Designation expiration date"
+                type="date"
+                value={form.designation_expiration_date}
+                onChange={(value) =>
+                  setField(
+                    "designation_expiration_date",
+                    value,
+                  )
+                }
               />
 
               <Field

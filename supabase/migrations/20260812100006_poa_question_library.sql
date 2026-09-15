@@ -9,7 +9,6 @@
 --   5. Immutable POA question snapshots
 
 begin;
-
 -- ============================================================
 -- QUESTION LIBRARY
 -- ============================================================
@@ -76,21 +75,16 @@ create table if not exists public.poa_questions (
   check (length(trim(acs_reference)) > 0),
   check (length(trim(question)) > 0)
 );
-
 create index if not exists poa_questions_examiner_idx
   on public.poa_questions (
     examiner_profile_id,
     is_active,
     acs_reference
   );
-
 create index if not exists poa_questions_acs_idx
   on public.poa_questions (acs_reference);
-
 create index if not exists poa_questions_source_plan_idx
   on public.poa_questions (source_plan_of_action_id);
-
-
 -- ============================================================
 -- QUESTION ↔ PRACTICAL TEST TYPE / RATING
 -- ============================================================
@@ -113,14 +107,10 @@ create table if not exists public.poa_question_practical_test_types (
     practical_test_type_id
   )
 );
-
 create index if not exists poa_question_test_types_question_idx
   on public.poa_question_practical_test_types(question_id);
-
 create index if not exists poa_question_test_types_type_idx
   on public.poa_question_practical_test_types(practical_test_type_id);
-
-
 -- ============================================================
 -- PDF / AI GENERATED DRAFT QUESTION REVIEW QUEUE
 -- ============================================================
@@ -190,18 +180,14 @@ create table if not exists public.poa_question_drafts (
 
   check (length(trim(question)) > 0)
 );
-
 create index if not exists poa_question_drafts_examiner_idx
   on public.poa_question_drafts (
     examiner_profile_id,
     review_status,
     created_at
   );
-
 create index if not exists poa_question_drafts_plan_idx
   on public.poa_question_drafts(source_plan_of_action_id);
-
-
 -- ============================================================
 -- GENERATED POAs
 -- ============================================================
@@ -249,14 +235,11 @@ create table if not exists public.generated_plan_of_actions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index if not exists generated_poa_examiner_idx
   on public.generated_plan_of_actions(
     examiner_profile_id,
     created_at
   );
-
-
 -- ============================================================
 -- IMMUTABLE SNAPSHOT OF QUESTIONS USED ON A GENERATED POA
 -- ============================================================
@@ -285,67 +268,48 @@ create table if not exists public.generated_plan_of_action_questions (
 
   created_at timestamptz not null default now()
 );
-
 create index if not exists generated_poa_questions_poa_idx
   on public.generated_plan_of_action_questions(
     generated_plan_of_action_id,
     sort_order
   );
-
-
 -- ============================================================
 -- UPDATED-AT TRIGGERS
 -- ============================================================
 
 drop trigger if exists set_poa_questions_updated_at
   on public.poa_questions;
-
 create trigger set_poa_questions_updated_at
 before update on public.poa_questions
 for each row execute function public.set_updated_at();
-
-
 drop trigger if exists set_poa_question_drafts_updated_at
   on public.poa_question_drafts;
-
 create trigger set_poa_question_drafts_updated_at
 before update on public.poa_question_drafts
 for each row execute function public.set_updated_at();
-
-
 drop trigger if exists set_generated_plan_of_actions_updated_at
   on public.generated_plan_of_actions;
-
 create trigger set_generated_plan_of_actions_updated_at
 before update on public.generated_plan_of_actions
 for each row execute function public.set_updated_at();
-
-
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
 
 alter table public.poa_questions
   enable row level security;
-
 alter table public.poa_question_practical_test_types
   enable row level security;
-
 alter table public.poa_question_drafts
   enable row level security;
-
 alter table public.generated_plan_of_actions
   enable row level security;
-
 alter table public.generated_plan_of_action_questions
   enable row level security;
-
-
 -- QUESTION LIBRARY
 
 drop policy if exists "poa_questions_examiner_select"
   on public.poa_questions;
-
 create policy "poa_questions_examiner_select"
 on public.poa_questions
 for select
@@ -354,11 +318,8 @@ using (
   examiner_profile_id = auth.uid()
   or public.has_role('administrator')
 );
-
-
 drop policy if exists "poa_questions_examiner_insert"
   on public.poa_questions;
-
 create policy "poa_questions_examiner_insert"
 on public.poa_questions
 for insert
@@ -367,11 +328,8 @@ with check (
   examiner_profile_id = auth.uid()
   and public.is_examiner_or_admin()
 );
-
-
 drop policy if exists "poa_questions_examiner_update"
   on public.poa_questions;
-
 create policy "poa_questions_examiner_update"
 on public.poa_questions
 for update
@@ -384,11 +342,8 @@ with check (
   examiner_profile_id = auth.uid()
   or public.has_role('administrator')
 );
-
-
 drop policy if exists "poa_questions_examiner_delete"
   on public.poa_questions;
-
 create policy "poa_questions_examiner_delete"
 on public.poa_questions
 for delete
@@ -397,13 +352,10 @@ using (
   examiner_profile_id = auth.uid()
   or public.has_role('administrator')
 );
-
-
 -- QUESTION APPLICABILITY
 
 drop policy if exists "poa_question_types_examiner_select"
   on public.poa_question_practical_test_types;
-
 create policy "poa_question_types_examiner_select"
 on public.poa_question_practical_test_types
 for select
@@ -419,11 +371,8 @@ using (
       )
   )
 );
-
-
 drop policy if exists "poa_question_types_examiner_manage"
   on public.poa_question_practical_test_types;
-
 create policy "poa_question_types_examiner_manage"
 on public.poa_question_practical_test_types
 for all
@@ -450,13 +399,10 @@ with check (
       )
   )
 );
-
-
 -- DRAFT QUESTIONS
 
 drop policy if exists "poa_question_drafts_examiner_manage"
   on public.poa_question_drafts;
-
 create policy "poa_question_drafts_examiner_manage"
 on public.poa_question_drafts
 for all
@@ -469,13 +415,10 @@ with check (
   examiner_profile_id = auth.uid()
   or public.has_role('administrator')
 );
-
-
 -- GENERATED POAs
 
 drop policy if exists "generated_poas_examiner_manage"
   on public.generated_plan_of_actions;
-
 create policy "generated_poas_examiner_manage"
 on public.generated_plan_of_actions
 for all
@@ -488,11 +431,8 @@ with check (
   examiner_profile_id = auth.uid()
   or public.has_role('administrator')
 );
-
-
 drop policy if exists "generated_poa_questions_examiner_manage"
   on public.generated_plan_of_action_questions;
-
 create policy "generated_poa_questions_examiner_manage"
 on public.generated_plan_of_action_questions
 for all
@@ -519,8 +459,6 @@ with check (
       )
   )
 );
-
-
 -- ============================================================
 -- APPROVE DRAFT QUESTION RPC
 -- ============================================================
@@ -619,16 +557,12 @@ begin
   return v_question_id;
 end;
 $$;
-
 revoke all
 on function public.examiner_approve_poa_question_draft(uuid)
 from public;
-
 grant execute
 on function public.examiner_approve_poa_question_draft(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- REJECT DRAFT RPC
 -- ============================================================
@@ -666,13 +600,10 @@ begin
   end if;
 end;
 $$;
-
 revoke all
 on function public.examiner_reject_poa_question_draft(uuid)
 from public;
-
 grant execute
 on function public.examiner_reject_poa_question_draft(uuid)
 to authenticated;
-
 commit;

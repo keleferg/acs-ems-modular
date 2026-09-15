@@ -1757,6 +1757,23 @@ async function lookupApplicantByDMS() {
     const input = $(fieldId);
 
     if (input) {
+      /*
+       * Appointment data from EMS is the source of truth.
+       * For select controls, preserve values that are not already
+       * present in EMT's static option list by adding them dynamically.
+       */
+      if (
+        input.tagName === 'SELECT' &&
+        !Array.from(input.options).some(
+          option => option.value === String(value)
+        )
+      ) {
+        const option = document.createElement('option');
+        option.value = String(value);
+        option.textContent = String(value);
+        input.appendChild(option);
+      }
+
       input.value = value;
     }
 

@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- 1. Per-examiner practical-test fees
 --
@@ -37,20 +36,16 @@ create table if not exists public.examiner_practical_test_fees (
       practical_test_type_id
     )
 );
-
 create index if not exists
   examiner_practical_test_fees_examiner_idx
 on public.examiner_practical_test_fees(
   examiner_profile_id
 );
-
 create index if not exists
   examiner_practical_test_fees_type_idx
 on public.examiner_practical_test_fees(
   practical_test_type_id
 );
-
-
 -- ============================================================
 -- 2. Seed every existing examiner from current system fees.
 --
@@ -84,19 +79,15 @@ on conflict (
   practical_test_type_id
 )
 do nothing;
-
-
 -- ============================================================
 -- 3. RLS
 -- ============================================================
 
 alter table public.examiner_practical_test_fees
   enable row level security;
-
 drop policy if exists
   examiner_practical_test_fees_select
 on public.examiner_practical_test_fees;
-
 create policy
   examiner_practical_test_fees_select
 on public.examiner_practical_test_fees
@@ -111,11 +102,9 @@ using (
       and ur.role = 'administrator'
   )
 );
-
 drop policy if exists
   examiner_practical_test_fees_insert
 on public.examiner_practical_test_fees;
-
 create policy
   examiner_practical_test_fees_insert
 on public.examiner_practical_test_fees
@@ -130,11 +119,9 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
 drop policy if exists
   examiner_practical_test_fees_update
 on public.examiner_practical_test_fees;
-
 create policy
   examiner_practical_test_fees_update
 on public.examiner_practical_test_fees
@@ -158,11 +145,9 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
 drop policy if exists
   examiner_practical_test_fees_delete
 on public.examiner_practical_test_fees;
-
 create policy
   examiner_practical_test_fees_delete
 on public.examiner_practical_test_fees
@@ -177,12 +162,9 @@ using (
       and ur.role = 'administrator'
   )
 );
-
 grant select, insert, update, delete
 on public.examiner_practical_test_fees
 to authenticated;
-
-
 -- ============================================================
 -- 4. Ensure an accepted request receives the selected
 -- examiner's fee when no manual request-specific fee exists.
@@ -226,11 +208,9 @@ begin
   return new;
 end;
 $function$;
-
 drop trigger if exists
   practical_test_requests_apply_examiner_fee
 on public.practical_test_requests;
-
 create trigger
   practical_test_requests_apply_examiner_fee
 before update of status
@@ -238,8 +218,6 @@ on public.practical_test_requests
 for each row
 execute function
   public.apply_examiner_fee_on_request_accept();
-
-
 -- ============================================================
 -- 5. Admin: get selected examiner fee schedule.
 --
@@ -330,16 +308,12 @@ begin
   return v_result;
 end;
 $function$;
-
 revoke all on function
   public.admin_get_examiner_fee_schedule(uuid)
 from public;
-
 grant execute on function
   public.admin_get_examiner_fee_schedule(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- 6. Admin: save selected examiner fee.
 -- ============================================================
@@ -410,7 +384,6 @@ begin
   end if;
 end;
 $function$;
-
 revoke all on function
   public.admin_set_examiner_fee(
     uuid,
@@ -419,7 +392,6 @@ revoke all on function
     boolean
   )
 from public;
-
 grant execute on function
   public.admin_set_examiner_fee(
     uuid,
@@ -428,8 +400,6 @@ grant execute on function
     boolean
   )
 to authenticated;
-
-
 -- ============================================================
 -- 7. Admin: read weekly availability + blocked periods.
 -- ============================================================
@@ -507,16 +477,12 @@ begin
   );
 end;
 $function$;
-
 revoke all on function
   public.admin_get_examiner_availability(uuid)
 from public;
-
 grant execute on function
   public.admin_get_examiner_availability(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- 8. Admin: save all seven weekly availability rows.
 -- ============================================================
@@ -634,22 +600,18 @@ begin
   end loop;
 end;
 $function$;
-
 revoke all on function
   public.admin_save_examiner_weekly_availability(
     uuid,
     jsonb
   )
 from public;
-
 grant execute on function
   public.admin_save_examiner_weekly_availability(
     uuid,
     jsonb
   )
 to authenticated;
-
-
 -- ============================================================
 -- 9. Admin: add/delete blocked periods.
 -- ============================================================
@@ -716,7 +678,6 @@ begin
   return v_id;
 end;
 $function$;
-
 revoke all on function
   public.admin_add_examiner_blocked_period(
     uuid,
@@ -727,7 +688,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.admin_add_examiner_blocked_period(
     uuid,
@@ -738,8 +698,6 @@ grant execute on function
     text
   )
 to authenticated;
-
-
 create or replace function
 public.admin_delete_examiner_blocked_period(
   p_profile_id uuid,
@@ -773,19 +731,16 @@ begin
   end if;
 end;
 $function$;
-
 revoke all on function
   public.admin_delete_examiner_blocked_period(
     uuid,
     uuid
   )
 from public;
-
 grant execute on function
   public.admin_delete_examiner_blocked_period(
     uuid,
     uuid
   )
 to authenticated;
-
 commit;

@@ -1,5 +1,4 @@
 begin;
-
 create or replace function public.applicant_get_request_portal_details()
 returns table (
   practical_test_request_id uuid,
@@ -66,13 +65,10 @@ as $function$
 
   where auth.uid() is not null;
 $function$;
-
 revoke all
 on function public.applicant_get_request_portal_details()
 from public;
-
 grant execute
 on function public.applicant_get_request_portal_details()
 to authenticated;
-
 commit;

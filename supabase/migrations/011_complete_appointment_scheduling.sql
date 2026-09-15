@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- Save a complete practical-test appointment.
 -- Includes start time, end time, location, and conflict checks.
@@ -134,8 +133,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- Confirmation now requires a complete appointment.
 -- ============================================================
@@ -239,8 +236,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 revoke all on function
   public.examiner_save_complete_appointment(
     uuid,
@@ -249,7 +244,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.examiner_save_complete_appointment(
     uuid,
@@ -258,13 +252,10 @@ grant execute on function
     text
   )
 to authenticated;
-
 revoke all on function
   public.examiner_confirm_practical_test_appointment(uuid)
 from public;
-
 grant execute on function
   public.examiner_confirm_practical_test_appointment(uuid)
 to authenticated;
-
 commit;

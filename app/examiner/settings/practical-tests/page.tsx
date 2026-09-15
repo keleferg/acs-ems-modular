@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type PracticalTestType = {
@@ -22,16 +17,13 @@ type PracticalTestType = {
 };
 
 export default function PracticalTestsSettingsPage() {
-  const [testTypes, setTestTypes] = useState<
-    PracticalTestType[]
-  >([]);
+  const [testTypes, setTestTypes] = useState<PracticalTestType[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [certificateFilter, setCertificateFilter] =
-    useState("all");
+  const [certificateFilter, setCertificateFilter] = useState("all");
   const [showInactive, setShowInactive] = useState(false);
 
   const loadSettings = useCallback(async () => {
@@ -53,9 +45,7 @@ export default function PracticalTestsSettingsPage() {
 
       setTestTypes([]);
     } else {
-      setTestTypes(
-        (data ?? []) as PracticalTestType[],
-      );
+      setTestTypes((data ?? []) as PracticalTestType[]);
     }
 
     setLoading(false);
@@ -69,27 +59,45 @@ export default function PracticalTestsSettingsPage() {
     () =>
       [
         ...new Set(
-          testTypes.map(
-            (testType) => testType.certificate_name,
-          ),
+          testTypes
+            .filter(
+              (testType) =>
+                testType.display_name !== "Pilot Proficiency Check (61.58)",
+            )
+            .map((testType) =>
+              testType.display_name ===
+              "Flight Engineer Proficiency Check (91.529)"
+                ? "Flight Engineer"
+                : testType.certificate_name,
+            ),
         ),
       ].sort((a, b) => a.localeCompare(b)),
     [testTypes],
   );
 
   const visibleTestTypes = useMemo(() => {
-    const normalizedSearch =
-      search.trim().toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
 
     return testTypes.filter((testType) => {
+      // Pilot PPC is controlled exclusively from
+      // Type Ratings Authorized.
+      if (testType.display_name === "Pilot Proficiency Check (61.58)") {
+        return false;
+      }
+
       if (!showInactive && !testType.is_active) {
         return false;
       }
 
+      // FE PPC belongs to the Flight Engineer group.
+      const effectiveCertificate =
+        testType.display_name === "Flight Engineer Proficiency Check (91.529)"
+          ? "Flight Engineer"
+          : testType.certificate_name;
+
       if (
         certificateFilter !== "all" &&
-        testType.certificate_name !==
-          certificateFilter
+        effectiveCertificate !== certificateFilter
       ) {
         return false;
       }
@@ -99,7 +107,7 @@ export default function PracticalTestsSettingsPage() {
       }
 
       return [
-        testType.certificate_name,
+        effectiveCertificate,
         testType.issuance_name,
         testType.category_name,
         testType.class_name,
@@ -111,33 +119,27 @@ export default function PracticalTestsSettingsPage() {
         .toLowerCase()
         .includes(normalizedSearch);
     });
-  }, [
-    testTypes,
-    search,
-    certificateFilter,
-    showInactive,
-  ]);
+  }, [testTypes, search, certificateFilter, showInactive]);
 
   const groupedTestTypes = useMemo(() => {
-    const groups = new Map<
-      string,
-      PracticalTestType[]
-    >();
+    const groups = new Map<string, PracticalTestType[]>();
 
     for (const testType of visibleTestTypes) {
-      const existing =
-        groups.get(testType.certificate_name) ?? [];
+      const groupName =
+        testType.display_name === "Flight Engineer Proficiency Check (91.529)"
+          ? "Flight Engineer"
+          : testType.certificate_name;
+
+      const existing = groups.get(groupName) ?? [];
 
       existing.push(testType);
-      groups.set(testType.certificate_name, existing);
+      groups.set(groupName, existing);
     }
 
     return [...groups.entries()];
   }, [visibleTestTypes]);
 
-  async function togglePracticalTest(
-    testType: PracticalTestType,
-  ) {
+  async function togglePracticalTest(testType: PracticalTestType) {
     setSavingId(testType.id);
     setMessage("");
     setErrorMessage("");
@@ -183,7 +185,9 @@ export default function PracticalTestsSettingsPage() {
 
   const offeredCount = testTypes.filter(
     (testType) =>
-      testType.is_active && testType.is_offered,
+      testType.is_active &&
+      testType.is_offered &&
+      testType.display_name !== "Pilot Proficiency Check (61.58)",
   ).length;
 
   return (
@@ -198,9 +202,8 @@ export default function PracticalTestsSettingsPage() {
         </h2>
 
         <p className="mt-2 text-slate-600">
-          Select the practical-test actions that applicants
-          may request. Only active and offered records appear
-          in the applicant request wizard.
+          Select the practical-test actions that applicants may request. Only
+          active and offered records appear in the applicant request wizard.
         </p>
       </div>
 
@@ -218,9 +221,7 @@ export default function PracticalTestsSettingsPage() {
 
       <section className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm font-medium text-slate-500">
-            Catalog records
-          </p>
+          <p className="text-sm font-medium text-slate-500">Catalog records</p>
 
           <p className="mt-2 text-3xl font-bold text-slate-900">
             {testTypes.length}
@@ -257,9 +258,7 @@ export default function PracticalTestsSettingsPage() {
 
             <input
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Search certificate, issuance, category, class, or rating"
               className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
             />
@@ -272,20 +271,13 @@ export default function PracticalTestsSettingsPage() {
 
             <select
               value={certificateFilter}
-              onChange={(event) =>
-                setCertificateFilter(event.target.value)
-              }
+              onChange={(event) => setCertificateFilter(event.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
             >
-              <option value="all">
-                All certificates
-              </option>
+              <option value="all">All certificates</option>
 
               {certificateOptions.map((certificate) => (
-                <option
-                  key={certificate}
-                  value={certificate}
-                >
+                <option key={certificate} value={certificate}>
                   {certificate}
                 </option>
               ))}
@@ -296,12 +288,9 @@ export default function PracticalTestsSettingsPage() {
             <input
               type="checkbox"
               checked={showInactive}
-              onChange={(event) =>
-                setShowInactive(event.target.checked)
-              }
+              onChange={(event) => setShowInactive(event.target.checked)}
               className="h-4 w-4"
             />
-
             Show inactive catalog records
           </label>
         </div>
@@ -313,74 +302,64 @@ export default function PracticalTestsSettingsPage() {
         </div>
       ) : (
         <div className="mt-6 space-y-7">
-          {groupedTestTypes.map(
-            ([certificate, options]) => (
-              <section
-                key={certificate}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-              >
-                <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
-                  <h3 className="text-lg font-bold text-slate-900">
-                    {certificate}
-                  </h3>
-                </div>
+          {groupedTestTypes.map(([certificate, options]) => (
+            <section
+              key={certificate}
+              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            >
+              <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                <h3 className="text-lg font-bold text-slate-900">
+                  {certificate}
+                </h3>
+              </div>
 
-                <div className="divide-y divide-slate-100">
-                  {options.map((testType) => (
-                    <label
-                      key={testType.id}
-                      className="flex cursor-pointer items-center justify-between gap-5 px-5 py-4 hover:bg-slate-50"
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-semibold text-slate-900">
-                            {testType.display_name}
-                          </p>
-
-                          {!testType.is_active ? (
-                            <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                              Inactive
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          {[
-                            testType.issuance_name,
-                            testType.category_name,
-                            testType.class_name,
-                            testType.rating_name,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
+              <div className="divide-y divide-slate-100">
+                {options.map((testType) => (
+                  <label
+                    key={testType.id}
+                    className="flex cursor-pointer items-center justify-between gap-5 px-5 py-4 hover:bg-slate-50"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-slate-900">
+                          {testType.display_name}
                         </p>
+
+                        {!testType.is_active ? (
+                          <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                            Inactive
+                          </span>
+                        ) : null}
                       </div>
 
-                      <input
-                        type="checkbox"
-                        checked={testType.is_offered}
-                        disabled={
-                          savingId === testType.id ||
-                          !testType.is_active
-                        }
-                        onChange={() =>
-                          void togglePracticalTest(
-                            testType,
-                          )
-                        }
-                        className="h-5 w-5 shrink-0 rounded border-slate-300"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </section>
-            ),
-          )}
+                      <p className="mt-1 text-sm text-slate-500">
+                        {[
+                          testType.issuance_name,
+                          testType.category_name,
+                          testType.class_name,
+                          testType.rating_name,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+
+                    <input
+                      type="checkbox"
+                      checked={testType.is_offered}
+                      disabled={savingId === testType.id || !testType.is_active}
+                      onChange={() => void togglePracticalTest(testType)}
+                      className="h-5 w-5 shrink-0 rounded border-slate-300"
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
+          ))}
 
           {groupedTestTypes.length === 0 ? (
             <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
-              No practical-test records match the current
-              filters.
+              No practical-test records match the current filters.
             </div>
           ) : null}
         </div>

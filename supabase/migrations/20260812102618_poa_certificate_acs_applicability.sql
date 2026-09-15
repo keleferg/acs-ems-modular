@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- QUESTION -> CERTIFICATE / ACS REFERENCE
 --
@@ -34,17 +33,12 @@ create table if not exists public.poa_question_acs_applicability (
     certificate_name
   )
 );
-
 create index if not exists poa_question_acs_question_idx
   on public.poa_question_acs_applicability(question_id);
-
 create index if not exists poa_question_acs_certificate_idx
   on public.poa_question_acs_applicability(certificate_name);
-
 create index if not exists poa_question_acs_reference_idx
   on public.poa_question_acs_applicability(acs_reference);
-
-
 -- ============================================================
 -- DRAFT QUESTIONS
 --
@@ -66,17 +60,13 @@ alter table public.poa_question_drafts
   add column if not exists acs_applicability jsonb
   not null
   default '[]'::jsonb;
-
 alter table public.poa_question_drafts
   drop constraint if exists poa_question_drafts_acs_applicability_array;
-
 alter table public.poa_question_drafts
   add constraint poa_question_drafts_acs_applicability_array
   check (
     jsonb_typeof(acs_applicability) = 'array'
   );
-
-
 -- ============================================================
 -- BACKFILL EXISTING PER-RATING QUESTION LINKS
 -- INTO CERTIFICATE-LEVEL ACS LINKS
@@ -105,8 +95,6 @@ on conflict (
   certificate_name
 )
 do nothing;
-
-
 -- ============================================================
 -- BACKFILL PENDING DRAFTS
 -- ============================================================
@@ -142,20 +130,15 @@ where
   and cardinality(
     d.proposed_practical_test_type_ids
   ) > 0;
-
-
 -- ============================================================
 -- RLS
 -- ============================================================
 
 alter table public.poa_question_acs_applicability
   enable row level security;
-
-
 drop policy if exists
   "poa_question_acs_examiner_select"
 on public.poa_question_acs_applicability;
-
 create policy
   "poa_question_acs_examiner_select"
 on public.poa_question_acs_applicability
@@ -173,12 +156,9 @@ using (
       )
   )
 );
-
-
 drop policy if exists
   "poa_question_acs_examiner_insert"
 on public.poa_question_acs_applicability;
-
 create policy
   "poa_question_acs_examiner_insert"
 on public.poa_question_acs_applicability
@@ -196,12 +176,9 @@ with check (
       )
   )
 );
-
-
 drop policy if exists
   "poa_question_acs_examiner_update"
 on public.poa_question_acs_applicability;
-
 create policy
   "poa_question_acs_examiner_update"
 on public.poa_question_acs_applicability
@@ -231,12 +208,9 @@ with check (
       )
   )
 );
-
-
 drop policy if exists
   "poa_question_acs_examiner_delete"
 on public.poa_question_acs_applicability;
-
 create policy
   "poa_question_acs_examiner_delete"
 on public.poa_question_acs_applicability
@@ -254,8 +228,6 @@ using (
       )
   )
 );
-
-
 -- ============================================================
 -- REPLACE APPROVAL RPC
 --
@@ -450,16 +422,12 @@ begin
   return v_question_id;
 end;
 $$;
-
 revoke all
 on function
   public.examiner_approve_poa_question_draft(uuid)
 from public;
-
 grant execute
 on function
   public.examiner_approve_poa_question_draft(uuid)
 to authenticated;
-
-
 commit;

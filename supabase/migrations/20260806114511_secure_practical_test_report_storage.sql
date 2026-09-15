@@ -1,8 +1,6 @@
 begin;
-
 drop policy if exists practical_test_reports_storage_select
 on storage.objects;
-
 create policy practical_test_reports_storage_select
 on storage.objects
 for select
@@ -30,5 +28,4 @@ using (
     )
   )
 );
-
 commit;

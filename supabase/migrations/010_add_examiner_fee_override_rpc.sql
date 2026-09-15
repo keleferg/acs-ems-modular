@@ -1,5 +1,4 @@
 begin;
-
 create or replace function public.examiner_save_practical_test_request_fee(
   p_request_id uuid,
   p_fee_amount numeric
@@ -36,13 +35,10 @@ begin
   return v_request;
 end;
 $function$;
-
 revoke all on function
   public.examiner_save_practical_test_request_fee(uuid, numeric)
 from public;
-
 grant execute on function
   public.examiner_save_practical_test_request_fee(uuid, numeric)
 to authenticated;
-
 commit;

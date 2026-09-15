@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- Applicant submits completed pretest qualification package.
 --
@@ -242,13 +241,10 @@ begin
   return v_wizard;
 end;
 $function$;
-
 revoke all on function
   public.applicant_submit_pretest_qualification(uuid)
 from public;
-
 grant execute on function
   public.applicant_submit_pretest_qualification(uuid)
 to authenticated;
-
 commit;

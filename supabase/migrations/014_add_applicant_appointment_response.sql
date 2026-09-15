@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- 1. Applicant appointment-response fields
 -- ============================================================
@@ -8,10 +7,8 @@ alter table public.practical_test_requests
   add column if not exists appointment_response_status text,
   add column if not exists appointment_responded_at timestamptz,
   add column if not exists appointment_response_notes text;
-
 alter table public.practical_test_requests
   drop constraint if exists practical_test_requests_appointment_response_check;
-
 alter table public.practical_test_requests
   add constraint practical_test_requests_appointment_response_check
   check (
@@ -22,14 +19,11 @@ alter table public.practical_test_requests
       'reschedule_requested'
     )
   );
-
 create index if not exists practical_test_requests_response_status_idx
   on public.practical_test_requests (
     appointment_response_status,
     scheduled_start_at
   );
-
-
 -- ============================================================
 -- 2. Applicant accepts a scheduled appointment
 -- ============================================================
@@ -91,8 +85,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 3. Applicant requests a schedule change
 -- ============================================================
@@ -154,25 +146,18 @@ begin
   return v_request;
 end;
 $function$;
-
-
 revoke all on function
   public.applicant_accept_practical_test_appointment(uuid)
 from public;
-
 revoke all on function
   public.applicant_request_appointment_reschedule(uuid, text)
 from public;
-
 grant execute on function
   public.applicant_accept_practical_test_appointment(uuid)
 to authenticated;
-
 grant execute on function
   public.applicant_request_appointment_reschedule(uuid, text)
 to authenticated;
-
-
 -- ============================================================
 -- 4. Saving an appointment now places it into Scheduled status
 -- and resets any previous applicant response.
@@ -324,8 +309,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 revoke all on function
   public.examiner_save_complete_appointment(
     uuid,
@@ -334,7 +317,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.examiner_save_complete_appointment(
     uuid,
@@ -343,5 +325,4 @@ grant execute on function
     text
   )
 to authenticated;
-
 commit;

@@ -15,7 +15,6 @@
 -- Those rows are updated/reused here rather than duplicated.
 
 begin;
-
 do $import$
 declare
   v_examiner_id uuid;
@@ -1306,9 +1305,7 @@ begin
     v_unmapped_intents;
 end
 $import$;
-
 commit;
-
 -- Verification: exactly 251 workbook questions should now be represented
 -- for the selected examiner.
 with examiner as (
@@ -1325,7 +1322,6 @@ join examiner e
   on e.profile_id = q.examiner_profile_id
 where q.source_document_name = 'ACS Oral Exam Question Bank - Instrument Rating Added.xlsx'
   and q.is_active = true;
-
 -- Verification by practical-test certificate family.
 with examiner as (
   select ur.profile_id
@@ -1348,7 +1344,6 @@ where q.source_document_name = 'ACS Oral Exam Question Bank - Instrument Rating 
   and q.is_active = true
 group by ptt.certificate_code
 order by ptt.certificate_code;
-
 -- Instrument verification should return 52.
 with examiner as (
   select ur.profile_id

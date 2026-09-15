@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- Applicant qualification automated validation
 --
@@ -483,7 +482,6 @@ begin
   return v_answer;
 end;
 $function$;
-
 revoke all on function
   public.applicant_save_qualification_answer(
     uuid,
@@ -492,7 +490,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.applicant_save_qualification_answer(
     uuid,
@@ -501,5 +498,4 @@ grant execute on function
     text
   )
 to authenticated;
-
 commit;

@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- 1. Recurring weekly availability
 -- day_of_week follows PostgreSQL EXTRACT(DOW):
@@ -39,14 +38,11 @@ create table if not exists public.examiner_weekly_availability (
   constraint examiner_weekly_availability_unique_day
     unique (examiner_profile_id, day_of_week)
 );
-
 create index if not exists examiner_weekly_availability_examiner_idx
   on public.examiner_weekly_availability(
     examiner_profile_id,
     day_of_week
   );
-
-
 -- ============================================================
 -- 2. Blocked dates and partial-day blocked periods
 -- Times are stored as timestamptz.
@@ -73,29 +69,22 @@ create table if not exists public.examiner_blocked_periods (
   constraint examiner_blocked_periods_time_check
     check (ends_at > starts_at)
 );
-
 create index if not exists examiner_blocked_periods_examiner_time_idx
   on public.examiner_blocked_periods(
     examiner_profile_id,
     starts_at,
     ends_at
   );
-
-
 -- ============================================================
 -- 3. RLS
 -- ============================================================
 
 alter table public.examiner_weekly_availability
   enable row level security;
-
 alter table public.examiner_blocked_periods
   enable row level security;
-
-
 drop policy if exists examiner_weekly_availability_select
   on public.examiner_weekly_availability;
-
 create policy examiner_weekly_availability_select
 on public.examiner_weekly_availability
 for select
@@ -109,11 +98,8 @@ using (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists examiner_weekly_availability_insert
   on public.examiner_weekly_availability;
-
 create policy examiner_weekly_availability_insert
 on public.examiner_weekly_availability
 for insert
@@ -127,11 +113,8 @@ with check (
       and ur.role in ('examiner', 'administrator')
   )
 );
-
-
 drop policy if exists examiner_weekly_availability_update
   on public.examiner_weekly_availability;
-
 create policy examiner_weekly_availability_update
 on public.examiner_weekly_availability
 for update
@@ -154,11 +137,8 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists examiner_weekly_availability_delete
   on public.examiner_weekly_availability;
-
 create policy examiner_weekly_availability_delete
 on public.examiner_weekly_availability
 for delete
@@ -172,11 +152,8 @@ using (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists examiner_blocked_periods_select
   on public.examiner_blocked_periods;
-
 create policy examiner_blocked_periods_select
 on public.examiner_blocked_periods
 for select
@@ -190,11 +167,8 @@ using (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists examiner_blocked_periods_insert
   on public.examiner_blocked_periods;
-
 create policy examiner_blocked_periods_insert
 on public.examiner_blocked_periods
 for insert
@@ -208,11 +182,8 @@ with check (
       and ur.role in ('examiner', 'administrator')
   )
 );
-
-
 drop policy if exists examiner_blocked_periods_update
   on public.examiner_blocked_periods;
-
 create policy examiner_blocked_periods_update
 on public.examiner_blocked_periods
 for update
@@ -235,11 +206,8 @@ with check (
       and ur.role = 'administrator'
   )
 );
-
-
 drop policy if exists examiner_blocked_periods_delete
   on public.examiner_blocked_periods;
-
 create policy examiner_blocked_periods_delete
 on public.examiner_blocked_periods
 for delete
@@ -253,17 +221,12 @@ using (
       and ur.role = 'administrator'
   )
 );
-
-
 grant select, insert, update, delete
 on public.examiner_weekly_availability
 to authenticated;
-
 grant select, insert, update, delete
 on public.examiner_blocked_periods
 to authenticated;
-
-
 -- ============================================================
 -- 4. Seed a normal weekly schedule for existing examiners.
 -- Monday through Friday, 08:00–17:00 HST.
@@ -302,8 +265,6 @@ on conflict (
   examiner_profile_id,
   day_of_week
 ) do nothing;
-
-
 -- ============================================================
 -- 5. Availability validation helper
 -- ============================================================
@@ -404,8 +365,6 @@ begin
   end if;
 end;
 $function$;
-
-
 revoke all on function
   public.validate_examiner_appointment_availability(
     uuid,
@@ -413,7 +372,6 @@ revoke all on function
     timestamptz
   )
 from public;
-
 grant execute on function
   public.validate_examiner_appointment_availability(
     uuid,
@@ -421,8 +379,6 @@ grant execute on function
     timestamptz
   )
 to authenticated;
-
-
 -- ============================================================
 -- 6. Replace the complete appointment save RPC so it also
 -- validates weekly availability and blocked periods.
@@ -575,8 +531,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 -- ============================================================
 -- 7. Confirmation also rechecks availability. This prevents
 -- confirmation after a blocked period was added later.
@@ -698,8 +652,6 @@ begin
   return v_request;
 end;
 $function$;
-
-
 revoke all on function
   public.examiner_save_complete_appointment(
     uuid,
@@ -708,7 +660,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.examiner_save_complete_appointment(
     uuid,
@@ -717,13 +668,10 @@ grant execute on function
     text
   )
 to authenticated;
-
 revoke all on function
   public.examiner_confirm_practical_test_appointment(uuid)
 from public;
-
 grant execute on function
   public.examiner_confirm_practical_test_appointment(uuid)
 to authenticated;
-
 commit;

@@ -1,5 +1,4 @@
 begin;
-
 -- ============================================================
 -- Return the practical-test and type-rating authorization
 -- catalogs for one examiner.
@@ -97,16 +96,12 @@ begin
   );
 end;
 $function$;
-
 revoke all on function
   public.admin_get_examiner_authorizations(uuid)
 from public;
-
 grant execute on function
   public.admin_get_examiner_authorizations(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- Set one examiner practical-test offering.
 -- Existing rows are updated; missing rows are created.
@@ -179,7 +174,6 @@ begin
   end if;
 end;
 $function$;
-
 revoke all on function
   public.admin_set_examiner_practical_test_offering(
     uuid,
@@ -187,7 +181,6 @@ revoke all on function
     boolean
   )
 from public;
-
 grant execute on function
   public.admin_set_examiner_practical_test_offering(
     uuid,
@@ -195,8 +188,6 @@ grant execute on function
     boolean
   )
 to authenticated;
-
-
 -- ============================================================
 -- Set one examiner type-rating authorization.
 -- Existing rows are updated; missing rows are created.
@@ -278,7 +269,6 @@ begin
   end if;
 end;
 $function$;
-
 revoke all on function
   public.admin_set_examiner_type_rating_authorization(
     uuid,
@@ -287,7 +277,6 @@ revoke all on function
     text
   )
 from public;
-
 grant execute on function
   public.admin_set_examiner_type_rating_authorization(
     uuid,
@@ -296,5 +285,4 @@ grant execute on function
     text
   )
 to authenticated;
-
 commit;

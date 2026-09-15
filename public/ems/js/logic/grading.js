@@ -46,26 +46,255 @@ export function calculateTaskStatus(task) {
 }
 
 export function summarizeTasks(tasks) {
-  const statuses = tasks.map(task => ({ task, status: calculateTaskStatus(task), grades: getTaskGrades(task) }));
-  const required = statuses.filter(row => row.task.isRequired);
-  const failed = statuses.filter(row => row.status === 'fail');
-  const incomplete = required.filter(row => row.status === 'incomplete');
-  const passedRequired = required.filter(row => row.status === 'pass');
-  const evaluatedElements = statuses.reduce((sum, row) => sum + Object.values(row.grades).filter(isNumericGrade).length, 0);
-  const totalElements = required.length * 3;
-  const overall = failed.length ? 'UNSATISFACTORY' : incomplete.length ? 'INCOMPLETE' : 'SATISFACTORY';
+
+  const statuses = tasks.map(task => ({
+
+    task,
+
+    status: calculateTaskStatus(task),
+
+    grades: getTaskGrades(task)
+
+  }));
+
+  const required =
+    statuses.filter(row => row.task.isRequired);
+
+  const failed =
+    statuses.filter(row => row.status === 'fail');
+
+  const incomplete =
+    required.filter(
+      row => row.status === 'incomplete'
+    );
+
+  const passedRequired =
+    required.filter(
+      row => row.status === 'pass'
+    );
+
+  /*
+   * Each alternative group is attached to every task
+   * participating in that group. Collapse by group ID.
+   */
+  const alternativeGroupMap = new Map();
+
+  tasks.forEach(task => {
+
+    (
+      task.alternativeRequirementGroups || []
+    ).forEach(group => {
+
+      if (group?.id) {
+        alternativeGroupMap.set(
+          group.id,
+          group
+        );
+      }
+
+    });
+
+  });
+
+  const statusByCode = new Map(
+    statuses.map(row => [
+      row.task.filterCode,
+      row
+    ])
+  );
+
+  const alternativeRequirements =
+    Array
+      .from(alternativeGroupMap.values())
+      .map(group => {
+
+        const options =
+          Array.isArray(group.options)
+            ? group.options
+            : [];
+
+        const optionStatuses =
+          options.map(option => {
+
+            const codes =
+              Array.isArray(option)
+                ? option
+                : [];
+
+            const complete =
+              codes.length > 0 &&
+              codes.every(code => {
+
+                const row =
+                  statusByCode.get(code);
+
+                if (!row) {
+                  return false;
+                }
+
+                const allElementsEvaluated =
+                  Object
+                    .values(row.grades)
+                    .every(isNumericGrade);
+
+                return (
+                  allElementsEvaluated &&
+                  row.status !== 'fail'
+                );
+
+              });
+
+            return {
+              codes,
+              complete
+            };
+
+          });
+
+        const satisfiedOptionIndex =
+          optionStatuses.findIndex(
+            option => option.complete
+          );
+
+        return {
+
+          ...group,
+
+          optionStatuses,
+
+          satisfied:
+            satisfiedOptionIndex >= 0,
+
+          satisfiedOptionIndex
+
+        };
+
+      });
+
+  const incompleteAlternativeGroups =
+    alternativeRequirements.filter(
+      group => !group.satisfied
+    );
+
+  const satisfiedAlternativeGroups =
+    alternativeRequirements.filter(
+      group => group.satisfied
+    );
+
+  const evaluatedElements =
+    statuses.reduce(
+      (sum, row) =>
+        sum +
+        Object
+          .values(row.grades)
+          .filter(isNumericGrade)
+          .length,
+      0
+    );
+
+  /*
+   * Each alternative group counts as one FAA
+   * completion requirement.
+   */
+  const totalRequirementUnits =
+    required.length +
+    alternativeRequirements.length;
+
+  const passedRequirementUnits =
+    passedRequired.length +
+    satisfiedAlternativeGroups.length;
+
+  const alternativeElementMinimum =
+    alternativeRequirements.reduce(
+      (sum, group) => {
+
+        const lengths =
+          (group.options || [])
+
+            .filter(option =>
+              Array.isArray(option) &&
+              option.length > 0
+            )
+
+            .map(option =>
+              option.length
+            );
+
+        if (!lengths.length) {
+          return sum;
+        }
+
+        return (
+          sum +
+          Math.min(...lengths) * 3
+        );
+
+      },
+      0
+    );
+
+  const totalElements =
+    required.length * 3 +
+    alternativeElementMinimum;
+
+  const overall =
+
+    failed.length
+
+      ? 'UNSATISFACTORY'
+
+      : (
+          incomplete.length ||
+          incompleteAlternativeGroups.length
+        )
+
+        ? 'INCOMPLETE'
+
+        : 'SATISFACTORY';
 
   return {
+
     statuses,
-    totalRequiredTasks: required.length,
-    passedRequiredTasks: passedRequired.length,
-    failedTasks: failed.length,
-    incompleteRequiredTasks: incomplete.length,
+
+    totalRequiredTasks:
+      totalRequirementUnits,
+
+    passedRequiredTasks:
+      passedRequirementUnits,
+
+    failedTasks:
+      failed.length,
+
+    incompleteRequiredTasks:
+      incomplete.length +
+      incompleteAlternativeGroups.length,
+
+    alternativeRequirements,
+
+    incompleteAlternativeGroups,
+
+    satisfiedAlternativeGroups,
+
     totalElements,
+
     evaluatedElements,
-    progressPct: totalElements ? Math.round((passedRequired.length / required.length) * 100) : 0,
+
+    progressPct:
+      totalRequirementUnits
+
+        ? Math.round(
+            (
+              passedRequirementUnits /
+              totalRequirementUnits
+            ) * 100
+          )
+
+        : 0,
+
     overall
+
   };
+
 }
 
 export function averageGrade(tasks, type) {

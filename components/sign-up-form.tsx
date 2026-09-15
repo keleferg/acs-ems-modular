@@ -44,7 +44,10 @@ export function SignUpForm({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/applicant/setup`,
+          emailRedirectTo: `${
+            process.env.NEXT_PUBLIC_SITE_URL ||
+            "https://ems.aviationtrainingsolutionshi.com"
+          }/auth/confirm?next=/applicant/setup`,
         },
       });
       if (error) throw error;

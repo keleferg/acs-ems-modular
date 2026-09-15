@@ -4,7 +4,6 @@
 -- Generated records: 215
 
 begin;
-
 insert into public.faa_type_rating_designations (
   designation,
   is_active,
@@ -238,9 +237,7 @@ do update set
     excluded.source_effective_date,
   source_url = excluded.source_url,
   updated_at = now();
-
 commit;
-
 select
   count(*) as total_type_rating_designations,
   count(*) filter (
