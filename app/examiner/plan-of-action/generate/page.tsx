@@ -909,12 +909,32 @@ export default function GeneratePoaPage() {
 
     const classCode = (testType.class_code ?? "").trim().toUpperCase();
 
+    const ratingName = testType.rating_name.trim();
+
+    /*
+     * Instrument practical-test records identify the target as the aircraft
+     * category (for example, "Airplane"), while the FAA additional-rating
+     * matrix uses the full rating name ("Instrument Airplane"). Normalize
+     * that database shape before deriving the held-rating options.
+     */
+    if (additionalMapCertificateKey === "Instrument") {
+      const target = `${classCode} ${ratingName}`.toLowerCase();
+
+      if (target.includes("airplane")) {
+        return "Instrument Airplane";
+      }
+
+      if (target.includes("helicopter")) {
+        return "Instrument Helicopter";
+      }
+    }
+
     if (["ASEL", "AMEL", "ASES", "AMES"].includes(classCode)) {
       return classCode;
     }
 
-    return testType.rating_name.trim();
-  }, [testType]);
+    return ratingName;
+  }, [additionalMapCertificateKey, testType]);
 
   const additionalHeldOptions = useMemo(() => {
     if (
