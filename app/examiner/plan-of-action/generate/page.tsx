@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
 import {
+  acsTaskAppliesToAircraftClass,
   deriveAllFlightTasksFromAcsCatalog,
   filterFlightTasksByParentCodes,
   normalizeAdditionalMapCodes,
@@ -1109,7 +1110,18 @@ export default function GeneratePoaPage() {
     for (const entry of faaAcsComplianceCatalog.entries) {
       const prefix = acsPrefix(entry.code);
 
-      if (prefix && prefixSet.has(prefix)) {
+      const parent = taskParentFromReference(entry.code);
+
+      if (
+        prefix &&
+        prefixSet.has(prefix) &&
+        parent &&
+        acsTaskAppliesToAircraftClass(
+          parent,
+          String(entry.task_name ?? ""),
+          testType?.class_code,
+        )
+      ) {
         codes.add(entry.code);
       }
     }
@@ -1146,7 +1158,7 @@ export default function GeneratePoaPage() {
 
       return (elementOrder[aParts[3]] ?? 9) - (elementOrder[bParts[3]] ?? 9);
     });
-  }, [complianceAcsPrefixes]);
+  }, [complianceAcsPrefixes, testType?.class_code]);
 
   const requiredComplianceCodes = useMemo(() => {
     let codes = complianceCodes.filter((code) => !code.endsWith(".S"));
@@ -1233,6 +1245,41 @@ export default function GeneratePoaPage() {
 
   const missingComplianceCodes = requiredComplianceCodes.filter(
     (code) => !coveredComplianceCodes.has(code),
+  );
+
+  const availableComplianceCodes = useMemo(() => {
+    const available = new Set<string>();
+    const applicablePrefixes = new Set(complianceAcsPrefixes);
+
+    for (const question of questions) {
+      for (const applicability of question.poa_question_acs_applicability) {
+        for (const reference of splitAcsReferences(
+          applicability.acs_reference,
+        )) {
+          const prefix = acsPrefix(reference);
+          const code = complianceParentCode(reference);
+
+          if (
+            prefix &&
+            applicablePrefixes.has(prefix) &&
+            code &&
+            !code.endsWith(".S")
+          ) {
+            available.add(code);
+          }
+        }
+      }
+    }
+
+    return available;
+  }, [complianceAcsPrefixes, questions]);
+
+  const selectableComplianceGaps = missingComplianceCodes.filter((code) =>
+    availableComplianceCodes.has(code),
+  );
+
+  const unmappedComplianceGaps = missingComplianceCodes.filter(
+    (code) => !availableComplianceCodes.has(code),
   );
 
   function selectedCountForTask(group: TaskGroup) {
@@ -1418,8 +1465,6 @@ export default function GeneratePoaPage() {
         .filter((value): value is string => Boolean(value)),
     );
     let taskCount = 0;
-    let missingKnowledge = 0;
-    let missingRisk = 0;
 
     for (const [taskParent, candidates] of [...taskCandidates.entries()].sort(
       ([a], [b]) => compareAcsReferences(a, b),
@@ -1439,14 +1484,10 @@ export default function GeneratePoaPage() {
 
       if (knowledgeQuestion) {
         selected.add(knowledgeQuestion.id);
-      } else {
-        missingKnowledge += 1;
       }
 
       if (riskQuestion) {
         selected.add(riskQuestion.id);
-      } else {
-        missingRisk += 1;
       }
 
       if (!knowledgeQuestion && !riskQuestion) {
@@ -1458,6 +1499,12 @@ export default function GeneratePoaPage() {
     }
 
     const selectedList = [...selected];
+    const missingKnowledge = requiredComplianceCodes.filter(
+      (code) => code.endsWith(".K") && !availableComplianceCodes.has(code),
+    ).length;
+    const missingRisk = requiredComplianceCodes.filter(
+      (code) => code.endsWith(".R") && !availableComplianceCodes.has(code),
+    ).length;
 
     setSelectionMethod("automatic");
     setSelectedIds(selectedList);
@@ -1807,6 +1854,7 @@ export default function GeneratePoaPage() {
 
       let generatedFlightTasks = deriveAllFlightTasksFromAcsCatalog(
         complianceAcsPrefixes,
+        testType.class_code,
       );
 
       if (isAdditionalIssuance) {
@@ -2715,14 +2763,31 @@ export default function GeneratePoaPage() {
                   </p>
                 </div>
 
-                <div className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Covered
-                  </p>
-
-                  <p className="mt-1 text-xl font-bold text-slate-900">
-                    {coveredComplianceCount} / {requiredComplianceCodes.length}
-                  </p>
+                <div className="grid shrink-0 grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Covered
+                    </p>
+                    <p className="mt-1 text-xl font-bold text-emerald-900">
+                      {coveredComplianceCount}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                      Selectable
+                    </p>
+                    <p className="mt-1 text-xl font-bold text-amber-900">
+                      {selectableComplianceGaps.length}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                      Library Gaps
+                    </p>
+                    <p className="mt-1 text-xl font-bold text-rose-900">
+                      {unmappedComplianceGaps.length}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -2735,6 +2800,7 @@ export default function GeneratePoaPage() {
                 <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
                   {requiredComplianceCodes.map((code) => {
                     const covered = coveredComplianceCodes.has(code);
+                    const selectable = availableComplianceCodes.has(code);
 
                     const skill = code.endsWith(".S");
 
@@ -2748,9 +2814,13 @@ export default function GeneratePoaPage() {
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
                               <Check className="h-5 w-5 text-emerald-700" />
                             </span>
-                          ) : (
+                          ) : selectable ? (
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
                               <TriangleAlert className="h-5 w-5 text-amber-700" />
+                            </span>
+                          ) : (
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100">
+                              <TriangleAlert className="h-5 w-5 text-rose-700" />
                             </span>
                           )}
 
@@ -2776,10 +2846,16 @@ export default function GeneratePoaPage() {
                           className={`rounded-full px-3 py-1 text-xs font-bold ${
                             covered
                               ? "bg-emerald-100 text-emerald-800"
-                              : "bg-amber-100 text-amber-800"
+                              : selectable
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-rose-100 text-rose-800"
                           }`}
                         >
-                          {covered ? "Covered" : "Needs Coverage"}
+                          {covered
+                            ? "Covered"
+                            : selectable
+                              ? "Needs Selection"
+                              : "No Library Mapping"}
                         </span>
                       </div>
                     );
@@ -2805,7 +2881,11 @@ export default function GeneratePoaPage() {
 
               <button
                 type="button"
-                disabled={generating || selectedQuestions.length === 0}
+                disabled={
+                  generating ||
+                  selectedQuestions.length === 0 ||
+                  missingComplianceCodes.length > 0
+                }
                 onClick={() => void generatePoa()}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
               >

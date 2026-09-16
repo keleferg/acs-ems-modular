@@ -12,6 +12,9 @@ const restored = read(
 const generator = read("app/examiner/plan-of-action/generate/page.tsx");
 const scenarios = read("app/examiner/plan-of-action/scenarios/page.tsx");
 const flightTasks = read("lib/poa/flight-tasks.ts");
+const coverageRepair = read(
+  "supabase/migrations/20260916221405_repair_private_asel_acs_coverage.sql",
+);
 
 const failures = [];
 const check = (condition, message) => {
@@ -82,6 +85,26 @@ check(
 check(
   flightTasks.includes('parts[1] === "I"'),
   "AOA I flight-task exclusion is missing",
+);
+check(
+  flightTasks.includes("acsTaskAppliesToAircraftClass") &&
+    flightTasks.includes('normalizedTaskCode.startsWith("PA.X.")'),
+  "airplane ACS tasks are not filtered by category/class applicability",
+);
+check(
+  generator.includes("No Library Mapping") &&
+    generator.includes("availableComplianceCodes"),
+  "compliance UI does not distinguish library gaps from selectable gaps",
+);
+check(
+  generator.includes("missingComplianceCodes.length > 0") &&
+    generator.includes("selectedQuestions.length === 0 ||"),
+  "Generate POA is not disabled while ACS gaps remain",
+);
+check(
+  coverageRepair.includes("PA.VIII.F.K; PA.VIII.F.R") &&
+    coverageRepair.includes("PA.XII.A.R"),
+  "Private ASEL coverage repair is incomplete",
 );
 
 if (failures.length > 0) {
