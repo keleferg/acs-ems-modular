@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ChevronUp,
   Loader2,
+  Printer,
   RefreshCw,
   Search,
   Shuffle,
@@ -350,6 +351,15 @@ function practicalTestDescription(testType: PracticalTestType) {
   ]
     .filter(Boolean)
     .join(" • ");
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function splitAcsReferences(value: string | null | undefined) {
@@ -721,7 +731,10 @@ export default function GeneratePoaPage() {
       const { data: linkData, error: linkError } = await supabase
         .from("poa_trigger_questions")
         .select("trigger_id, question_id, relationship, weight")
-        .in("question_id", loadedQuestions.map((question) => question.id));
+        .in(
+          "question_id",
+          loadedQuestions.map((question) => question.id),
+        );
 
       if (linkError) {
         setErrorMessage(
@@ -845,6 +858,7 @@ export default function GeneratePoaPage() {
 
   function selectPracticalTest(nextTestTypeId: string) {
     setTestTypeId(nextTestTypeId);
+    setGeneratorTab("scenario");
 
     setTestType(null);
     setQuestions([]);
@@ -1081,9 +1095,9 @@ export default function GeneratePoaPage() {
       .sort((a, b) => compareAcsReferences(a.acsReference, b.acsReference));
   }, [filteredQuestions, testType]);
 
-  const [generatorTab, setGeneratorTab] = useState<"questions" | "compliance">(
-    "questions",
-  );
+  const [generatorTab, setGeneratorTab] = useState<
+    "scenario" | "timeline" | "questions" | "compliance"
+  >("scenario");
 
   const selectedQuestions = useMemo(
     () => questions.filter((question) => selectedIds.includes(question.id)),
@@ -1338,37 +1352,39 @@ export default function GeneratePoaPage() {
         .filter((value): value is string => Boolean(value)),
     );
 
-    return [...items]
-      .map((question) => {
-        const narrativeScore = triggerQuestionLinks
-          .filter(
-            (link) =>
-              link.question_id === question.id &&
-              timelineTriggerIds.has(link.trigger_id),
-          )
-          .reduce(
-            (score, link) =>
-              score +
-              link.weight +
-              (link.relationship === "primary"
-                ? 40
-                : link.relationship === "follow_up"
-                  ? 10
-                  : 20),
-            0,
-          );
+    return (
+      [...items]
+        .map((question) => {
+          const narrativeScore = triggerQuestionLinks
+            .filter(
+              (link) =>
+                link.question_id === question.id &&
+                timelineTriggerIds.has(link.trigger_id),
+            )
+            .reduce(
+              (score, link) =>
+                score +
+                link.weight +
+                (link.relationship === "primary"
+                  ? 40
+                  : link.relationship === "follow_up"
+                    ? 10
+                    : 20),
+              0,
+            );
 
-        const difficultyScore =
-          question.difficulty.toLowerCase() === "standard" ? 5 : 0;
+          const difficultyScore =
+            question.difficulty.toLowerCase() === "standard" ? 5 : 0;
 
-        return { question, score: narrativeScore + difficultyScore };
-      })
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          a.question.question.localeCompare(b.question.question) ||
-          a.question.id.localeCompare(b.question.id),
-      )[0]?.question ?? null;
+          return { question, score: narrativeScore + difficultyScore };
+        })
+        .sort(
+          (a, b) =>
+            b.score - a.score ||
+            a.question.question.localeCompare(b.question.question) ||
+            a.question.id.localeCompare(b.question.id),
+        )[0]?.question ?? null
+    );
   }
 
   function buildCompliantSelection() {
@@ -1627,7 +1643,9 @@ export default function GeneratePoaPage() {
 
     try {
       if (!selectedScenarioId) {
-        throw new Error("Select a Scenario Library record before building the timeline.");
+        throw new Error(
+          "Select a Scenario Library record before building the timeline.",
+        );
       }
 
       if (isAdditionalIssuance && !additionalRatingHeld) {
@@ -1739,7 +1757,9 @@ export default function GeneratePoaPage() {
     }
 
     if (!selectedScenario || !scenarioTimeline) {
-      setErrorMessage("Select a scenario and build its Event Sequence before generating.");
+      setErrorMessage(
+        "Select a scenario and build its Event Sequence before generating.",
+      );
       return;
     }
 
@@ -1996,9 +2016,12 @@ export default function GeneratePoaPage() {
         (item, index) => ({
           trigger_library_id: item.trigger_id ?? null,
           event_set_id: item.event_set_id ?? null,
-          placement_section: ["departure", "cruise", "branch", "arrival"].includes(
-            item.phase,
-          )
+          placement_section: [
+            "departure",
+            "cruise",
+            "branch",
+            "arrival",
+          ].includes(item.phase)
             ? "flight"
             : "oral",
           timeline_kind: item.kind,
@@ -2048,6 +2071,133 @@ export default function GeneratePoaPage() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  function printComplianceReport() {
+    if (!testType) {
+      setErrorMessage("Select a practical test before printing a report.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=1100,height=800");
+
+    if (!printWindow) {
+      setErrorMessage(
+        "The compliance report could not open. Allow pop-ups for this site and try again.",
+      );
+      return;
+    }
+
+    printWindow.opener = null;
+
+    const savedVersionIndex = savedPoaVersions.findIndex(
+      (poa) => poa.id === selectedPoaVersionId,
+    );
+    const selectedVersion =
+      savedVersionIndex >= 0
+        ? formatSavedPoaVersion(
+            savedPoaVersions[savedVersionIndex],
+            savedVersionIndex,
+          )
+        : `New POA — ${testType.display_name}`;
+
+    const reportRows = requiredComplianceCodes
+      .map((code) => {
+        const covered = coveredComplianceCodes.has(code);
+        const selectable = availableComplianceCodes.has(code);
+        const status = covered
+          ? "Covered"
+          : selectable
+            ? "Needs Selection"
+            : "No Library Mapping";
+        const matchedQuestions = selectedQuestions.filter((question) =>
+          acsReferencesForQuestion(question).some(
+            (reference) => complianceParentCode(reference) === code,
+          ),
+        );
+        const questionText =
+          matchedQuestions.length > 0
+            ? matchedQuestions
+                .map((question) => escapeHtml(question.question))
+                .join("<br><br>")
+            : "—";
+
+        return `
+          <tr>
+            <td class="code">${escapeHtml(code)}</td>
+            <td><span class="status ${covered ? "covered" : selectable ? "selectable" : "unmapped"}">${status}</span></td>
+            <td>${questionText}</td>
+          </tr>`;
+      })
+      .join("");
+
+    const scenarioName = selectedScenario?.scenario_name ?? "Not selected";
+    const timelineSummary = scenarioTimeline
+      ? `${scenarioTimeline.timeline?.length ?? 0} timeline items; cross-country ${
+          scenarioTimeline.cross_country_required ? "required" : "not required"
+        }`
+      : "Not built";
+
+    printWindow.document.write(`<!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>ACS Compliance Report — ${escapeHtml(title || testType.display_name)}</title>
+          <style>
+            @page { margin: 0.55in; }
+            * { box-sizing: border-box; }
+            body { margin: 0; color: #0f172a; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.45; }
+            h1 { margin: 0; font-size: 24px; }
+            h2 { margin: 28px 0 10px; font-size: 16px; }
+            .subtitle { margin-top: 4px; color: #475569; }
+            .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 22px; margin-top: 22px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 10px; }
+            .label { color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+            .value { margin-top: 2px; font-weight: 700; }
+            .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+            .metric { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+            .metric strong { display: block; margin-top: 3px; font-size: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 9px; border: 1px solid #cbd5e1; text-align: left; vertical-align: top; }
+            th { background: #f1f5f9; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+            .code { width: 145px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+            .status { display: inline-block; white-space: nowrap; border-radius: 999px; padding: 3px 8px; font-weight: 700; }
+            .covered { background: #dcfce7; color: #166534; }
+            .selectable { background: #fef3c7; color: #92400e; }
+            .unmapped { background: #ffe4e6; color: #9f1239; }
+            .footer { margin-top: 18px; color: #64748b; font-size: 10px; }
+            tr { break-inside: avoid; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <h1>ACS Compliance Report</h1>
+          <p class="subtitle">Plan of Action coverage at the time this report was printed.</p>
+          <section class="meta">
+            <div><div class="label">POA Title</div><div class="value">${escapeHtml(title || "Untitled POA")}</div></div>
+            <div><div class="label">POA Version</div><div class="value">${escapeHtml(selectedVersion)}</div></div>
+            <div><div class="label">Practical Test</div><div class="value">${escapeHtml(testType.display_name)}</div></div>
+            <div><div class="label">Certificate / Rating</div><div class="value">${escapeHtml(practicalTestDescription(testType))}</div></div>
+            <div><div class="label">Scenario</div><div class="value">${escapeHtml(scenarioName)}</div></div>
+            <div><div class="label">Timeline</div><div class="value">${escapeHtml(timelineSummary)}</div></div>
+          </section>
+          <section class="summary">
+            <div class="metric"><div class="label">Required</div><strong>${requiredComplianceCodes.length}</strong></div>
+            <div class="metric"><div class="label">Covered</div><strong>${coveredComplianceCount}</strong></div>
+            <div class="metric"><div class="label">Needs Selection</div><strong>${selectableComplianceGaps.length}</strong></div>
+            <div class="metric"><div class="label">Library Gaps</div><strong>${unmappedComplianceGaps.length}</strong></div>
+          </section>
+          <h2>Compliance Detail</h2>
+          <table>
+            <thead><tr><th>ACS Parent Code</th><th>Status</th><th>Selected Question Coverage</th></tr></thead>
+            <tbody>${reportRows || '<tr><td colspan="3">No ACS compliance elements are available for this practical test.</td></tr>'}</tbody>
+          </table>
+          <p class="footer">Printed ${escapeHtml(new Date().toLocaleString())} · ${selectedQuestions.length} selected question${selectedQuestions.length === 1 ? "" : "s"}</p>
+        </body>
+      </html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.setTimeout(() => printWindow.print(), 250);
   }
 
   return (
@@ -2133,192 +2283,24 @@ export default function GeneratePoaPage() {
             ))}
           </select>
         </div>
-      </section>
 
-      <section className="mt-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
-              Scenario Engine
-            </p>
-
-            <h2 className="mt-1 text-xl font-bold text-slate-900">
-              Scenario POA Timeline
-            </h2>
-
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Builds the scenario as an ordered operational sequence using the
-              Trigger Library. Required ACS coverage remains a separate
-              background constraint.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-end gap-3">
-            <label>
-              <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                Scenario Altitude
-              </span>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  step={500}
-                  value={scenarioAltitude}
-                  onChange={(event) =>
-                    setScenarioAltitude(Number(event.target.value))
-                  }
-                  className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500"
-                />
-
-                <span className="text-sm text-slate-500">ft MSL</span>
-              </div>
-            </label>
-
-            <button
-              type="button"
-              onClick={() => void buildScenarioTimeline()}
-              disabled={loadingTimeline || !testType}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loadingTimeline ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Shuffle className="h-4 w-4" />
-              )}
-
-              {scenarioTimeline ? "Regenerate Timeline" : "Build Timeline"}
-            </button>
-          </div>
-        </div>
-
-        {!scenarioTimeline ? (
-          <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm text-slate-600">
-            Build the timeline after selecting the practical test. The engine
-            will determine whether Cross-Country Flight Planning belongs in this
-            test before inserting it into the scenario.
-          </div>
-        ) : (
-          <>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  scenarioTimeline.cross_country_required
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-slate-100 text-slate-700"
-                }`}
-              >
-                Cross-Country{" "}
-                {scenarioTimeline.cross_country_required
-                  ? "Required"
-                  : "Not Required"}
-              </span>
-
-              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">
-                {scenarioTimeline.timeline?.length ?? 0} Timeline Items
-              </span>
-
-              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800">
-                {scenarioTimeline.timeline?.filter(
-                  (item) => item.kind === "branch",
-                ).length ?? 0}{" "}
-                Decision Branch
-                {(scenarioTimeline.timeline?.filter(
-                  (item) => item.kind === "branch",
-                ).length ?? 0) === 1
-                  ? ""
-                  : "es"}
-              </span>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              {(scenarioTimeline.timeline ?? []).map((item, index) => {
-                const isBranch = item.kind === "branch";
-
-                const isReconverge = item.kind === "reconverge";
-
-                const isRequired =
-                  item.kind === "required_task" || item.required;
-
-                return (
-                  <article
-                    key={`${index}-${item.kind}-${item.trigger_id ?? item.source_trigger_id ?? item.title}`}
-                    className={`rounded-2xl border p-4 ${
-                      isBranch
-                        ? "border-amber-300 bg-amber-50"
-                        : isReconverge
-                          ? "border-violet-300 bg-violet-50"
-                          : isRequired
-                            ? "border-emerald-300 bg-emerald-50"
-                            : "border-slate-200 bg-white"
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
-                        {index + 1}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-700">
-                            {item.label}
-                          </span>
-
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                            {item.phase.replaceAll("_", " ")}
-                          </span>
-
-                          {item.branch_worthy ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-                              <TriangleAlert className="h-3.5 w-3.5" />
-                              Decision Point
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <h3 className="mt-2 font-bold text-slate-900">
-                          {item.title}
-                        </h3>
-
-                        {item.narrative ? (
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                            {item.narrative}
-                          </p>
-                        ) : null}
-
-                        {item.precondition ? (
-                          <p className="mt-2 text-xs text-slate-500">
-                            Preconditions: {item.precondition}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </section>
-
-      {testType && isAdditionalIssuance ? (
-        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
+        {testType && isAdditionalIssuance ? (
+          <div className="mt-5 grid gap-3 border-t border-slate-200 pt-5 lg:grid-cols-[220px_1fr] lg:items-center">
             <div>
               <p className="text-sm font-bold text-slate-900">
                 Rating Already Held
               </p>
 
-              <p className="mt-1 text-xs text-slate-600">
-                Required to determine the correct FAA Additional Rating
-                flight-task matrix.
+              <p className="mt-1 text-xs text-slate-500">
+                Used to determine the correct FAA Additional Rating flight-task
+                matrix.
               </p>
             </div>
 
             <select
               value={additionalRatingHeld}
               onChange={(event) => setAdditionalRatingHeld(event.target.value)}
-              className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
+              className="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
             >
               <option value="">Select rating already held</option>
 
@@ -2328,6 +2310,59 @@ export default function GeneratePoaPage() {
                 </option>
               ))}
             </select>
+          </div>
+        ) : null}
+      </section>
+
+      {!loading && testType ? (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
+            <div>
+              <span className="mb-2 block text-sm font-semibold text-slate-700">
+                POA Version
+              </span>
+
+              <select
+                value={selectedPoaVersionId}
+                onChange={(event) => selectPoaVersion(event.target.value)}
+                disabled={loadingPoaVersions}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
+              >
+                <option value="new">
+                  {loadingPoaVersions
+                    ? "Loading saved POAs…"
+                    : `New POA — ${testType.display_name}`}
+                </option>
+
+                {savedPoaVersions.map((poa, index) => (
+                  <option key={poa.id} value={poa.id}>
+                    {formatSavedPoaVersion(poa, index)}
+                  </option>
+                ))}
+              </select>
+
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">
+                  New POA Title
+                </span>
+
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
+                />
+              </label>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-semibold text-slate-700">
+                Selected Questions
+              </p>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-2xl font-bold text-slate-900">
+                {selectedIds.length}
+              </div>
+            </div>
           </div>
         </section>
       ) : null}
@@ -2363,156 +2398,273 @@ export default function GeneratePoaPage() {
       ) : null}
 
       {!loading && testType ? (
-        <>
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
-              <div>
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  POA Version
-                </span>
+        <nav
+          aria-label="POA generator sections"
+          className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-300"
+        >
+          {(["scenario", "timeline", "questions", "compliance"] as const).map(
+            (tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setGeneratorTab(tab)}
+                className={`whitespace-nowrap border-b-2 px-6 py-3 text-sm font-bold capitalize ${
+                  generatorTab === tab
+                    ? "border-sky-700 text-sky-800"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {tab}
+              </button>
+            ),
+          )}
+        </nav>
+      ) : null}
 
-                <select
-                  value={selectedPoaVersionId}
-                  onChange={(event) => selectPoaVersion(event.target.value)}
-                  disabled={loadingPoaVersions}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
-                >
-                  <option value="new">
-                    {loadingPoaVersions
-                      ? "Loading saved POAs…"
-                      : `New POA — ${testType.display_name}`}
-                  </option>
-
-                  {savedPoaVersions.map((poa, index) => (
-                    <option key={poa.id} value={poa.id}>
-                      {formatSavedPoaVersion(poa, index)}
-                    </option>
-                  ))}
-                </select>
-
-                <label className="mt-4 block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">
-                    New POA Title
-                  </span>
-
-                  <input
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
-                  />
-                </label>
-              </div>
-
-              <div>
-                <p className="mb-2 text-sm font-semibold text-slate-700">
-                  Selected Questions
-                </p>
-
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-2xl font-bold text-slate-900">
-                  {selectedIds.length}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {!loading && testType && generatorTab === "timeline" ? (
+        <section className="mt-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
-                Scenario Library Selection
+              <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+                Scenario Engine
               </p>
 
               <h2 className="mt-1 text-xl font-bold text-slate-900">
-                Scenario
+                Scenario POA Timeline
               </h2>
 
-              <p className="mt-2 text-sm text-slate-600">
-                Select the scenario that will organize this Plan of Action
-                chronologically.
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Builds the scenario as an ordered operational sequence using the
+                Trigger Library. Required ACS coverage remains a separate
+                background constraint.
               </p>
             </div>
 
-            <div className="mt-5">
+            <div className="flex flex-wrap items-end gap-3">
               <label>
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  Scenario
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Scenario Altitude
                 </span>
 
-                <select
-                  value={selectedScenarioId}
-                  onChange={(event) =>
-                    setSelectedScenarioId(event.target.value)
-                  }
-                  disabled={loadingScenarios}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
-                >
-                  <option value="">
-                    {loadingScenarios
-                      ? "Loading scenarios…"
-                      : scenarioOptions.length === 0
-                        ? "No active scenarios available"
-                        : "Select a scenario…"}
-                  </option>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step={500}
+                    value={scenarioAltitude}
+                    onChange={(event) =>
+                      setScenarioAltitude(Number(event.target.value))
+                    }
+                    className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500"
+                  />
 
-                  {scenarioOptions.map((scenario) => (
-                    <option key={scenario.id} value={scenario.id}>
-                      {scenario.scenario_name}
-                    </option>
-                  ))}
-                </select>
+                  <span className="text-sm text-slate-500">ft MSL</span>
+                </div>
               </label>
+
+              <button
+                type="button"
+                onClick={() => void buildScenarioTimeline()}
+                disabled={loadingTimeline || !testType}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingTimeline ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Shuffle className="h-4 w-4" />
+                )}
+
+                {scenarioTimeline ? "Regenerate Timeline" : "Build Timeline"}
+              </button>
             </div>
-
-            {selectedScenario ? (
-              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Scenario Brief
-                </p>
-
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                  {selectedScenario.scenario_brief ||
-                    "No scenario brief entered."}
-                </p>
-
-                {selectedScenario.initial_conditions ? (
-                  <div className="mt-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Initial Conditions
-                    </p>
-
-                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                      {selectedScenario.initial_conditions}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
-
-          <div className="mt-6 flex gap-1 border-b border-slate-300">
-            <button
-              type="button"
-              onClick={() => setGeneratorTab("questions")}
-              className={`border-b-2 px-6 py-3 text-sm font-bold ${
-                generatorTab === "questions"
-                  ? "border-sky-700 text-sky-800"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Questions
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setGeneratorTab("compliance")}
-              className={`border-b-2 px-6 py-3 text-sm font-bold ${
-                generatorTab === "compliance"
-                  ? "border-sky-700 text-sky-800"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Compliance
-            </button>
           </div>
+
+          {!scenarioTimeline ? (
+            <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm text-slate-600">
+              Build the timeline after selecting the practical test. The engine
+              will determine whether Cross-Country Flight Planning belongs in
+              this test before inserting it into the scenario.
+            </div>
+          ) : (
+            <>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    scenarioTimeline.cross_country_required
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  Cross-Country{" "}
+                  {scenarioTimeline.cross_country_required
+                    ? "Required"
+                    : "Not Required"}
+                </span>
+
+                <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">
+                  {scenarioTimeline.timeline?.length ?? 0} Timeline Items
+                </span>
+
+                <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800">
+                  {scenarioTimeline.timeline?.filter(
+                    (item) => item.kind === "branch",
+                  ).length ?? 0}{" "}
+                  Decision Branch
+                  {(scenarioTimeline.timeline?.filter(
+                    (item) => item.kind === "branch",
+                  ).length ?? 0) === 1
+                    ? ""
+                    : "es"}
+                </span>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                {(scenarioTimeline.timeline ?? []).map((item, index) => {
+                  const isBranch = item.kind === "branch";
+
+                  const isReconverge = item.kind === "reconverge";
+
+                  const isRequired =
+                    item.kind === "required_task" || item.required;
+
+                  return (
+                    <article
+                      key={`${index}-${item.kind}-${item.trigger_id ?? item.source_trigger_id ?? item.title}`}
+                      className={`rounded-2xl border p-4 ${
+                        isBranch
+                          ? "border-amber-300 bg-amber-50"
+                          : isReconverge
+                            ? "border-violet-300 bg-violet-50"
+                            : isRequired
+                              ? "border-emerald-300 bg-emerald-50"
+                              : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
+                          {index + 1}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-700">
+                              {item.label}
+                            </span>
+
+                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                              {item.phase.replaceAll("_", " ")}
+                            </span>
+
+                            {item.branch_worthy ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                                <TriangleAlert className="h-3.5 w-3.5" />
+                                Decision Point
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <h3 className="mt-2 font-bold text-slate-900">
+                            {item.title}
+                          </h3>
+
+                          {item.narrative ? (
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                              {item.narrative}
+                            </p>
+                          ) : null}
+
+                          {item.precondition ? (
+                            <p className="mt-2 text-xs text-slate-500">
+                              Preconditions: {item.precondition}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {!loading && testType ? (
+        <>
+          {generatorTab === "scenario" ? (
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                  Scenario Library Selection
+                </p>
+
+                <h2 className="mt-1 text-xl font-bold text-slate-900">
+                  Scenario
+                </h2>
+
+                <p className="mt-2 text-sm text-slate-600">
+                  Select the scenario that will organize this Plan of Action
+                  chronologically.
+                </p>
+              </div>
+
+              <div className="mt-5">
+                <label>
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">
+                    Scenario
+                  </span>
+
+                  <select
+                    value={selectedScenarioId}
+                    onChange={(event) =>
+                      setSelectedScenarioId(event.target.value)
+                    }
+                    disabled={loadingScenarios}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
+                  >
+                    <option value="">
+                      {loadingScenarios
+                        ? "Loading scenarios…"
+                        : scenarioOptions.length === 0
+                          ? "No active scenarios available"
+                          : "Select a scenario…"}
+                    </option>
+
+                    {scenarioOptions.map((scenario) => (
+                      <option key={scenario.id} value={scenario.id}>
+                        {scenario.scenario_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {selectedScenario ? (
+                <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Scenario Brief
+                  </p>
+
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                    {selectedScenario.scenario_brief ||
+                      "No scenario brief entered."}
+                  </p>
+
+                  {selectedScenario.initial_conditions ? (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Initial Conditions
+                      </p>
+
+                      <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                        {selectedScenario.initial_conditions}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           {generatorTab === "questions" ? (
             <>
@@ -2750,7 +2902,7 @@ export default function GeneratePoaPage() {
 
           {generatorTab === "compliance" ? (
             <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
                     ACS Compliance
@@ -2763,30 +2915,41 @@ export default function GeneratePoaPage() {
                   </p>
                 </div>
 
-                <div className="grid shrink-0 grid-cols-3 gap-2">
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      Covered
-                    </p>
-                    <p className="mt-1 text-xl font-bold text-emerald-900">
-                      {coveredComplianceCount}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                      Selectable
-                    </p>
-                    <p className="mt-1 text-xl font-bold text-amber-900">
-                      {selectableComplianceGaps.length}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                      Library Gaps
-                    </p>
-                    <p className="mt-1 text-xl font-bold text-rose-900">
-                      {unmappedComplianceGaps.length}
-                    </p>
+                <div className="flex shrink-0 flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={printComplianceReport}
+                    className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-bold text-sky-800 hover:bg-sky-100 lg:self-end"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Print Compliance Report
+                  </button>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                        Covered
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-emerald-900">
+                        {coveredComplianceCount}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                        Selectable
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-amber-900">
+                        {selectableComplianceGaps.length}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                        Library Gaps
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-rose-900">
+                        {unmappedComplianceGaps.length}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
