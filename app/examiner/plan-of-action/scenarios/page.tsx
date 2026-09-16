@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Pencil,
   Plane,
   Plus,
@@ -47,6 +48,35 @@ type TriggerRecord = {
   id: string;
   category: TriggerCategory;
   trigger_text: string;
+};
+
+type EventSetRecord = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  default_phase: string | null;
+  sort_order: number;
+  event_set_kind: "selectable" | "structural";
+};
+
+type ScenarioEventSetJoin = {
+  event_set_id: string;
+  phase: string | null;
+  is_required: boolean;
+  min_triggers: number;
+  max_triggers: number;
+  sort_order: number;
+  poa_event_sets: EventSetRecord | EventSetRecord[] | null;
+};
+
+type EventSequenceItem = {
+  eventSetId: string;
+  phase: string;
+  isRequired: boolean;
+  minTriggers: number;
+  maxTriggers: number;
+  sortOrder: number;
 };
 
 
@@ -92,6 +122,9 @@ type ScenarioRecord = {
 
   poa_scenario_triggers:
     ScenarioTriggerJoin[];
+
+  poa_scenario_event_sets:
+    ScenarioEventSetJoin[];
 };
 
 
@@ -109,7 +142,7 @@ type ScenarioEditor = {
   examinerNotes: string;
 
   practicalTestTypeIds: string[];
-  triggerIds: string[];
+  eventSequence: EventSequenceItem[];
 };
 
 
@@ -127,31 +160,8 @@ const EMPTY_EDITOR: ScenarioEditor = {
   examinerNotes: "",
 
   practicalTestTypeIds: [],
-  triggerIds: [],
+  eventSequence: [],
 };
-
-
-const TRIGGER_CATEGORIES: {
-  value: TriggerCategory;
-  label: string;
-}[] = [
-  {
-    value: "event",
-    label: "Event",
-  },
-  {
-    value: "passenger",
-    label: "Passenger",
-  },
-  {
-    value: "pilot_aircraft",
-    label: "Pilot/Aircraft",
-  },
-  {
-    value: "weather",
-    label: "Weather",
-  },
-];
 
 
 function normalizeTestType(
@@ -168,11 +178,8 @@ function normalizeTestType(
 }
 
 
-function normalizeTrigger(
-  value:
-    | TriggerRecord
-    | TriggerRecord[]
-    | null,
+function normalizeEventSet(
+  value: EventSetRecord | EventSetRecord[] | null,
 ) {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -189,8 +196,8 @@ export default function ScenarioLibraryPage() {
   const [practicalTestTypes, setPracticalTestTypes] =
     useState<PracticalTestType[]>([]);
 
-  const [triggers, setTriggers] =
-    useState<TriggerRecord[]>([]);
+  const [eventSets, setEventSets] =
+    useState<EventSetRecord[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -222,13 +229,6 @@ export default function ScenarioLibraryPage() {
   const [editor, setEditor] =
     useState<ScenarioEditor>(EMPTY_EDITOR);
 
-  const [triggerSearch, setTriggerSearch] =
-    useState("");
-
-  const [triggerCategoryFilter, setTriggerCategoryFilter] =
-    useState<TriggerCategory | "all">("all");
-
-
   const loadPage = useCallback(async () => {
     setLoading(true);
     setPageError("");
@@ -238,7 +238,7 @@ export default function ScenarioLibraryPage() {
     const [
       scenarioResult,
       testTypeResult,
-      triggerResult,
+      eventSetResult,
     ] = await Promise.all([
       supabase
         .from("poa_scenarios")
@@ -277,6 +277,24 @@ export default function ScenarioLibraryPage() {
               category,
               trigger_text
             )
+          ),
+
+          poa_scenario_event_sets (
+            event_set_id,
+            phase,
+            is_required,
+            min_triggers,
+            max_triggers,
+            sort_order,
+            poa_event_sets (
+              id,
+              code,
+              name,
+              description,
+              default_phase,
+              sort_order,
+              event_set_kind
+            )
           )
         `)
         .eq("is_active", true)
@@ -302,17 +320,18 @@ export default function ScenarioLibraryPage() {
         }),
 
       supabase
-        .from("poa_triggers")
+        .from("poa_event_sets")
         .select(`
           id,
-          category,
-          trigger_text
+          code,
+          name,
+          description,
+          default_phase,
+          sort_order,
+          event_set_kind
         `)
         .eq("is_active", true)
-        .order("category", {
-          ascending: true,
-        })
-        .order("trigger_text", {
+        .order("sort_order", {
           ascending: true,
         }),
     ]);
@@ -334,9 +353,9 @@ export default function ScenarioLibraryPage() {
       return;
     }
 
-    if (triggerResult.error) {
+    if (eventSetResult.error) {
       setPageError(
-        triggerResult.error.message,
+        eventSetResult.error.message,
       );
       setLoading(false);
       return;
@@ -351,8 +370,8 @@ export default function ScenarioLibraryPage() {
       (testTypeResult.data ?? []) as PracticalTestType[],
     );
 
-    setTriggers(
-      (triggerResult.data ?? []) as TriggerRecord[],
+    setEventSets(
+      (eventSetResult.data ?? []) as EventSetRecord[],
     );
 
     setLoading(false);
@@ -515,49 +534,20 @@ export default function ScenarioLibraryPage() {
     ]);
 
 
-  const filteredEditorTriggers =
-    useMemo(() => {
-      const search =
-        triggerSearch
-          .trim()
-          .toLowerCase();
-
-      return triggers.filter(
-        (trigger) => {
-          if (
-            triggerCategoryFilter !==
-              "all" &&
-            trigger.category !==
-              triggerCategoryFilter
-          ) {
-            return false;
-          }
-
-          if (!search) {
-            return true;
-          }
-
-          return trigger.trigger_text
-            .toLowerCase()
-            .includes(search);
-        },
-      );
-    }, [
-      triggerCategoryFilter,
-      triggerSearch,
-      triggers,
-    ]);
-
-
   function openNewScenario() {
-    setEditor(
-      EMPTY_EDITOR,
-    );
-
-    setTriggerSearch("");
-    setTriggerCategoryFilter(
-      "all",
-    );
+    setEditor({
+      ...EMPTY_EDITOR,
+      eventSequence: eventSets.map((eventSet, index) => ({
+        eventSetId: eventSet.id,
+        phase: eventSet.default_phase ?? "ground",
+        isRequired: eventSet.event_set_kind === "structural" ||
+          !["CRUISE_PASSENGER", "CRUISE_AIRCRAFT_SYSTEM"].includes(eventSet.code),
+        minTriggers: eventSet.event_set_kind === "structural" ||
+          ["CRUISE_PASSENGER", "CRUISE_AIRCRAFT_SYSTEM"].includes(eventSet.code) ? 0 : 1,
+        maxTriggers: eventSet.event_set_kind === "structural" ? 0 : 1,
+        sortOrder: (index + 1) * 10,
+      })),
+    });
 
     setPageError("");
     setMessage("");
@@ -607,9 +597,10 @@ export default function ScenarioLibraryPage() {
               join.practical_test_type_id,
           ),
 
-      triggerIds:
+      eventSequence:
         scenario
-          .poa_scenario_triggers
+          .poa_scenario_event_sets
+          .slice()
           .sort(
             (a, b) =>
               a.sort_order -
@@ -617,14 +608,18 @@ export default function ScenarioLibraryPage() {
           )
           .map(
             (join) =>
-              join.trigger_id,
+              ({
+                eventSetId: join.event_set_id,
+                phase: join.phase ??
+                  normalizeEventSet(join.poa_event_sets)?.default_phase ??
+                  "ground",
+                isRequired: join.is_required,
+                minTriggers: join.min_triggers,
+                maxTriggers: join.max_triggers,
+                sortOrder: join.sort_order,
+              }),
           ),
     });
-
-    setTriggerSearch("");
-    setTriggerCategoryFilter(
-      "all",
-    );
 
     setPageError("");
     setMessage("");
@@ -672,27 +667,40 @@ export default function ScenarioLibraryPage() {
   }
 
 
-  function toggleTrigger(
-    id: string,
+  function updateEventSequence(
+    eventSetId: string,
+    changes: Partial<EventSequenceItem>,
   ) {
-    setEditor(
-      (current) => ({
-        ...current,
+    setEditor((current) => ({
+      ...current,
+      eventSequence: current.eventSequence.map((item) =>
+        item.eventSetId === eventSetId ? { ...item, ...changes } : item,
+      ),
+    }));
+  }
 
-        triggerIds:
-          current.triggerIds.includes(
-            id,
-          )
-            ? current.triggerIds.filter(
-                (value) =>
-                  value !== id,
-              )
-            : [
-                ...current.triggerIds,
-                id,
-              ],
-      }),
-    );
+  function moveEventSequence(eventSetId: string, direction: -1 | 1) {
+    setEditor((current) => {
+      const sequence = [...current.eventSequence].sort(
+        (a, b) => a.sortOrder - b.sortOrder,
+      );
+      const index = sequence.findIndex((item) => item.eventSetId === eventSetId);
+      const target = index + direction;
+
+      if (index < 0 || target < 0 || target >= sequence.length) {
+        return current;
+      }
+
+      [sequence[index], sequence[target]] = [sequence[target], sequence[index]];
+
+      return {
+        ...current,
+        eventSequence: sequence.map((item, itemIndex) => ({
+          ...item,
+          sortOrder: (itemIndex + 1) * 10,
+        })),
+      };
+    });
   }
 
 
@@ -800,23 +808,13 @@ export default function ScenarioLibraryPage() {
           throw deleteTypesError;
         }
 
-        const {
-          error:
-            deleteTriggersError,
-        } = await supabase
-          .from(
-            "poa_scenario_triggers",
-          )
+        const { error: deleteEventSetsError } = await supabase
+          .from("poa_scenario_event_sets")
           .delete()
-          .eq(
-            "scenario_id",
-            scenarioId,
-          );
+          .eq("scenario_id", scenarioId);
 
-        if (
-          deleteTriggersError
-        ) {
-          throw deleteTriggersError;
+        if (deleteEventSetsError) {
+          throw deleteEventSetsError;
         }
       } else {
         const {
@@ -911,39 +909,23 @@ export default function ScenarioLibraryPage() {
       }
 
 
-      if (
-        editor.triggerIds
-          .length > 0
-      ) {
-        const {
-          error:
-            triggerInsertError,
-        } = await supabase
-          .from(
-            "poa_scenario_triggers",
-          )
+      if (editor.eventSequence.length > 0) {
+        const { error: eventSequenceError } = await supabase
+          .from("poa_scenario_event_sets")
           .insert(
-            editor.triggerIds.map(
-              (
-                triggerId,
-                index,
-              ) => ({
-                scenario_id:
-                  scenarioId,
-
-                trigger_id:
-                  triggerId,
-
-                sort_order:
-                  index,
-              }),
-            ),
+            editor.eventSequence.map((item) => ({
+              scenario_id: scenarioId,
+              event_set_id: item.eventSetId,
+              phase: item.phase,
+              is_required: item.isRequired,
+              min_triggers: item.minTriggers,
+              max_triggers: item.maxTriggers,
+              sort_order: item.sortOrder,
+            })),
           );
 
-        if (
-          triggerInsertError
-        ) {
-          throw triggerInsertError;
+        if (eventSequenceError) {
+          throw eventSequenceError;
         }
       }
 
@@ -1333,9 +1315,9 @@ export default function ScenarioLibraryPage() {
                       Boolean(value),
                   );
 
-              const scenarioTriggers =
+              const scenarioEvents =
                 scenario
-                  .poa_scenario_triggers
+                  .poa_scenario_event_sets
                   .slice()
                   .sort(
                     (a, b) =>
@@ -1343,14 +1325,14 @@ export default function ScenarioLibraryPage() {
                       b.sort_order,
                   )
                   .map((join) =>
-                    normalizeTrigger(
-                      join.poa_triggers,
+                    normalizeEventSet(
+                      join.poa_event_sets,
                     ),
                   )
                   .filter(
                     (
                       value,
-                    ): value is TriggerRecord =>
+                    ): value is EventSetRecord =>
                       Boolean(value),
                   );
 
@@ -1466,14 +1448,14 @@ export default function ScenarioLibraryPage() {
                           ),
                         )}
 
-                        {scenarioTriggers.length >
+                        {scenarioEvents.length >
                         0 ? (
                           <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">
                             {
-                              scenarioTriggers.length
+                              scenarioEvents.length
                             }{" "}
-                            Trigger
-                            {scenarioTriggers.length ===
+                            Event
+                            {scenarioEvents.length ===
                             1
                               ? ""
                               : "s"}
@@ -1582,32 +1564,32 @@ export default function ScenarioLibraryPage() {
                           />
 
                           <h3 className="font-bold text-slate-900">
-                            Scenario Triggers
+                            Event Sequence
                           </h3>
 
                         </div>
 
 
-                        {scenarioTriggers.length ===
+                        {scenarioEvents.length ===
                         0 ? (
 
                           <p className="mt-3 text-sm text-slate-500">
-                            No triggers attached.
+                            No Event Sets configured.
                           </p>
 
                         ) : (
 
                           <div className="mt-4 space-y-2">
 
-                            {scenarioTriggers.map(
+                            {scenarioEvents.map(
                               (
-                                trigger,
+                                eventSet,
                                 index,
                               ) => (
 
                                 <div
                                   key={
-                                    trigger.id
+                                    eventSet.id
                                   }
                                   className="flex gap-3 rounded-lg bg-slate-50 px-4 py-3"
                                 >
@@ -1621,21 +1603,14 @@ export default function ScenarioLibraryPage() {
 
                                     <p className="text-sm font-medium text-slate-800">
                                       {
-                                        trigger.trigger_text
+                                        eventSet.name
                                       }
                                     </p>
 
                                     <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                      {
-                                        TRIGGER_CATEGORIES.find(
-                                          (
-                                            category,
-                                          ) =>
-                                            category.value ===
-                                            trigger.category,
-                                        )
-                                          ?.label
-                                      }
+                                      {eventSet.event_set_kind === "structural"
+                                        ? "Structural completion"
+                                        : eventSet.default_phase || "Event"}
                                     </p>
 
                                   </div>
@@ -1980,158 +1955,147 @@ export default function ScenarioLibraryPage() {
 
 
               <section className="border-t border-slate-200 pt-7">
-
                 <div className="flex items-center gap-2">
-
-                  <Zap
-                    aria-hidden
-                    className="h-5 w-5 text-amber-600"
-                  />
-
+                  <Zap aria-hidden className="h-5 w-5 text-amber-600" />
                   <h3 className="text-lg font-bold text-slate-900">
-                    Triggers
+                    Event Sequence
                   </h3>
-
                 </div>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Select the events or conditions that can be introduced during this scenario.
+                  Arrange the scenario spine. Event Sets control narrative delivery;
+                  only mapped Questions earn ACS compliance credit.
                 </p>
 
+                <div className="mt-5 space-y-3">
+                  {[...editor.eventSequence]
+                    .sort((a, b) => a.sortOrder - b.sortOrder)
+                    .map((item, index, sequence) => {
+                      const eventSet = eventSets.find(
+                        (candidate) => candidate.id === item.eventSetId,
+                      );
 
-                <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+                      if (!eventSet) {
+                        return null;
+                      }
 
-                  <input
-                    type="search"
-                    value={
-                      triggerSearch
-                    }
-                    onChange={(event) =>
-                      setTriggerSearch(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Search triggers…"
-                    className="rounded-lg border border-slate-300 px-4 py-3"
-                  />
+                      const structural = eventSet.event_set_kind === "structural";
 
-
-                  <select
-                    value={
-                      triggerCategoryFilter
-                    }
-                    onChange={(event) =>
-                      setTriggerCategoryFilter(
-                        event.target
-                          .value as
-                          | TriggerCategory
-                          | "all",
-                      )
-                    }
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-3"
-                  >
-
-                    <option value="all">
-                      All Categories
-                    </option>
-
-                    {TRIGGER_CATEGORIES.map(
-                      (
-                        category,
-                      ) => (
-                        <option
-                          key={
-                            category.value
-                          }
-                          value={
-                            category.value
-                          }
+                      return (
+                        <div
+                          key={item.eventSetId}
+                          className="rounded-xl border border-slate-200 bg-slate-50 p-4"
                         >
-                          {
-                            category.label
-                          }
-                        </option>
-                      ),
-                    )}
+                          <div className="flex items-start gap-3">
+                            <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-800">
+                              {index + 1}
+                            </span>
 
-                  </select>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold text-slate-900">
+                                  {eventSet.name}
+                                </p>
+                                {structural ? (
+                                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">
+                                    Structural
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 text-sm text-slate-600">
+                                {eventSet.description}
+                              </p>
+                            </div>
 
-                </div>
+                            <div className="flex shrink-0 gap-1">
+                              <button
+                                type="button"
+                                disabled={index === 0}
+                                onClick={() => moveEventSequence(item.eventSetId, -1)}
+                                className="rounded p-1 text-slate-500 hover:bg-white disabled:opacity-30"
+                                aria-label={`Move ${eventSet.name} earlier`}
+                              >
+                                <ChevronUp className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={index === sequence.length - 1}
+                                onClick={() => moveEventSequence(item.eventSetId, 1)}
+                                className="rounded p-1 text-slate-500 hover:bg-white disabled:opacity-30"
+                                aria-label={`Move ${eventSet.name} later`}
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
 
+                          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                            <label className="text-xs font-semibold text-slate-600">
+                              Phase
+                              <select
+                                value={item.phase}
+                                onChange={(event) => updateEventSequence(
+                                  item.eventSetId,
+                                  { phase: event.target.value },
+                                )}
+                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                              >
+                                {[
+                                  "ground", "preflight", "departure", "cruise",
+                                  "branch", "arrival", "postflight",
+                                ].map((phase) => (
+                                  <option key={phase} value={phase}>{phase}</option>
+                                ))}
+                              </select>
+                            </label>
 
-                <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-slate-200">
+                            <label className="text-xs font-semibold text-slate-600">
+                              Minimum triggers
+                              <input
+                                type="number"
+                                min={0}
+                                max={structural ? 0 : item.maxTriggers}
+                                disabled={structural}
+                                value={item.minTriggers}
+                                onChange={(event) => updateEventSequence(
+                                  item.eventSetId,
+                                  { minTriggers: Math.max(0, Number(event.target.value)) },
+                                )}
+                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
+                              />
+                            </label>
 
-                  {filteredEditorTriggers.map(
-                    (
-                      trigger,
-                    ) => (
+                            <label className="text-xs font-semibold text-slate-600">
+                              Maximum triggers
+                              <input
+                                type="number"
+                                min={item.minTriggers}
+                                disabled={structural}
+                                value={item.maxTriggers}
+                                onChange={(event) => updateEventSequence(
+                                  item.eventSetId,
+                                  { maxTriggers: Math.max(item.minTriggers, Number(event.target.value)) },
+                                )}
+                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
+                              />
+                            </label>
 
-                      <label
-                        key={
-                          trigger.id
-                        }
-                        className="flex cursor-pointer items-start gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 hover:bg-slate-50"
-                      >
-
-                        <input
-                          type="checkbox"
-                          checked={editor.triggerIds.includes(
-                            trigger.id,
-                          )}
-                          onChange={() =>
-                            toggleTrigger(
-                              trigger.id,
-                            )
-                          }
-                          className="mt-1 h-4 w-4"
-                        />
-
-
-                        <div className="min-w-0">
-
-                          <p className="text-sm font-medium text-slate-800">
-                            {
-                              trigger.trigger_text
-                            }
-                          </p>
-
-                          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            {
-                              TRIGGER_CATEGORIES.find(
-                                (
-                                  category,
-                                ) =>
-                                  category.value ===
-                                  trigger.category,
-                              )?.label
-                            }
-                          </p>
-
+                            <label className="flex items-center gap-2 self-end rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={item.isRequired}
+                                onChange={(event) => updateEventSequence(
+                                  item.eventSetId,
+                                  { isRequired: event.target.checked },
+                                )}
+                              />
+                              Required
+                            </label>
+                          </div>
                         </div>
-
-                      </label>
-
-                    ),
-                  )}
-
+                      );
+                    })}
                 </div>
-
-
-                <p className="mt-3 text-sm font-medium text-slate-600">
-                  {
-                    editor
-                      .triggerIds
-                      .length
-                  }{" "}
-                  trigger
-                  {editor.triggerIds
-                    .length ===
-                  1
-                    ? ""
-                    : "s"}{" "}
-                  selected
-                </p>
-
               </section>
 
 

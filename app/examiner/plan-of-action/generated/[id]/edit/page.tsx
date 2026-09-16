@@ -86,10 +86,15 @@ type TriggerLibraryOption = {
 type GeneratedPoaTrigger = {
   id?: string;
   trigger_library_id: string | null;
+  event_set_id?: string | null;
   placement_section: "oral" | "flight";
+  timeline_kind?: string;
+  phase?: string | null;
   category_snapshot: string;
   trigger_text_snapshot: string;
   trigger_narrative_snapshot: string;
+  branch_worthy?: boolean;
+  source_trigger_id?: string | null;
   sort_order: number;
 };
 
@@ -126,6 +131,7 @@ type SnapshotQuestion = {
   id: string | null;
   question_library_id: string | null;
   acs_reference_snapshot: string;
+  acs_references_snapshot: string[];
   question_snapshot: string;
   answer_snapshot: string;
   reference_snapshot: string;
@@ -169,6 +175,9 @@ function snapshotFromLibrary(
     question_library_id: question.id,
     acs_reference_snapshot:
       question.acs_reference || "",
+    acs_references_snapshot: question.acs_reference
+      ? [question.acs_reference]
+      : [],
     question_snapshot:
       question.question || "",
     answer_snapshot:
@@ -421,6 +430,7 @@ function GeneratedPoaEditContent() {
             id,
             question_library_id,
             acs_reference_snapshot,
+            acs_references_snapshot,
             question_snapshot,
             answer_snapshot,
             reference_snapshot,
@@ -569,6 +579,14 @@ function GeneratedPoaEditContent() {
               acs_reference_snapshot:
                 question.acs_reference_snapshot ||
                 "",
+              acs_references_snapshot:
+                Array.isArray(question.acs_references_snapshot)
+                  ? question.acs_references_snapshot.filter(
+                      (value): value is string => typeof value === "string",
+                    )
+                  : question.acs_reference_snapshot
+                    ? [question.acs_reference_snapshot]
+                    : [],
               question_snapshot:
                 question.question_snapshot || "",
               answer_snapshot:
@@ -821,6 +839,7 @@ function GeneratedPoaEditContent() {
         id: null,
         question_library_id: null,
         acs_reference_snapshot: "",
+        acs_references_snapshot: [],
         question_snapshot:
           "New examiner question",
         answer_snapshot: "",
@@ -1279,10 +1298,15 @@ function GeneratedPoaEditContent() {
           .select(`
             id,
             trigger_library_id,
+            event_set_id,
             placement_section,
+            timeline_kind,
+            phase,
             category_snapshot,
             trigger_text_snapshot,
             trigger_narrative_snapshot,
+            branch_worthy,
+            source_trigger_id,
             sort_order
           `)
           .eq(
@@ -1333,11 +1357,16 @@ function GeneratedPoaEditContent() {
                 trigger_library_id:
                   row.trigger_library_id ??
                   null,
+                event_set_id:
+                  row.event_set_id ?? null,
                 placement_section:
                   row.placement_section ===
                   "flight"
                     ? "flight"
                     : "oral",
+                timeline_kind:
+                  row.timeline_kind || "trigger",
+                phase: row.phase ?? null,
                 category_snapshot:
                   row.category_snapshot || "",
                 trigger_text_snapshot:
@@ -1346,6 +1375,9 @@ function GeneratedPoaEditContent() {
                 trigger_narrative_snapshot:
                   row.trigger_narrative_snapshot ||
                   "",
+                branch_worthy: Boolean(row.branch_worthy),
+                source_trigger_id:
+                  row.source_trigger_id ?? null,
                 sort_order:
                   row.sort_order || 0,
               }),
@@ -1485,14 +1517,19 @@ function GeneratedPoaEditContent() {
     const next: GeneratedPoaTrigger = {
       trigger_library_id:
         selectedTriggerLibraryItem.id,
+      event_set_id: null,
       placement_section:
         triggerPlacementSection,
+      timeline_kind: "trigger",
+      phase: triggerPlacementSection === "flight" ? "flight" : "ground",
       category_snapshot:
         selectedTriggerLibraryItem.category,
       trigger_text_snapshot:
         selectedTriggerLibraryItem.trigger_text,
       trigger_narrative_snapshot:
         selectedTriggerLibraryItem.trigger_narrative,
+      branch_worthy: false,
+      source_trigger_id: null,
       sort_order:
         triggerSortOrderForPlacement(),
     };
@@ -1870,6 +1907,8 @@ function GeneratedPoaEditContent() {
                     acs_reference_snapshot:
                       question.acs_reference_snapshot.trim() ||
                       null,
+                    acs_references_snapshot:
+                      question.acs_references_snapshot,
                     question_snapshot:
                       question.question_snapshot.trim(),
                     answer_snapshot:
@@ -1935,6 +1974,8 @@ function GeneratedPoaEditContent() {
               acs_reference_snapshot:
                 question.acs_reference_snapshot.trim() ||
                 null,
+              acs_references_snapshot:
+                question.acs_references_snapshot,
               question_snapshot:
                 question.question_snapshot.trim(),
               answer_snapshot:
@@ -2024,14 +2065,24 @@ function GeneratedPoaEditContent() {
               (trigger) => ({
                 trigger_library_id:
                   trigger.trigger_library_id,
+                event_set_id:
+                  trigger.event_set_id ?? null,
                 placement_section:
                   trigger.placement_section,
+                timeline_kind:
+                  trigger.timeline_kind ?? "trigger",
+                phase:
+                  trigger.phase ?? null,
                 category_snapshot:
                   trigger.category_snapshot,
                 trigger_text_snapshot:
                   trigger.trigger_text_snapshot,
                 trigger_narrative_snapshot:
                   trigger.trigger_narrative_snapshot,
+                branch_worthy:
+                  Boolean(trigger.branch_worthy),
+                source_trigger_id:
+                  trigger.source_trigger_id ?? null,
                 sort_order:
                   trigger.sort_order,
               }),
@@ -2548,7 +2599,9 @@ function GeneratedPoaEditContent() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-900">
-                          Trigger
+                          {trigger.timeline_kind === "trigger"
+                            ? "Trigger"
+                            : (trigger.timeline_kind ?? "Timeline").replaceAll("_", " ")}
                         </span>
 
                         <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
@@ -3116,11 +3169,12 @@ function GeneratedPoaEditContent() {
                       <div className="grid gap-4 lg:grid-cols-3">
                         <label>
                           <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                            ACS Reference
+                            ACS References
                           </span>
 
                           <input
                             value={
+                              question.acs_references_snapshot.join("; ") ||
                               question.acs_reference_snapshot
                             }
                             onChange={(event) =>
@@ -3128,7 +3182,15 @@ function GeneratedPoaEditContent() {
                                 index,
                                 {
                                   acs_reference_snapshot:
-                                    event.target.value,
+                                    event.target.value
+                                      .split(/[,;\n]+/)
+                                      .map((value) => value.trim())
+                                      .filter(Boolean)[0] ?? "",
+                                  acs_references_snapshot:
+                                    event.target.value
+                                      .split(/[,;\n]+/)
+                                      .map((value) => value.trim())
+                                      .filter(Boolean),
                                 },
                               )
                             }

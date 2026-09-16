@@ -250,14 +250,15 @@ type ScenarioTimelineItem = {
   source_trigger_id?: string | null;
   design_note?: string | null;
   precondition?: string | null;
+  event_set_id?: string | null;
+  event_set_code?: string | null;
 };
 
 type ScenarioTimelineResult = {
-  seed?: {
+  scenario?: {
     id?: string | null;
     title?: string | null;
     narrative?: string | null;
-    time_pressure?: string | null;
   } | null;
   altitude?: number | null;
   cross_country_required?: boolean;
@@ -320,6 +321,13 @@ type LibraryQuestion = {
   poa_question_practical_test_types: QuestionTestTypeJoin[];
 };
 
+type TriggerQuestionLink = {
+  trigger_id: string;
+  question_id: string;
+  relationship: "primary" | "compatible" | "follow_up";
+  weight: number;
+};
+
 type TaskQuestion = {
   question: LibraryQuestion;
   acsReference: string;
@@ -345,7 +353,7 @@ function practicalTestDescription(testType: PracticalTestType) {
 
 function splitAcsReferences(value: string | null | undefined) {
   return String(value ?? "")
-    .split(";")
+    .split(/[,;\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -421,14 +429,6 @@ function isOriginalIssuance(testType: PracticalTestType) {
   );
 }
 
-function chooseRandom<T>(items: T[]) {
-  if (!items.length) {
-    return null;
-  }
-
-  return items[Math.floor(Math.random() * items.length)] ?? null;
-}
-
 function crossCountryTaskParentsForPrefixes(prefixes: string[]) {
   const allowed = new Set(prefixes.map((value) => value.trim().toUpperCase()));
 
@@ -493,10 +493,14 @@ export default function GeneratePoaPage() {
 
   const [questions, setQuestions] = useState<LibraryQuestion[]>([]);
 
+  const [triggerQuestionLinks, setTriggerQuestionLinks] = useState<
+    TriggerQuestionLink[]
+  >([]);
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [selectionMethod, setSelectionMethod] = useState<
-    "manual" | "random" | "automatic"
+    "manual" | "automatic"
   >("manual");
 
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(
@@ -709,7 +713,27 @@ export default function GeneratePoaPage() {
       return;
     }
 
-    setQuestions((questionData ?? []) as LibraryQuestion[]);
+    const loadedQuestions = (questionData ?? []) as LibraryQuestion[];
+    setQuestions(loadedQuestions);
+
+    if (loadedQuestions.length > 0) {
+      const { data: linkData, error: linkError } = await supabase
+        .from("poa_trigger_questions")
+        .select("trigger_id, question_id, relationship, weight")
+        .in("question_id", loadedQuestions.map((question) => question.id));
+
+      if (linkError) {
+        setErrorMessage(
+          `Trigger-to-Question mappings could not be loaded: ${linkError.message}`,
+        );
+        setLoading(false);
+        return;
+      }
+
+      setTriggerQuestionLinks((linkData ?? []) as TriggerQuestionLink[]);
+    } else {
+      setTriggerQuestionLinks([]);
+    }
 
     setSelectedIds([]);
     setSelectionMethod("manual");
@@ -1124,6 +1148,52 @@ export default function GeneratePoaPage() {
     });
   }, [complianceAcsPrefixes]);
 
+  const requiredComplianceCodes = useMemo(() => {
+    let codes = complianceCodes.filter((code) => !code.endsWith(".S"));
+
+    if (isAdditionalIssuance && additionalRatingHeld) {
+      const certificateMaps =
+        (ADDITIONAL_MAPS as Record<string, Record<string, unknown>>)[
+          additionalMapCertificateKey
+        ] ?? {};
+      const mapKey = `${additionalTargetRatingKey}_from_${additionalRatingHeld}`;
+      const requiredParents = new Set(
+        normalizeAdditionalMapCodes(
+          certificateMaps[mapKey],
+          complianceAcsPrefixes[0] ?? "",
+        ),
+      );
+
+      codes = codes.filter((code) => {
+        const parent = taskParentFromReference(code);
+        return Boolean(parent && requiredParents.has(parent));
+      });
+    }
+
+    const commercialSingleEngine =
+      (testType?.certificate_code ?? "").toUpperCase() === "COMMERCIAL" &&
+      (testType?.category_code ?? "").toUpperCase() === "AIRPLANE" &&
+      ["ASEL", "ASES"].includes((testType?.class_code ?? "").toUpperCase()) &&
+      Boolean(testType && isOriginalIssuance(testType));
+
+    if (commercialSingleEngine) {
+      codes = codes.filter((code) => {
+        const parent = taskParentFromReference(code);
+        return parent !== "CA.V.B" && parent !== "CA.V.D";
+      });
+    }
+
+    return codes;
+  }, [
+    additionalMapCertificateKey,
+    additionalRatingHeld,
+    additionalTargetRatingKey,
+    complianceAcsPrefixes,
+    complianceCodes,
+    isAdditionalIssuance,
+    testType,
+  ]);
+
   const coveredComplianceCodes = useMemo(() => {
     const covered = new Set<string>();
 
@@ -1157,9 +1227,13 @@ export default function GeneratePoaPage() {
     return covered;
   }, [selectedQuestions, complianceAcsPrefixes]);
 
-  const coveredComplianceCount = complianceCodes.filter((code) =>
+  const coveredComplianceCount = requiredComplianceCodes.filter((code) =>
     coveredComplianceCodes.has(code),
   ).length;
+
+  const missingComplianceCodes = requiredComplianceCodes.filter(
+    (code) => !coveredComplianceCodes.has(code),
+  );
 
   function selectedCountForTask(group: TaskGroup) {
     return new Set(
@@ -1210,22 +1284,44 @@ export default function GeneratePoaPage() {
     setGeneratedPoaId("");
   }
 
-  function randomSelection() {
-    const shuffled = [...filteredQuestions].sort(() => Math.random() - 0.5);
+  function chooseBestQuestion(items: LibraryQuestion[]) {
+    const timelineTriggerIds = new Set(
+      (scenarioTimeline?.timeline ?? [])
+        .map((item) => item.trigger_id)
+        .filter((value): value is string => Boolean(value)),
+    );
 
-    setSelectionMethod("random");
-    setSelectedIds(
-      shuffled
-        .slice(0, Math.min(20, shuffled.length))
-        .map((question) => question.id),
-    );
-    setMessage(
-      `Quick Random 20 selected ${Math.min(20, shuffled.length)} question${
-        Math.min(20, shuffled.length) === 1 ? "" : "s"
-      }. This is not an ACS-compliance check.`,
-    );
-    setErrorMessage("");
-    setGeneratedPoaId("");
+    return [...items]
+      .map((question) => {
+        const narrativeScore = triggerQuestionLinks
+          .filter(
+            (link) =>
+              link.question_id === question.id &&
+              timelineTriggerIds.has(link.trigger_id),
+          )
+          .reduce(
+            (score, link) =>
+              score +
+              link.weight +
+              (link.relationship === "primary"
+                ? 40
+                : link.relationship === "follow_up"
+                  ? 10
+                  : 20),
+            0,
+          );
+
+        const difficultyScore =
+          question.difficulty.toLowerCase() === "standard" ? 5 : 0;
+
+        return { question, score: narrativeScore + difficultyScore };
+      })
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.question.question.localeCompare(b.question.question) ||
+          a.question.id.localeCompare(b.question.id),
+      )[0]?.question ?? null;
   }
 
   function buildCompliantSelection() {
@@ -1299,8 +1395,8 @@ export default function GeneratePoaPage() {
       isOriginalIssuance(testType);
 
     if (commercialSingleEngine) {
-      const firstPair = chooseRandom(["CA.V.A", "CA.V.B"]);
-      const secondPair = chooseRandom(["CA.V.C", "CA.V.D"]);
+      const firstPair = "CA.V.A";
+      const secondPair = "CA.V.C";
 
       for (const candidate of ["CA.V.A", "CA.V.B"]) {
         if (candidate !== firstPair) {
@@ -1316,6 +1412,11 @@ export default function GeneratePoaPage() {
     }
 
     const selected = new Set<string>();
+    const requiredTaskParents = new Set(
+      requiredComplianceCodes
+        .map((code) => taskParentFromReference(code))
+        .filter((value): value is string => Boolean(value)),
+    );
     let taskCount = 0;
     let missingKnowledge = 0;
     let missingRisk = 0;
@@ -1327,10 +1428,14 @@ export default function GeneratePoaPage() {
         continue;
       }
 
+      if (!requiredTaskParents.has(taskParent)) {
+        continue;
+      }
+
       taskCount += 1;
 
-      const knowledgeQuestion = chooseRandom(candidates.K);
-      const riskQuestion = chooseRandom(candidates.R);
+      const knowledgeQuestion = chooseBestQuestion(candidates.K);
+      const riskQuestion = chooseBestQuestion(candidates.R);
 
       if (knowledgeQuestion) {
         selected.add(knowledgeQuestion.id);
@@ -1345,7 +1450,7 @@ export default function GeneratePoaPage() {
       }
 
       if (!knowledgeQuestion && !riskQuestion) {
-        const fallback = chooseRandom(candidates.any);
+        const fallback = chooseBestQuestion(candidates.any);
         if (fallback) {
           selected.add(fallback.id);
         }
@@ -1455,7 +1560,7 @@ export default function GeneratePoaPage() {
 
   useEffect(() => {
     setScenarioTimeline(null);
-  }, [testType?.id, additionalRatingHeld]);
+  }, [testType?.id, additionalRatingHeld, selectedScenarioId]);
 
   const selectedScenario = useMemo(
     () =>
@@ -1474,6 +1579,10 @@ export default function GeneratePoaPage() {
     setMessage("");
 
     try {
+      if (!selectedScenarioId) {
+        throw new Error("Select a Scenario Library record before building the timeline.");
+      }
+
       if (isAdditionalIssuance && !additionalRatingHeld) {
         throw new Error(
           "Select the rating already held before building the Scenario Timeline.",
@@ -1520,6 +1629,9 @@ export default function GeneratePoaPage() {
       const { data, error } = await supabase.rpc(
         "examiner_generate_poa_scenario_timeline",
         {
+          p_scenario_id: selectedScenarioId,
+          p_practical_test_type_id: testType.id,
+          p_required_acs_codes: requiredComplianceCodes,
           p_cross_country_required: crossCountryRequired,
           p_altitude: Number.isFinite(scenarioAltitude)
             ? Math.round(scenarioAltitude)
@@ -1579,6 +1691,30 @@ export default function GeneratePoaPage() {
       return;
     }
 
+    if (!selectedScenario || !scenarioTimeline) {
+      setErrorMessage("Select a scenario and build its Event Sequence before generating.");
+      return;
+    }
+
+    const timelineGaps = (scenarioTimeline.timeline ?? []).filter(
+      (item) => item.kind === "gap",
+    );
+
+    if (timelineGaps.length > 0) {
+      setErrorMessage(
+        `Resolve ${timelineGaps.length} required Event Set gap${timelineGaps.length === 1 ? "" : "s"} before generating.`,
+      );
+      return;
+    }
+
+    if (missingComplianceCodes.length > 0) {
+      setGeneratorTab("compliance");
+      setErrorMessage(
+        `The POA is missing ${missingComplianceCodes.length} required ACS Knowledge/Risk group${missingComplianceCodes.length === 1 ? "" : "s"}. Select mapped questions before generating.`,
+      );
+      return;
+    }
+
     if (!title.trim()) {
       setErrorMessage("Enter a Plan of Action title.");
 
@@ -1619,6 +1755,20 @@ export default function GeneratePoaPage() {
           title: title.trim(),
 
           scenario_name: selectedScenario?.scenario_name ?? null,
+
+          scenario_id: selectedScenario.id,
+
+          scenario_timeline_snapshot: scenarioTimeline.timeline ?? [],
+
+          compliance_snapshot: {
+            required: requiredComplianceCodes,
+            covered: [...coveredComplianceCodes].sort(compareAcsReferences),
+            missing: missingComplianceCodes,
+          },
+
+          cross_country_required: Boolean(
+            scenarioTimeline.cross_country_required,
+          ),
 
           selection_method: selectionMethod,
 
@@ -1743,6 +1893,8 @@ export default function GeneratePoaPage() {
 
         acs_reference_snapshot: acsReferenceForQuestion(question),
 
+        acs_references_snapshot: acsReferencesForQuestion(question),
+
         question_snapshot: question.question,
 
         answer_snapshot: question.answer,
@@ -1789,6 +1941,44 @@ export default function GeneratePoaPage() {
 
         throw new Error(
           `Flight task snapshots could not be saved: ${flightTaskError.message}`,
+        );
+      }
+
+      const timelineSnapshots = (scenarioTimeline.timeline ?? []).map(
+        (item, index) => ({
+          trigger_library_id: item.trigger_id ?? null,
+          event_set_id: item.event_set_id ?? null,
+          placement_section: ["departure", "cruise", "branch", "arrival"].includes(
+            item.phase,
+          )
+            ? "flight"
+            : "oral",
+          timeline_kind: item.kind,
+          phase: item.phase,
+          category_snapshot: item.category ?? null,
+          trigger_text_snapshot: item.title,
+          trigger_narrative_snapshot: item.narrative ?? item.title,
+          branch_worthy: Boolean(item.branch_worthy),
+          source_trigger_id: item.source_trigger_id ?? null,
+          sort_order: (index + 1) * 10,
+        }),
+      );
+
+      const { error: timelineSaveError } = await supabase.rpc(
+        "examiner_replace_generated_poa_triggers",
+        {
+          p_generated_plan_of_action_id: generated.id,
+          p_triggers: timelineSnapshots,
+        },
+      );
+
+      if (timelineSaveError) {
+        await supabase
+          .from("generated_plan_of_actions")
+          .delete()
+          .eq("id", generated.id);
+        throw new Error(
+          `Scenario timeline snapshots could not be saved: ${timelineSaveError.message}`,
         );
       }
 
@@ -2317,15 +2507,6 @@ export default function GeneratePoaPage() {
 
                     <button
                       type="button"
-                      onClick={randomSelection}
-                      className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 hover:bg-violet-100"
-                    >
-                      <Shuffle className="h-4 w-4" />
-                      Quick Random 20
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={clearSelection}
                       className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
@@ -2540,19 +2721,19 @@ export default function GeneratePoaPage() {
                   </p>
 
                   <p className="mt-1 text-xl font-bold text-slate-900">
-                    {coveredComplianceCount} / {complianceCodes.length}
+                    {coveredComplianceCount} / {requiredComplianceCodes.length}
                   </p>
                 </div>
               </div>
 
-              {complianceCodes.length === 0 ? (
+              {requiredComplianceCodes.length === 0 ? (
                 <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-600">
                   No ACS compliance elements are available for this practical
                   test.
                 </div>
               ) : (
                 <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
-                  {complianceCodes.map((code) => {
+                  {requiredComplianceCodes.map((code) => {
                     const covered = coveredComplianceCodes.has(code);
 
                     const skill = code.endsWith(".S");
