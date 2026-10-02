@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type CalendarRequest = {
+  assigned_examiner_profile_id: string | null;
   id: string;
   request_number: string;
   status: string;
@@ -278,6 +279,7 @@ export default function ExaminerCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [clock, setClock] = useState(0);
+  const [currentExaminerProfileId, setCurrentExaminerProfileId] = useState<string | null>(null);
 
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
 
@@ -302,6 +304,8 @@ export default function ExaminerCalendarPage() {
       setLoading(false);
       return;
     }
+
+    setCurrentExaminerProfileId(user.id);
 
     const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
@@ -328,6 +332,7 @@ export default function ExaminerCalendarPage() {
         .from("practical_test_requests")
         .select(
           `
+          assigned_examiner_profile_id,
             id,
             request_number,
             status,
@@ -477,6 +482,13 @@ export default function ExaminerCalendarPage() {
 
     return requests
       .filter((request) => {
+        if (
+          !currentExaminerProfileId ||
+          request.assigned_examiner_profile_id !== currentExaminerProfileId
+        ) {
+          return false;
+        }
+
         if (!request.scheduled_start_at) {
           return false;
         }
@@ -484,7 +496,7 @@ export default function ExaminerCalendarPage() {
         return new Date(request.scheduled_start_at).getTime() >= clock;
       })
       .slice(0, 8);
-  }, [clock, requests]);
+  }, [clock, requests, currentExaminerProfileId]);
 
   function moveMonth(direction: number) {
     const next = new Date(
