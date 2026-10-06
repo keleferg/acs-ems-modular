@@ -16,6 +16,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import RequirementPhotos, { supportsRequirementPhotos } from "@/components/qualification/RequirementPhotos";
 import { createClient } from "@/lib/supabase/client";
 
 type ApplicantRequest = {
@@ -1544,12 +1545,6 @@ export default function ApplicantQualificationPage() {
                                   requirement,
                                 );
 
-                              const answerComplete =
-                                isAnswerComplete(
-                                  requirement,
-                                  drafts[requirement.id],
-                                );
-
                               const answer = answers.find(
                                 (item) =>
                                   item.requirement_id ===
@@ -1761,6 +1756,15 @@ export default function ApplicantQualificationPage() {
                                           </button>
                                         </div>
                                       </>
+                                    )}
+                                    {revision && supportsRequirementPhotos(requirement.section_code) && (
+                                      <RequirementPhotos
+                                        key={`${revision.id}-${requirement.id}`}
+                                        wizardId={wizard.id}
+                                        revisionId={revision.id}
+                                        requirementId={requirement.id}
+                                        editable={isEditable}
+                                      />
                                     )}
                                   </div>
                                 </details>

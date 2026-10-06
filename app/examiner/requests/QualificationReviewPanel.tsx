@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import RequirementPhotos, { supportsRequirementPhotos } from "@/components/qualification/RequirementPhotos";
 import { createClient } from "@/lib/supabase/client";
 
 export type QualificationWizardSummary = {
@@ -222,6 +223,7 @@ export default function QualificationReviewPanel({
   wizard,
   onWizardChanged,
 }: Props) {
+  const [openPhotoRequirements, setOpenPhotoRequirements] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState<Revision | null>(null);
@@ -671,11 +673,19 @@ export default function QualificationReviewPanel({
                       flagsByRequirement[requirement.id] ?? [];
 
                     return (
-                      <article
+                      <details
+                        onToggle={(event) => {
+                          const open = event.currentTarget.open;
+                          setOpenPhotoRequirements((current) => {
+                            const next = new Set(current);
+                            if (open) next.add(requirement.id); else next.delete(requirement.id);
+                            return next;
+                          });
+                        }}
                         key={requirement.id}
                         className="rounded-xl border border-slate-200 bg-white p-5"
                       >
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <summary className="cursor-pointer flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wide text-amber-800">
                               {formatStatus(requirement.section_code)}
@@ -731,7 +741,7 @@ export default function QualificationReviewPanel({
                               </>
                             ) : null}
                           </div>
-                        </div>
+                        </summary>
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -793,7 +803,16 @@ export default function QualificationReviewPanel({
                             ))}
                           </div>
                         ) : null}
-                      </article>
+                        {wizard && supportsRequirementPhotos(requirement.section_code) && (
+                          <RequirementPhotos
+                            key={`${revision.id}-${requirement.id}`}
+                            wizardId={wizard.id}
+                            revisionId={revision.id}
+                            requirementId={requirement.id}
+                            active={openPhotoRequirements.has(requirement.id)}
+                          />
+                        )}
+                      </details>
                     );
                   })}
                 </section>
