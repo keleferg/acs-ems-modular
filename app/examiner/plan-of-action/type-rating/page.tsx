@@ -197,10 +197,10 @@ export default function TypeRatingPoaPage() {
         </div>
 
         <Link
-          href="/examiner/plan-of-action/questions"
+          href="/examiner/plan-of-action/scenarios"
           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-          Question Library
+          Scenario Library
         </Link>
       </div>
 

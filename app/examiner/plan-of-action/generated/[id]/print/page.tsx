@@ -31,15 +31,18 @@ type GeneratedQuestion = {
   topic_snapshot: string | null;
   task_name_snapshot: string | null;
   question_type_snapshot: string | null;
+  trigger_option_id: string | null;
   sort_order: number | null;
 };
 
 type GeneratedPoaTrigger = {
   id: string;
+  trigger_library_id: string | null;
   placement_section: "oral" | "flight";
   category_snapshot: string | null;
   trigger_text_snapshot: string;
   trigger_narrative_snapshot: string;
+  is_selected: boolean;
   sort_order: number;
 };
 
@@ -123,9 +126,6 @@ function titleForTest(testType: PracticalTestType | null) {
 
   const className =
     testType.class_name?.toUpperCase() || "";
-
-  const category =
-    testType.category_name?.toUpperCase() || "";
 
   if (
     cert.includes("COMMERCIAL") &&
@@ -279,10 +279,12 @@ function GeneratedPoaPrintContent() {
         .from("generated_plan_of_action_triggers")
         .select(`
           id,
+          trigger_library_id,
           placement_section,
           category_snapshot,
           trigger_text_snapshot,
           trigger_narrative_snapshot,
+          is_selected,
           sort_order
         `)
         .eq("generated_plan_of_action_id", id)
@@ -379,6 +381,7 @@ function GeneratedPoaPrintContent() {
             topic_snapshot,
             task_name_snapshot,
             question_type_snapshot,
+            trigger_option_id,
             sort_order
           `)
           .eq(
@@ -992,6 +995,7 @@ function GeneratedPoaPrintContent() {
                     >
                       TRIGGER —{" "}
                       {entry.trigger.trigger_text_snapshot}
+                      {entry.trigger.is_selected ? " — SELECTED" : ""}
                     </div>
 
                     <div>
@@ -1002,6 +1006,12 @@ function GeneratedPoaPrintContent() {
               }
 
               const question = entry.question;
+              const conditionalTrigger = question.trigger_option_id
+                ? poaTriggers.find(
+                    (trigger) =>
+                      trigger.trigger_library_id === question.trigger_option_id,
+                  )
+                : null;
 
               return (
                 <article
@@ -1021,6 +1031,19 @@ function GeneratedPoaPrintContent() {
                       ? ` — ${question.task_name_snapshot}`
                       : ""}
                   </div>
+
+                  {conditionalTrigger ? (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        marginBottom: "5px",
+                        color: conditionalTrigger.is_selected ? "#166534" : "#92400e",
+                      }}
+                    >
+                      {conditionalTrigger.is_selected ? "ACTIVE TRIGGER" : "ASK ONLY IF USED"}: {conditionalTrigger.trigger_text_snapshot}
+                    </div>
+                  ) : null}
 
                   <div className="question-line">
                     <span className="question-box">□</span>
@@ -1169,6 +1192,7 @@ function GeneratedPoaPrintContent() {
                     >
                       TRIGGER —{" "}
                       {entry.trigger.trigger_text_snapshot}
+                      {entry.trigger.is_selected ? " — SELECTED" : ""}
                     </div>
 
                     <div>

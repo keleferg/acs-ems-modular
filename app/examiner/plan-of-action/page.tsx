@@ -540,10 +540,10 @@ export default function ExaminerPlanOfActionPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/examiner/plan-of-action/questions"
+            href="/examiner/plan-of-action/scenarios"
             className="inline-flex items-center rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100"
           >
-            Question Library
+            Scenario Library
           </Link>
 
           <Link
@@ -725,7 +725,7 @@ export default function ExaminerPlanOfActionPage() {
 
                                 <p className="mt-1 truncate text-sm text-slate-500">
                                   {plan.source_kind === "generated"
-                                    ? `Question Library • ${plan.selection_method || "generated"}`
+                                    ? `Scenario Library • ${plan.selection_method || "generated"}`
                                     : plan.source_filename}
                                 </p>
 

@@ -132,7 +132,7 @@ function fallbackPrefixesForTestType(
    * These are fallbacks only.
    *
    * Normal operation derives the ACS family directly from
-   * Question Library mappings for the selected practical
+   * Scenario Library mappings for the selected practical
    * test type so the Flight Tasks library stays synchronized
    * with the existing POA configuration.
    */
@@ -663,19 +663,6 @@ export default function FlightTasksLibraryPage() {
           aria-label="Plan of Action Library Views"
         >
           <Link
-            href="/examiner/plan-of-action/questions"
-            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
-          >
-            <span
-              aria-hidden="true"
-              className="text-2xl leading-none"
-            >
-              ?
-            </span>
-            <span>Questions</span>
-          </Link>
-
-          <Link
             href="/examiner/plan-of-action/scenarios"
             className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
           >
@@ -699,6 +686,19 @@ export default function FlightTasksLibraryPage() {
               ⚡
             </span>
             <span>Triggers</span>
+          </Link>
+
+          <Link
+            href="/examiner/plan-of-action/questions"
+            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
+          >
+            <span
+              aria-hidden="true"
+              className="text-2xl leading-none"
+            >
+              ?
+            </span>
+            <span>Questions</span>
           </Link>
 
           <Link
