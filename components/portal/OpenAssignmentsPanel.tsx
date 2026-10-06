@@ -7,6 +7,7 @@ type OpenAssignment = {
   id: string;
   request_number: string;
   offered_by_me: boolean;
+  offering_examiner_name: string | null;
 
   applicant_name: string;
   applicant_email: string | null;
@@ -618,7 +619,13 @@ export default function OpenAssignmentsPanel() {
                     </div>
                   </summary>
 
-                {/* PROPOSED APPOINTMENT — ALWAYS FIRST */}
+                <div className={`border-b px-6 py-4 text-sm font-semibold ${request.offered_by_me ? "border-yellow-300 bg-yellow-100 text-yellow-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                  {request.offering_examiner_name
+                    ? `Offered in Open Assignments by ${request.offering_examiner_name}`
+                    : "Student Requested Open Assignment"}
+                </div>
+
+                {/* PROPOSED APPOINTMENT */}
                 {request.offered_by_me ? (
                   <div className="border-b border-yellow-300 bg-yellow-100 px-6 py-4 text-sm text-yellow-900">
                     You offered this request in Open Time. Manage or confirm its appointment from your Requests queue.
