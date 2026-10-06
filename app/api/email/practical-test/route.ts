@@ -12,6 +12,7 @@ import {
   buildRequestDeclinedApplicantEmail,
   buildRequestScheduledApplicantEmail,
   buildRequestSubmittedApplicantEmail,
+  buildRequestSubmittedExaminerEmail,
 } from "@/lib/email/practical-test";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
@@ -53,6 +54,7 @@ type ApplicantPortalDetail = {
 
 const supportedEvents = new Set([
   "request_submitted_applicant",
+  "request_submitted_examiner",
   "request_accepted_applicant",
   "request_declined_applicant",
   "request_scheduled_applicant",
@@ -161,6 +163,24 @@ export async function POST(request: Request) {
       assigned_examiner_profile_id,
       applicant_name_snapshot,
       applicant_email_snapshot,
+      applicant_phone_snapshot,
+      issuance_type,
+      first_available,
+      preferred_time,
+      specific_time,
+      flight_school_name_snapshot,
+      instructor_name,
+      instructor_email,
+      instructor_phone,
+      aircraft_description,
+      aircraft_registration,
+      oral_test_location,
+      flight_airport_code,
+      scheduling_notes,
+      is_retest,
+      previous_test_date,
+      previous_examiner,
+      retest_areas,
       certificate_sought,
       rating_sought,
       scheduled_start_at,
@@ -216,6 +236,7 @@ export async function POST(request: Request) {
 
   const applicantGeneratedEvent =
     eventType === "request_submitted_applicant" ||
+    eventType === "request_submitted_examiner" ||
     eventType === "appointment_accepted_examiner" ||
     eventType === "appointment_reschedule_requested_examiner";
 
@@ -1008,39 +1029,50 @@ export async function POST(request: Request) {
       );
     }
 
-    const scheduledStartAt = practicalTestRequest.scheduled_start_at;
+    if (eventType === "request_submitted_examiner") {
+      recipientRole = "examiner";
+      replyToEmail = practicalTestRequest.applicant_email_snapshot?.trim() || undefined;
+      const value = (text: string | null) => text?.trim() || "Not specified";
+      const summary: Array<[string, string]> = [
+        ["Request Number", practicalTestRequest.request_number],
+        ["Applicant", practicalTestRequest.applicant_name_snapshot],
+        ["Email", value(practicalTestRequest.applicant_email_snapshot)],
+        ["Phone", value(practicalTestRequest.applicant_phone_snapshot)],
+        ["Certificate", practicalTestRequest.certificate_sought],
+        ["Rating", practicalTestRequest.rating_sought],
+        ["Issuance", value(practicalTestRequest.issuance_type)],
+        ["Requested Dates", practicalTestRequest.first_available ? "First available" : value(practicalTestRequest.requested_dates_text)],
+        ["Preferred Time", [practicalTestRequest.preferred_time, practicalTestRequest.specific_time].filter(Boolean).join(" — ") || "Not specified"],
+        ["Flight School", value(practicalTestRequest.flight_school_name_snapshot)],
+        ["Instructor", [practicalTestRequest.instructor_name, practicalTestRequest.instructor_email, practicalTestRequest.instructor_phone].filter(Boolean).join(" — ") || "Not specified"],
+        ["Aircraft", [practicalTestRequest.aircraft_description, practicalTestRequest.aircraft_registration].filter(Boolean).join(" — ") || "Not specified"],
+        ["Location", [practicalTestRequest.oral_test_location, practicalTestRequest.flight_airport_code].filter(Boolean).join(" — ") || "Not specified"],
+        ["Retest", practicalTestRequest.is_retest ? "Yes" : "No"],
+        ["Notes", value(practicalTestRequest.scheduling_notes)],
+      ];
+      if (practicalTestRequest.is_retest) {
+        summary.push(["Previous Test", [practicalTestRequest.previous_test_date, practicalTestRequest.previous_examiner].filter(Boolean).join(" — ") || "Not specified"], ["Retest Areas", value(practicalTestRequest.retest_areas)]);
+      }
+      email = buildRequestSubmittedExaminerEmail({
+        examinerName: examinerDetail.examiner_name,
+        applicantName: practicalTestRequest.applicant_name_snapshot,
+        requestNumber: practicalTestRequest.request_number,
+        summary,
+        examinerPortalUrl: `${portalOrigin}/examiner/requests?request=${encodeURIComponent(practicalTestRequest.id)}`,
+      });
+      dedupeKey = `request_submitted_examiner:${practicalTestRequest.id}`;
+    } else {
+      const scheduledStartAt = practicalTestRequest.scheduled_start_at;
 
-    const scheduledEndAt = practicalTestRequest.scheduled_end_at;
+      const scheduledEndAt = practicalTestRequest.scheduled_end_at;
 
-    const scheduledLocation = practicalTestRequest.scheduled_location?.trim();
+      const scheduledLocation = practicalTestRequest.scheduled_location?.trim();
 
-    if (!scheduledStartAt || !scheduledEndAt || !scheduledLocation) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "The confirmed appointment is incomplete.",
-        },
-        {
-          status: 422,
-        },
-      );
-    }
-
-    recipientRole = "examiner";
-
-    replyToEmail =
-      practicalTestRequest.applicant_email_snapshot?.trim() || undefined;
-
-    if (eventType === "appointment_reschedule_requested_examiner") {
-      const rescheduleReason =
-        practicalTestRequest.appointment_response_notes?.trim();
-
-      if (!rescheduleReason) {
+      if (!scheduledStartAt || !scheduledEndAt || !scheduledLocation) {
         return NextResponse.json(
           {
             ok: false,
-            error:
-              "The appointment change request does not contain an explanation.",
+            error: "The confirmed appointment is incomplete.",
           },
           {
             status: 422,
@@ -1048,50 +1080,75 @@ export async function POST(request: Request) {
         );
       }
 
-      email = buildAppointmentRescheduleRequestedExaminerEmail({
-        examinerName: examinerDetail.examiner_name,
-        applicantName: practicalTestRequest.applicant_name_snapshot,
-        requestNumber: practicalTestRequest.request_number,
-        certificateSought: practicalTestRequest.certificate_sought,
-        ratingSought: practicalTestRequest.rating_sought,
-        scheduledStartAt,
-        scheduledEndAt,
-        scheduledLocation,
-        rescheduleReason,
-        examinerPortalUrl: `${portalOrigin}/examiner/requests?request=${encodeURIComponent(
-          practicalTestRequest.id,
-        )}`,
-      });
+      recipientRole = "examiner";
 
-      dedupeKey = [
-        "appointment_reschedule_requested_examiner",
-        practicalTestRequest.id,
-        scheduledStartAt,
-        practicalTestRequest.appointment_responded_at || "reschedule_requested",
-      ].join(":");
-    } else {
-      email = buildAppointmentAcceptedExaminerEmail({
-        examinerName: examinerDetail.examiner_name,
-        applicantName: practicalTestRequest.applicant_name_snapshot,
-        requestNumber: practicalTestRequest.request_number,
-        certificateSought: practicalTestRequest.certificate_sought,
-        ratingSought: practicalTestRequest.rating_sought,
-        scheduledStartAt,
-        scheduledEndAt,
-        scheduledLocation,
-        examinerPortalUrl: `${portalOrigin}/examiner/requests?request=${encodeURIComponent(
-          practicalTestRequest.id,
-        )}`,
-      });
+      replyToEmail =
+        practicalTestRequest.applicant_email_snapshot?.trim() || undefined;
 
-      dedupeKey = [
-        "appointment_accepted_examiner",
-        practicalTestRequest.id,
-        scheduledStartAt,
-        practicalTestRequest.appointment_responded_at || "accepted",
-      ].join(":");
+      if (eventType === "appointment_reschedule_requested_examiner") {
+        const rescheduleReason =
+          practicalTestRequest.appointment_response_notes?.trim();
+
+        if (!rescheduleReason) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error:
+                "The appointment change request does not contain an explanation.",
+            },
+            {
+              status: 422,
+            },
+          );
+        }
+
+        email = buildAppointmentRescheduleRequestedExaminerEmail({
+          examinerName: examinerDetail.examiner_name,
+          applicantName: practicalTestRequest.applicant_name_snapshot,
+          requestNumber: practicalTestRequest.request_number,
+          certificateSought: practicalTestRequest.certificate_sought,
+          ratingSought: practicalTestRequest.rating_sought,
+          scheduledStartAt,
+          scheduledEndAt,
+          scheduledLocation,
+          rescheduleReason,
+          examinerPortalUrl: `${portalOrigin}/examiner/requests?request=${encodeURIComponent(
+            practicalTestRequest.id,
+          )}`,
+        });
+
+        dedupeKey = [
+          "appointment_reschedule_requested_examiner",
+          practicalTestRequest.id,
+          scheduledStartAt,
+          practicalTestRequest.appointment_responded_at || "reschedule_requested",
+        ].join(":");
+      } else {
+        email = buildAppointmentAcceptedExaminerEmail({
+          examinerName: examinerDetail.examiner_name,
+          applicantName: practicalTestRequest.applicant_name_snapshot,
+          requestNumber: practicalTestRequest.request_number,
+          certificateSought: practicalTestRequest.certificate_sought,
+          ratingSought: practicalTestRequest.rating_sought,
+          scheduledStartAt,
+          scheduledEndAt,
+          scheduledLocation,
+          examinerPortalUrl: `${portalOrigin}/examiner/requests?request=${encodeURIComponent(
+            practicalTestRequest.id,
+          )}`,
+        });
+
+        dedupeKey = [
+          "appointment_accepted_examiner",
+          practicalTestRequest.id,
+          scheduledStartAt,
+          practicalTestRequest.appointment_responded_at || "accepted",
+        ].join(":");
+      }
     }
+
   }
+
 
   const { data: claimData, error: claimError } = await supabase.rpc(
     "claim_practical_test_email",
