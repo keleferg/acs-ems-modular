@@ -19,6 +19,7 @@ import OpenAssignmentsPanel from "@/components/portal/OpenAssignmentsPanel";
 type PracticalTestRequest = {
   id: string;
   request_number: string;
+  applicant_profile_id: string;
   status: string;
   status_reason: string | null;
 
@@ -746,6 +747,8 @@ export default function ExaminerRequestsPage() {
   >("assigned");
 
   const [requests, setRequests] = useState<PracticalTestRequest[]>([]);
+  const [applicantsConfirmedElsewhere, setApplicantsConfirmedElsewhere] =
+    useState<Set<string>>(new Set());
   const [declineRequestTarget, setDeclineRequestTarget] =
     useState<PracticalTestRequest | null>(null);
   const [declineReasonDraft, setDeclineReasonDraft] = useState("");
@@ -841,6 +844,7 @@ export default function ExaminerRequestsPage() {
   const loadRequests = useCallback(async () => {
     setLoading(true);
     setPageError("");
+    setApplicantsConfirmedElsewhere(new Set());
 
     const supabase = createClient();
 
@@ -885,6 +889,7 @@ export default function ExaminerRequestsPage() {
         `
         id,
         request_number,
+        applicant_profile_id,
         status,
         status_reason,
 
@@ -982,6 +987,38 @@ export default function ExaminerRequestsPage() {
       const loadedRequests = (data ?? []) as PracticalTestRequest[];
 
       setRequests(loadedRequests);
+
+      // Match stable account IDs, never names, across the examiner's queue.
+      const applicantIds = [...new Set(
+        loadedRequests
+          .filter((request) => !closedStatuses.has(request.status))
+          .map((request) => request.applicant_profile_id)
+          .filter(Boolean),
+      )];
+      const confirmedApplicantIds = new Set<string>();
+      // Bound URL size and paginate to avoid silently missing matches.
+      for (let offset = 0; offset < applicantIds.length; offset += 100) {
+        for (let page = 0; ; page += 1) {
+          const { data: confirmedRequests, error: confirmedError } = await supabase
+            .from("practical_test_requests")
+            .select("id, applicant_profile_id")
+            .in("applicant_profile_id", applicantIds.slice(offset, offset + 100))
+            .eq("status", "confirmed")
+            .neq("assigned_examiner_profile_id", user.id)
+            .order("id")
+            .range(page * 500, page * 500 + 499);
+
+          if (confirmedError) {
+            setPageError(`Other-examiner confirmations could not be checked: ${confirmedError.message}`);
+            break;
+          }
+          for (const confirmedRequest of confirmedRequests ?? []) {
+            confirmedApplicantIds.add(confirmedRequest.applicant_profile_id);
+          }
+          if ((confirmedRequests ?? []).length < 500) break;
+        }
+      }
+      setApplicantsConfirmedElsewhere(confirmedApplicantIds);
 
       setFeeDrafts(
         Object.fromEntries(
@@ -3003,6 +3040,10 @@ export default function ExaminerRequestsPage() {
                 const savingAppointment =
                   savingAppointmentRequestId === request.id;
 
+                const confirmedElsewhere =
+                  !closedStatuses.has(request.status) &&
+                  applicantsConfirmedElsewhere.has(request.applicant_profile_id);
+
                 return (
                   <Fragment key={request.id}>
                     {showGroupHeading ? (
@@ -3024,13 +3065,16 @@ export default function ExaminerRequestsPage() {
                         directRequestId === request.id
                           ? "ring-4 ring-amber-300 ring-offset-2"
                           : ""
-                      } ${getDmsDeadlineCardClasses(request, deadlineClock)}`}
+                      } ${confirmedElsewhere ? "border-orange-400 bg-orange-100" : getDmsDeadlineCardClasses(request, deadlineClock)}`}
                     >
                       <details
                         className="group/request"
                         open={directRequestId === request.id}
                       >
-                        <summary className="cursor-pointer list-none border-b border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                        <summary
+                          title={confirmedElsewhere ? "Test confirmed with another examiner" : undefined}
+                          className={`cursor-pointer list-none border-b px-4 py-3 transition [&::-webkit-details-marker]:hidden ${confirmedElsewhere ? "border-orange-300 bg-orange-100 hover:bg-orange-200" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                        >
                           <div className="flex items-center gap-3">
                             <span
                               aria-hidden="true"
