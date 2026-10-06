@@ -20,6 +20,7 @@ type PracticalTestRequest = {
   id: string;
   request_number: string;
   applicant_profile_id: string;
+  offered_in_open_time: boolean;
   status: string;
   status_reason: string | null;
 
@@ -890,6 +891,7 @@ export default function ExaminerRequestsPage() {
         id,
         request_number,
         applicant_profile_id,
+        offered_in_open_time,
         status,
         status_reason,
 
@@ -1691,6 +1693,19 @@ export default function ExaminerRequestsPage() {
     setEditingRequestId(null);
     setSavingRequestInfoId(null);
     setMessage(`Request information saved for ${request.request_number}.`);
+  }
+
+  async function offerInOpenTime(request: PracticalTestRequest) {
+    if (savingRequestId || request.offered_in_open_time) return;
+    setSavingRequestId(request.id);
+    setPageError("");
+    const { error } = await createClient().rpc("examiner_offer_request_in_open_time", { p_request_id: request.id });
+    if (error) setPageError(`Request could not be offered in Open Time: ${error.message}`);
+    else {
+      setRequests((current) => current.map((item) => item.id === request.id ? { ...item, offered_in_open_time: true } : item));
+      setMessage(`${request.request_number} is offered in Open Time and remains in your queue until an appointment is confirmed.`);
+    }
+    setSavingRequestId(null);
   }
 
   async function updateRequestStatus(
@@ -3231,6 +3246,16 @@ export default function ExaminerRequestsPage() {
                                   </option>
                                 ))}
                               </select>
+
+                              {!closedStatuses.has(request.status) && request.status !== "confirmed" && (
+                                <button type="button"
+                                  onClick={() => void offerInOpenTime(request)}
+                                  disabled={Boolean(savingRequestId) || request.offered_in_open_time}
+                                  className="rounded-lg border border-sky-700 bg-white px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:opacity-60"
+                                >
+                                  {request.offered_in_open_time ? "Offered in Open Time" : "Offer in Open Time"}
+                                </button>
+                              )}
 
                               {canOpenPpcEvaluation(request) ? (
                                 <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
