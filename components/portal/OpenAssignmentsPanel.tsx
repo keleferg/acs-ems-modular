@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 type OpenAssignment = {
   id: string;
   request_number: string;
+  offered_by_me: boolean;
 
   applicant_name: string;
   applicant_email: string | null;
@@ -482,7 +483,7 @@ export default function OpenAssignmentsPanel() {
           </p>
 
           <p className="mt-2 text-sm text-slate-500">
-            Requests submitted to Any Examiner will appear here.
+            Requests submitted to Any Examiner or offered in Open Time will appear here.
           </p>
         </div>
       ) : null}
@@ -529,10 +530,10 @@ export default function OpenAssignmentsPanel() {
             return (
               <article
                 key={request.id}
-                className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+                className={`overflow-hidden rounded-lg border shadow-sm ${request.offered_by_me ? "border-yellow-300 bg-yellow-100" : "border-slate-200 bg-white"}`}
               >
                 <details className="group/assignment">
-                  <summary className="cursor-pointer list-none border-b border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                  <summary className={`cursor-pointer list-none border-b px-4 py-3 transition [&::-webkit-details-marker]:hidden ${request.offered_by_me ? "border-yellow-300 bg-yellow-100 hover:bg-yellow-200" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
                     <div className="flex items-center gap-3">
                       <span
                         aria-hidden="true"
@@ -618,6 +619,11 @@ export default function OpenAssignmentsPanel() {
                   </summary>
 
                 {/* PROPOSED APPOINTMENT — ALWAYS FIRST */}
+                {request.offered_by_me ? (
+                  <div className="border-b border-yellow-300 bg-yellow-100 px-6 py-4 text-sm text-yellow-900">
+                    You offered this request in Open Time. Manage or confirm its appointment from your Requests queue.
+                  </div>
+                ) : (
                 <section className="border-b border-amber-200 bg-amber-50/60 p-6">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">
@@ -820,6 +826,7 @@ export default function OpenAssignmentsPanel() {
                     </button>
                   </div>
                 </section>
+                )}
 
                 <DetailSection title="Applicant Information">
                   <Detail
