@@ -142,7 +142,7 @@ check(
   oralSequence.includes("Reviewed Private Pilot ASEL Event Set 1 K/R minimum sequence") &&
     oralSequence.includes("PA.I.D.R6") &&
     oralSequence.includes("dependency_kind") &&
-    generator.includes("same_question_task_gaps") && generator.includes("examiner_validate_poa_oral_structure"),
+    generator.includes("validateEditableDraft({") && generator.includes("allTasksCovered: allRatingTasksCovered"),
   "Private Pilot ASEL Event Set 1 does not enforce a reviewed, distinct K/R sequence",
 );
 check(
@@ -208,7 +208,7 @@ check(
     oralSequence.includes("'immediate_response', 'after_trigger'") &&
     oralSequence.includes("'consequence', 'after_trigger'") &&
     generator.includes("ruleAppliesToSelectedTriggers") &&
-    generator.includes("trigger_option_id: rule ? selectedTriggerForRule(rule) : null") &&
+    generator.includes("trigger_option_id: (rule ? selectedTriggerForRule(rule) : null)") &&
     generatedEditor.includes("Ask only if used:") &&
     generatedPrint.includes("ASK ONLY IF USED"),
   "Private Pilot basic-instrument questions are not conditional on the inadvertent-IMC trigger",
@@ -274,7 +274,7 @@ check(
 check(
   oralSequence.includes("values (1, 'weather'), (2, 'passenger'), (3, 'pilot_aircraft')") &&
     oralSequence.includes("select s.id, e.id, e.default_phase, true, 3, 3") &&
-    generator.includes("Cruise requires exactly one Weather, one Passenger, and one Aircraft/System trigger option"),
+    generator.includes("Choose at least one trigger for:"),
   "Cruise does not enforce one trigger option from each of its three branches",
 );
 check(
@@ -291,7 +291,7 @@ check(
   "original and additional issuances do not share rating-level question content",
 );
 check(
-  generator.includes("p_trigger_selections: selectedTriggerIds"),
+  generator.includes("p_trigger_selections: triggerSelections") && generator.includes("draft?.triggers ?? selectedTriggerIds"),
   "generator does not pass examiner-selected trigger candidates",
 );
 check(

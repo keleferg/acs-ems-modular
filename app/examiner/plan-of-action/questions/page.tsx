@@ -260,6 +260,14 @@ export default function PoaQuestionLibraryPage() {
   );
 
   const [showEditor, setShowEditor] = useState(false);
+  const [associateTriggerId, setAssociateTriggerId] = useState("");
+  useEffect(() => {
+    const triggerId = new URLSearchParams(window.location.search).get("addForTrigger");
+    if (triggerId && /^[0-9a-f-]{36}$/i.test(triggerId)) {
+      setAssociateTriggerId(triggerId);
+      setShowEditor(true);
+    }
+  }, []);
 
   const [form, setForm] = useState<QuestionForm>(EMPTY_FORM);
   const [typeRatings, setTypeRatings] = useState<TypeRatingOption[]>([]);
@@ -818,10 +826,17 @@ export default function PoaQuestionLibraryPage() {
         }
       }
 
+      if (associateTriggerId) {
+        const { error: associationError } = await supabase.from("poa_trigger_questions").upsert({
+          trigger_id: associateTriggerId, question_id: questionId,
+          relationship: "follow_up", is_required: true, weight: 100,
+        }, { onConflict: "trigger_id,question_id" });
+        if (associationError) throw associationError;
+        window.location.href = "/examiner/plan-of-action/triggers";
+        return;
+      }
       setShowEditor(false);
-
       setForm(EMPTY_FORM);
-
       await loadPage();
     } catch (error) {
       setPageError(

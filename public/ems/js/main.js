@@ -9521,6 +9521,10 @@ window.getStoredGeneratedScenario = function () {
   return store?.generatedScenario || null;
 };
 
+window.getApplicantWrittenDeficiencies = function () {
+  return [...(store?.selectedAcsCodes || [])];
+};
+
 window.getScenarioGradeFromDetailedView = function (rawTaskCode) {
   const parts = rawTaskCode ? rawTaskCode.split(".") : [];
 

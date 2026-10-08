@@ -287,6 +287,8 @@ export default function ExaminerCalendarPage() {
   const loadCalendar = useCallback(async () => {
     setLoading(true);
     setPageError("");
+    setRequests([]);
+    setBlockedPeriods([]);
 
     const supabase = createClient();
 
@@ -342,6 +344,7 @@ export default function ExaminerCalendarPage() {
             dms_preapproval_number
           `,
         )
+        .eq("assigned_examiner_profile_id", user.id)
         .not("scheduled_start_at", "is", null)
         .order("scheduled_start_at", {
           ascending: true,
@@ -516,7 +519,7 @@ export default function ExaminerCalendarPage() {
           <h1 className="mt-2 text-3xl font-bold text-slate-900">Calendar</h1>
 
           <p className="mt-2 text-slate-600">
-            Review scheduled and confirmed practical-test appointments.
+            Review your scheduled and confirmed practical-test appointments.
           </p>
         </div>
 

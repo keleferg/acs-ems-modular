@@ -12,6 +12,10 @@ import {
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { validateEditableDraft } from "@/lib/poa/validate-editable-draft";
+import { questionEventTargets } from "@/lib/poa/question-event-targets";
+import { taskAppliesToClass } from "@/lib/poa/task-class-applicability";
+import { buildCompliantDraft } from "@/lib/poa/build-compliant-draft";
 import { hasCompleteTaskCoverage } from "@/lib/poa/generation-readiness";
 import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-editor";
 import { EVENT_SET_SEQUENCE } from "@/lib/poa/event-set-sequence";
@@ -1091,7 +1095,7 @@ export default function GeneratePoaPage() {
     for (const entry of faaAcsComplianceCatalog.entries) {
       const prefix = acsPrefix(entry.code);
 
-      if (prefix && prefixSet.has(prefix)) {
+      if (prefix && prefixSet.has(prefix) && taskAppliesToClass(entry.task_name, testType?.class_code, entry.code)) {
         codes.add(entry.code);
       }
     }
@@ -1128,14 +1132,14 @@ export default function GeneratePoaPage() {
 
       return (elementOrder[aParts[3]] ?? 9) - (elementOrder[bParts[3]] ?? 9);
     });
-  }, [complianceAcsPrefixes]);
+  }, [complianceAcsPrefixes, testType?.class_code]);
 
   const [selectedFlightTaskCodes, setSelectedFlightTaskCodes] = useState<string[]>([]);
   useEffect(() => { setSelectedFlightTaskCodes([]); }, [testTypeId, additionalRatingHeld]);
   const flightTaskLibrary = (() => {
       let generatedFlightTasks = deriveAllFlightTasksFromAcsCatalog(
         complianceAcsPrefixes,
-      );
+      ).filter(task => taskAppliesToClass(task.task_name_snapshot, testType?.class_code, task.acs_task_code_snapshot));
 
       if (isAdditionalIssuance) {
         if (!additionalRatingHeld) return [];
@@ -1495,7 +1499,7 @@ export default function GeneratePoaPage() {
         });
         const order = eventItemOrder[item.event_set_id] ?? [];
         options.sort((a, b) => (order.includes(`trigger:${a.trigger_id}`) ? order.indexOf(`trigger:${a.trigger_id}`) : Number.MAX_SAFE_INTEGER) - (order.includes(`trigger:${b.trigger_id}`) ? order.indexOf(`trigger:${b.trigger_id}`) : Number.MAX_SAFE_INTEGER));
-        return [item, ...options, ...(options.length === 3 ? [] : [{ kind: "gap", label: item.title, title: "Choose exactly three trigger options", phase: item.phase, event_set_id: item.event_set_id }])];
+        return [item, ...options, ...(options.length >= 1 ? [] : [{ kind: "gap", label: item.title, title: "Choose at least one trigger", phase: item.phase, event_set_id: item.event_set_id }])];
       });
       return { ...current, timeline };
     });
@@ -1508,40 +1512,8 @@ export default function GeneratePoaPage() {
     [scenarioOptions, selectedScenarioId],
   );
 
-  function toggleTriggerChoice(eventSetId: string, triggerId: string) {
-    setSelectedTriggerIds((current) => {
-      const selected = current[eventSetId] ?? [];
-      if (selected.includes(triggerId)) {
-        return { ...current, [eventSetId]: selected.filter((id) => id !== triggerId) };
-      }
-
-      const eventSet = generatorEventSets.find((item) => item.id === eventSetId);
-      const trigger = compatibleTriggers.find(
-        (item) => item.eventSetId === eventSetId && item.id === triggerId,
-      );
-
-      if (eventSet?.code === "CRUISE" && trigger) {
-        const sameCategoryIds = new Set(
-          compatibleTriggers
-            .filter(
-              (item) =>
-                item.eventSetId === eventSetId &&
-                item.category === trigger.category,
-            )
-            .map((item) => item.id),
-        );
-        const withoutSameCategory = selected.filter(
-          (id) => !sameCategoryIds.has(id),
-        );
-        return {
-          ...current,
-          [eventSetId]: [...withoutSameCategory, triggerId],
-        };
-      }
-
-      if (selected.length >= 3) return current;
-      return { ...current, [eventSetId]: [...selected, triggerId] };
-    });
+  function removeTriggerChoice(eventSetId: string, triggerId: string) {
+    setSelectedTriggerIds((current) => ({ ...current, [eventSetId]: (current[eventSetId] ?? []).filter((id) => id !== triggerId) }));
   }
 
   const timelineEditorEventSets = (scenarioTimeline?.timeline ?? [])
@@ -1550,9 +1522,9 @@ export default function GeneratePoaPage() {
     .filter((eventSet): eventSet is GeneratorEventSet => Boolean(eventSet));
 
   const timelineEditorQuestions = questions.map((question) => {
-    const rules = eventQuestionRules.filter((rule) => rule.question_id === question.id && rule.review_status === "approved" && ruleAppliesToSelectedTriggers(rule));
+    const rules = eventQuestionRules.filter((rule) => rule.question_id === question.id && rule.review_status === "approved");
     const assignedEventSetId = questionEventAssignments[question.id] ?? timelineEditorEventSets.find((eventSet) => rules.some((rule) => eventSet.id === rule.event_set_id))?.id;
-    return { id: question.id, title: question.question, eventSetIds: [...new Set(rules.map((rule) => rule.event_set_id))], assignedEventSetId, selected: selectedIds.includes(question.id) };
+    return { id: question.id, title: question.question, eventSetIds: questionEventTargets(question.id, eventQuestionRules, timelineEditorEventSets.map((eventSet) => eventSet.id)), assignedEventSetId, selected: selectedIds.includes(question.id) };
   });
 
   const effectiveEventItemOrder = Object.fromEntries(timelineEditorEventSets.map((eventSet) => {
@@ -1568,13 +1540,12 @@ export default function GeneratePoaPage() {
     setErrorMessage("");
     if (kind === "trigger") {
       if ((selectedTriggerIds[eventSetId] ?? []).includes(id)) return true;
-      const selected = selectedTriggerIds[eventSetId] ?? [];
-      const eventSet = generatorEventSets.find((item) => item.id === eventSetId);
-      if (selected.length >= 3 && eventSet?.code !== "CRUISE") {
-        setErrorMessage("Remove a trigger option from this event set before adding another (maximum three).");
-        return false;
-      }
-      toggleTriggerChoice(eventSetId, id);
+      const trigger = compatibleTriggers.find((item) => item.id === id && item.eventSetId === eventSetId);
+      if (!trigger) { setErrorMessage("This trigger is not compatible with the event set."); return false; }
+      setSelectedTriggerIds((current) => {
+        const existing = current[eventSetId] ?? [];
+        return existing.includes(id) ? current : { ...current, [eventSetId]: [...existing, id] };
+      });
       return true;
     }
     const eventSet = generatorEventSets.find((item) => item.id === eventSetId);
@@ -1589,7 +1560,7 @@ export default function GeneratePoaPage() {
     return true;
   }
 
-  async function buildScenarioTimeline() {
+  async function buildScenarioTimeline(automaticallyPopulate = false) {
     if (!testType) {
       return;
     }
@@ -1608,6 +1579,20 @@ export default function GeneratePoaPage() {
           "Select the rating already held before building the Scenario Timeline.",
         );
       }
+
+      const draft = automaticallyPopulate ? buildCompliantDraft({
+        events: generatorEventSets,
+        triggers: compatibleTriggers,
+        requiredCodes: requiredComplianceCodes,
+        requiredQuestionIds: [],
+        links: triggerQuestionLinks,
+        questions: questions.map(question => ({
+          id: question.id,
+          codes: [...new Set(question.poa_question_acs_applicability.flatMap(item => splitAcsReferences(item.acs_reference)).filter(reference => complianceAcsPrefixes.includes(acsPrefix(reference) ?? "")).map(complianceParentCode).filter((code): code is string => Boolean(code && !code.endsWith(".S"))))],
+          placements: eventQuestionRules.filter(rule => rule.question_id === question.id && rule.review_status === "approved" && generatorEventSets.some(event => event.id === rule.event_set_id)).map(rule => ({ eventSetId: rule.event_set_id, afterTrigger: rule.trigger_timing === "after_trigger", order: rule.sequence_order, required: rule.is_required, triggerIds: rule.applies_to_all_triggers ? undefined : rule.poa_event_set_question_triggers.map(link => link.trigger_id) })),
+        })),
+      }) : null;
+      const triggerSelections = draft?.triggers ?? selectedTriggerIds;
 
       const crossCountryParents = new Set(
         crossCountryTaskParentsForPrefixes(complianceAcsPrefixes),
@@ -1656,7 +1641,7 @@ export default function GeneratePoaPage() {
           p_altitude: Number.isFinite(scenarioAltitude)
             ? Math.round(scenarioAltitude)
             : 8000,
-          p_trigger_selections: selectedTriggerIds,
+          p_trigger_selections: triggerSelections,
         },
       );
 
@@ -1673,18 +1658,30 @@ export default function GeneratePoaPage() {
         timeline: [
           ...rawItems.filter((item) => !item.event_set_id),
           ...generatorEventSets.flatMap((eventSet) => {
-            const existing = rawItems.filter((item) => item.event_set_id === eventSet.id);
-            if (existing.some((item) => item.kind === "event_set")) return existing;
-            const options: ScenarioTimelineItem[] = (selectedTriggerIds[eventSet.id] ?? []).flatMap((id, index) => {
+            const options: ScenarioTimelineItem[] = (triggerSelections[eventSet.id] ?? []).flatMap((id, index) => {
               const trigger = compatibleTriggers.find((item) => item.eventSetId === eventSet.id && item.id === id);
               return trigger ? [{ kind: "trigger_option", label: `${eventSet.name} — Option ${index + 1}`, phase: eventSet.code.toLowerCase(), title: trigger.title, narrative: trigger.narrative, trigger_id: id, event_set_id: eventSet.id, event_set_code: eventSet.code, category: trigger.category, trigger_option_order: index + 1 }] : [];
             });
-            return [{ kind: "event_set", label: "Event Set", title: eventSet.name, narrative: eventSet.description, phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id, event_set_code: eventSet.code, max_question_count: eventSet.maxQuestionCount }, ...options, ...(options.length === 3 ? [] : [{ kind: "gap", label: eventSet.name, title: "Choose exactly three trigger options", phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id }])];
+            return [{ kind: "event_set", label: "Event Set", title: eventSet.name, narrative: eventSet.description, phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id, event_set_code: eventSet.code, max_question_count: eventSet.maxQuestionCount }, ...options, ...(options.length >= 1 ? [] : [{ kind: "gap", label: eventSet.name, title: "Choose at least one trigger", phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id }])];
           }),
         ],
       };
 
       setScenarioTimeline(result);
+      if (draft) {
+        setSelectedTriggerIds(draft.triggers);
+        setSelectedIds(draft.questionIds);
+        setQuestionEventAssignments(draft.assignments);
+        setEventItemOrder(draft.order);
+        setSelectedFlightTaskCodes(flightTaskLibrary.map(task => task.acs_task_code_snapshot));
+        setSelectionMethod("automatic");
+        setGeneratorTab("timeline");
+        setMessage(`POA draft built. ${draft.provisionalQuestionIds.length ? `${draft.provisionalQuestionIds.length} questions were placed provisionally; review their event sets. ` : ""}Review the Timeline, Flight Tasks, and Compliance tabs before generating.`);
+        if (draft.missingCodes.length) {
+          setErrorMessage(`The draft still needs ${draft.missingCodes.length} Knowledge/Risk groups. Review Compliance for gaps; final generation remains disabled until they are covered.`);
+        }
+        return;
+      }
 
       const itemCount = result.timeline?.length ?? 0;
 
@@ -1701,7 +1698,7 @@ export default function GeneratePoaPage() {
         } for this ACS task set.`,
       );
     } catch (error) {
-      setScenarioTimeline(null);
+      if (!automaticallyPopulate) setScenarioTimeline(null);
 
       setErrorMessage(
         error instanceof Error
@@ -1735,45 +1732,14 @@ export default function GeneratePoaPage() {
 
     try {
       const incompleteTriggerSets = generatorEventSets.filter(
-        (eventSet) => (selectedTriggerIds[eventSet.id] ?? []).length !== 3,
+        (eventSet) => (selectedTriggerIds[eventSet.id] ?? []).length < 1,
       );
       if (incompleteTriggerSets.length > 0) {
         throw new Error(
-          `Choose exactly three trigger options for: ${incompleteTriggerSets.map((eventSet) => eventSet.name).join(", ")}.`,
+          `Choose at least one trigger for: ${incompleteTriggerSets.map((eventSet) => eventSet.name).join(", ")}.`,
         );
       }
 
-      const cruiseSet = generatorEventSets.find(
-        (eventSet) => eventSet.code === "CRUISE",
-      );
-      if (cruiseSet) {
-        const selectedCruiseIds = new Set(
-          selectedTriggerIds[cruiseSet.id] ?? [],
-        );
-        const selectedCruiseCategories = compatibleTriggers
-          .filter(
-          (trigger) =>
-            trigger.eventSetId === cruiseSet.id &&
-            selectedCruiseIds.has(trigger.id),
-          )
-          .map((trigger) => trigger.category);
-        const requiredCruiseCategories = [
-          "weather",
-          "passenger",
-          "pilot_aircraft",
-        ];
-        const missingCruiseCategories = requiredCruiseCategories.filter(
-          (category) =>
-          selectedCruiseCategories.filter((value) => value === category)
-            .length !== 1,
-        );
-
-        if (missingCruiseCategories.length > 0) {
-          throw new Error(
-          "Cruise requires exactly one Weather, one Passenger, and one Aircraft/System trigger option.",
-          );
-        }
-      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Review the trigger selections.");
       return;
@@ -1827,51 +1793,15 @@ export default function GeneratePoaPage() {
       return;
     }
 
-    const validationClient = createClient();
-    const { data: oralValidation, error: oralValidationError } =
-      await validationClient.rpc("examiner_validate_poa_oral_structure", {
-        p_scenario_id: selectedScenario.id,
-        p_question_ids: selectedQuestions.map((question) => question.id),
-        p_required_acs_codes: requiredComplianceCodes,
-      });
-
-    if (oralValidationError) {
-      setErrorMessage(`Oral sequence could not be validated: ${oralValidationError.message}`);
-      return;
-    }
-
-    const validation = oralValidation as {
-      is_valid?: boolean;
-      missing_required_codes?: string[];
-      same_question_task_gaps?: string[];
-      event_sets?: Array<{
-        name: string;
-        is_ready: boolean;
-        selected_questions: number;
-        max_question_count: number;
-        available_triggers: number;
-      }>;
-    };
-
-    if (!validation.is_valid) {
-      const issues = (validation.event_sets ?? [])
-        .filter((eventSet) => !eventSet.is_ready)
-        .map((eventSet) =>
-          `${eventSet.name}: ${eventSet.selected_questions} questions ` +
-          `(maximum ${eventSet.max_question_count}), ` +
-          `${eventSet.available_triggers} compatible trigger(s)`,
-        );
-      if ((validation.missing_required_codes ?? []).length > 0) {
-        issues.push(
-          `missing required ACS coverage: ${validation.missing_required_codes?.join(", ")}`,
-        );
-      }
-      if ((validation.same_question_task_gaps ?? []).length > 0) {
-        issues.push(
-          `separate Knowledge and Risk questions are required for: ${validation.same_question_task_gaps?.join(", ")}`,
-        );
-      }
-      setErrorMessage(`Resolve the oral structure before generating. ${issues.join("; ")}`);
+    const draftIssues = validateEditableDraft({
+      events: timelineEditorEventSets,
+      questions: timelineEditorQuestions,
+      triggers: selectedTriggerIds,
+      compatibleTriggers,
+      allTasksCovered: allRatingTasksCovered,
+    });
+    if (draftIssues.length) {
+      setErrorMessage(`Resolve the oral structure before generating. ${draftIssues.join(" ")}`);
       return;
     }
 
@@ -1991,6 +1921,18 @@ export default function GeneratePoaPage() {
           rule: ruleForQuestion(question.id),
         }))
         .sort((a, b) => {
+          const aEvent = questionEventAssignments[a.question.id] ?? a.rule?.event_set_id;
+          const bEvent = questionEventAssignments[b.question.id] ?? b.rule?.event_set_id;
+          if (aEvent || bEvent) {
+            const eventDifference = (aEvent ? eventSetOrder.get(aEvent) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER) - (bEvent ? eventSetOrder.get(bEvent) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER);
+            if (eventDifference) return eventDifference;
+            if (aEvent && aEvent === bEvent) {
+              const keys = effectiveEventItemOrder[aEvent] ?? [];
+              const difference = keys.indexOf(`question:${a.question.id}`) - keys.indexOf(`question:${b.question.id}`);
+              if (difference) return difference;
+            }
+          }
+
           if (!a.rule && !b.rule) {
             return (
               compareAcsReferences(
@@ -2036,7 +1978,7 @@ export default function GeneratePoaPage() {
 
         question_type_snapshot: question.question_type,
 
-        event_set_id: rule?.event_set_id ?? null,
+        event_set_id: questionEventAssignments[question.id] ?? rule?.event_set_id ?? null,
 
         question_rule_id: rule?.id ?? null,
 
@@ -2046,7 +1988,7 @@ export default function GeneratePoaPage() {
           ? (effectiveEventItemOrder[rule.event_set_id] ?? []).slice(0, (effectiveEventItemOrder[rule.event_set_id] ?? []).indexOf(`question:${question.id}`)).some((key) => key.startsWith("trigger:")) ? "after_trigger" : "before_trigger"
           : rule?.trigger_timing ?? null,
 
-        trigger_option_id: rule ? selectedTriggerForRule(rule) : null,
+        trigger_option_id: (rule ? selectedTriggerForRule(rule) : null) ?? triggerQuestionLinks.find(link => link.question_id === question.id && selectedCandidateTriggerIds.has(link.trigger_id) && compatibleTriggers.some(trigger => trigger.id === link.trigger_id && trigger.eventSetId === (questionEventAssignments[question.id] ?? rule?.event_set_id)))?.trigger_id ?? null,
 
         sort_order: (index + 1) * 10,
       }));
@@ -2382,8 +2324,8 @@ export default function GeneratePoaPage() {
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               Builds the oral as an ordered Event Set sequence. Each Event Set
-              contains ground questions and three plan-changing trigger options;
-              only one trigger is used during the oral.
+              contains ground questions and requires at least one plan-changing trigger.
+              Add more triggers if you want additional options.
             </p>
           </div>
 
@@ -2409,6 +2351,14 @@ export default function GeneratePoaPage() {
               </div>
             </label>
 
+            <button
+              type="button"
+              onClick={() => void buildScenarioTimeline(true)}
+              disabled={loading || loadingTimeline || !testType || !selectedScenarioId || generatorEventSets.length === 0 || requiredComplianceCodes.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingTimeline ? "Building…" : "Build Compliant POA"}
+            </button>
             <button
               type="button"
               onClick={() => void buildScenarioTimeline()}
@@ -2474,7 +2424,7 @@ export default function GeneratePoaPage() {
               onOrderChange={(eventSetId, keys) => setEventItemOrder((current) => ({ ...current, [eventSetId]: keys }))}
               onAssign={assignTimelineEntry}
               onRemove={(kind, id, eventSetId) => {
-                if (kind === "trigger") toggleTriggerChoice(eventSetId, id);
+                if (kind === "trigger") removeTriggerChoice(eventSetId, id);
                 else setSelectedIds((current) => current.filter((questionId) => questionId !== id));
               }}
             />

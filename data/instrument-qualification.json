@@ -1,0 +1,849 @@
+[
+  {
+    "id": "7a100000-0000-4000-8000-000000000001",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "identity",
+    "requirement_code": "IR_ID",
+    "requirement_type": "identity",
+    "title": "Government-issued identification",
+    "description": "Enter your name exactly as it appears on your identification. Attach legible pictures.",
+    "regulation_citation": "14 CFR \u00a761.3(a)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "identification_type",
+          "label": "Identification type",
+          "type": "select",
+          "options": [
+            "Driver License",
+            "State Identification Card",
+            "Passport",
+            "Military Identification",
+            "Other Government Identification"
+          ]
+        },
+        {
+          "key": "legal_name",
+          "label": "Name exactly as shown on ID",
+          "type": "text"
+        },
+        {
+          "key": "expiration_date",
+          "label": "ID expiration date",
+          "type": "date"
+        }
+      ]
+    },
+    "sort_order": 10
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000002",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "identity",
+    "requirement_code": "IR_CERTIFICATE",
+    "requirement_type": "identity",
+    "title": "Pilot certificate",
+    "description": "Enter your certificate details and attach pictures of both sides.",
+    "regulation_citation": "14 CFR \u00a761.65(a)(1)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "legal_name",
+          "label": "Name exactly as shown on pilot certificate",
+          "type": "text"
+        },
+        {
+          "key": "certificate_number",
+          "label": "Pilot certificate number",
+          "type": "text"
+        }
+      ]
+    },
+    "sort_order": 20
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000003",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "identity",
+    "requirement_code": "IR_NAME_COMPARISON",
+    "requirement_type": "identity",
+    "title": "ID and pilot-certificate name comparison",
+    "description": "Names are compared from your saved identification and certificate answers. Differences require review.",
+    "regulation_citation": "14 CFR \u00a761.3(a)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": false,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "computed",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": []
+    },
+    "sort_order": 30
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000004",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "eligibility",
+    "requirement_code": "IR_CERTIFICATE_PREREQUISITE",
+    "requirement_type": "other",
+    "title": "Existing pilot certificate and airplane rating",
+    "description": "For this standard pathway, hold at least a private pilot certificate with an appropriate airplane rating.",
+    "regulation_citation": "14 CFR \u00a761.65(a)(1)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": false,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "certificate_level",
+          "label": "Pilot certificate level",
+          "type": "select",
+          "options": [
+            "Private Pilot",
+            "Commercial Pilot",
+            "Airline Transport Pilot",
+            "Other / Concurrent Application"
+          ]
+        },
+        {
+          "key": "airplane_ratings",
+          "label": "Airplane category/class ratings held",
+          "type": "text"
+        }
+      ]
+    },
+    "sort_order": 40
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000005",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "eligibility",
+    "requirement_code": "IR_ENGLISH",
+    "requirement_type": "other",
+    "title": "English-language eligibility",
+    "description": "Confirm you can read, speak, write, and understand English. A medical-condition exception requires examiner review.",
+    "regulation_citation": "14 CFR \u00a761.65(a)(2)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": false,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "value",
+          "label": "Meets English-language requirement",
+          "type": "yes_no"
+        }
+      ]
+    },
+    "sort_order": 50
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000006",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "eligibility",
+    "requirement_code": "IR_PATHWAY",
+    "requirement_type": "other",
+    "title": "Certification pathway",
+    "description": "Select your training basis. Part 141 graduates must provide their graduation date and graduation certificate for examiner review.",
+    "regulation_citation": "14 CFR \u00a761.65",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": false,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "training_basis",
+          "label": "Training basis",
+          "type": "select",
+          "options": [
+            "Part 61",
+            "Part 141 Graduate"
+          ]
+        },
+        {
+          "key": "existing_instrument",
+          "label": "Already hold another instrument rating?",
+          "type": "yes_no"
+        },
+        {
+          "key": "concurrent_private",
+          "label": "Applying concurrently for private pilot?",
+          "type": "yes_no"
+        },
+        {
+          "key": "graduation_date",
+          "label": "Date of Graduation",
+          "type": "date",
+          "optional": true
+        }
+      ]
+    },
+    "sort_order": 60
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000007",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "knowledge_test",
+    "requirement_code": "IR_KNOWLEDGE_TEST",
+    "requirement_type": "knowledge_test",
+    "title": "Instrument Airplane knowledge-test report",
+    "description": "Enter the date and score. Attach all report pages. Enter deficient ACS codes, or None.",
+    "regulation_citation": "14 CFR \u00a7\u00a761.65(a)(7), 61.39(a)(1)\u2013(2)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "test_date",
+          "label": "Knowledge-test date",
+          "type": "date"
+        },
+        {
+          "key": "score",
+          "label": "Score",
+          "type": "number"
+        },
+        {
+          "key": "deficiency_codes",
+          "label": "Deficient ACS codes or None",
+          "type": "text"
+        }
+      ]
+    },
+    "sort_order": 70
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000008",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "application",
+    "requirement_code": "IR_APPLICATION",
+    "requirement_type": "application_document",
+    "title": "Completed and signed application",
+    "description": "Confirm your application is completed and signed. Supporting uploads are optional.",
+    "regulation_citation": "14 CFR \u00a761.39(a)(7)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": false,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "application_type",
+          "label": "Application type",
+          "type": "select",
+          "options": [
+            "IACRA",
+            "Paper FAA Form 8710-1"
+          ]
+        },
+        {
+          "key": "application_id",
+          "label": "Application identification / reference",
+          "type": "text"
+        },
+        {
+          "key": "signed",
+          "label": "Application completed and signed",
+          "type": "checkbox"
+        }
+      ]
+    },
+    "sort_order": 80
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000009",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "medical",
+    "requirement_code": "IR_MEDICAL",
+    "requirement_type": "medical",
+    "title": "Medical qualification",
+    "description": "Enter the qualification to be used for the practical test. BasicMed, limitations, and other cases require examiner review.",
+    "regulation_citation": "14 CFR \u00a7\u00a761.23, 61.39(a)(4)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "qualification_type",
+          "label": "Medical qualification",
+          "type": "select",
+          "options": [
+            "First Class Medical",
+            "Second Class Medical",
+            "Third Class Medical",
+            "BasicMed",
+            "Other / Examiner Review"
+          ]
+        },
+        {
+          "key": "examination_date",
+          "label": "Medical examination date",
+          "type": "date"
+        },
+        {
+          "key": "date_of_birth",
+          "label": "Date of birth",
+          "type": "date"
+        }
+      ]
+    },
+    "sort_order": 90
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000010",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "experience",
+    "requirement_code": "IR_PIC_XC",
+    "requirement_type": "aeronautical_experience",
+    "title": "Cross-country time as pilot in command",
+    "description": "At least 50 qualifying PIC cross-country hours, including 10 in airplanes. Use the instrument-rating cross-country definition; attach totals and supporting entries.",
+    "regulation_citation": "14 CFR \u00a7\u00a761.65(d)(1), 61.1(b)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "hours",
+          "label": "Total qualifying PIC cross-country hours",
+          "type": "number"
+        },
+        {
+          "key": "airplane_hours",
+          "label": "Qualifying PIC cross-country hours in airplanes",
+          "type": "number"
+        }
+      ]
+    },
+    "sort_order": 100
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000011",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "experience",
+    "requirement_code": "IR_INSTRUMENT_TOTAL",
+    "requirement_type": "aeronautical_experience",
+    "title": "Actual or simulated instrument time",
+    "description": "At least 40 qualifying hours. Aircraft and device time are entered separately; device eligibility remains subject to review.",
+    "regulation_citation": "14 CFR \u00a761.65(d)(2)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "actual_hours",
+          "label": "Actual instrument hours in aircraft",
+          "type": "number"
+        },
+        {
+          "key": "simulated_hours",
+          "label": "Simulated instrument hours in aircraft",
+          "type": "number"
+        },
+        {
+          "key": "device_hours",
+          "label": "Device hours claimed toward rating",
+          "type": "number"
+        }
+      ]
+    },
+    "sort_order": 110
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000012",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "experience",
+    "requirement_code": "IR_INSTRUCTOR_TIME",
+    "requirement_type": "aeronautical_experience",
+    "title": "Instrument training with an authorized instrument-airplane instructor",
+    "description": "At least 15 qualifying hours. Attach signed training entries.",
+    "regulation_citation": "14 CFR \u00a761.65(d)(2)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "hours",
+          "label": "Qualifying instructor instrument-training hours",
+          "type": "number"
+        }
+      ]
+    },
+    "sort_order": 120
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000013",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "experience",
+    "requirement_code": "IR_RECENT_TRAINING",
+    "requirement_type": "aeronautical_experience",
+    "title": "Recent instrument flight training",
+    "description": "At least 3 instrument-training hours in an appropriate airplane within 2 calendar months before the practical-test date. Add each entry and attach its signed record.",
+    "regulation_citation": "14 CFR \u00a761.65(d)(2)(i)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "entries",
+          "label": "Qualifying training entries",
+          "type": "entries",
+          "columns": [
+            {
+              "key": "date",
+              "label": "Flight date",
+              "type": "date"
+            },
+            {
+              "key": "airplane",
+              "label": "Airplane identification",
+              "type": "text"
+            },
+            {
+              "key": "hours",
+              "label": "Instrument-training hours",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    "sort_order": 130
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000015",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "experience",
+    "requirement_code": "IR_DEVICE_CREDIT",
+    "requirement_type": "aeronautical_experience",
+    "title": "Training-device credit",
+    "description": "Shown when device hours are claimed. BATD: up to 10 hours; AATD: up to 20. FFS/FTD: up to 20, or 30 under Part 142. Combined credit is normally limited to 20; examiner verifies the Part 142 exception and device approvals.",
+    "regulation_citation": "14 CFR \u00a761.65(h)\u2013(j)",
+    "advisory_circular_citation": null,
+    "required": false,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true,
+      "conditional": "device_hours"
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "entries",
+          "label": "Device training entries",
+          "type": "entries",
+          "columns": [
+            {
+              "key": "device_type",
+              "label": "Device type",
+              "type": "select",
+              "options": [
+                "BATD",
+                "AATD",
+                "FTD",
+                "FFS"
+              ]
+            },
+            {
+              "key": "device_model",
+              "label": "Device model",
+              "type": "text"
+            },
+            {
+              "key": "date",
+              "label": "Training date",
+              "type": "date"
+            },
+            {
+              "key": "hours",
+              "label": "Hours claimed",
+              "type": "number"
+            },
+            {
+              "key": "instructor",
+              "label": "Instructor name",
+              "type": "text"
+            },
+            {
+              "key": "part142",
+              "label": "Part 142 training?",
+              "type": "select",
+              "options": [
+                "No",
+                "Yes"
+              ]
+            },
+            {
+              "key": "approval_reference",
+              "label": "FAA approval reference",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    "sort_order": 150
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000016",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "cross_country",
+    "requirement_code": "IR_LONG_XC",
+    "requirement_type": "cross_country",
+    "title": "Instrument cross-country flight \u2014 250 NM",
+    "description": "One airplane flight with an authorized instructor, under IFR with an ATC-filed flight plan: at least 250 NM along airways or ATC-directed routing, an approach at each airport, and three different kinds of approaches using navigation systems.",
+    "regulation_citation": "14 CFR \u00a761.65(d)(2)(ii)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "flight_date",
+          "label": "Flight date",
+          "type": "date"
+        },
+        {
+          "key": "airplane",
+          "label": "Airplane identification",
+          "type": "text"
+        },
+        {
+          "key": "instructor_name",
+          "label": "Instructor name",
+          "type": "text"
+        },
+        {
+          "key": "departure",
+          "label": "Departure airport",
+          "type": "text"
+        },
+        {
+          "key": "route",
+          "label": "Intermediate airports and route",
+          "type": "textarea"
+        },
+        {
+          "key": "destination",
+          "label": "Destination / final airport",
+          "type": "text"
+        },
+        {
+          "key": "logged_distance_nm",
+          "label": "Route distance (NM)",
+          "type": "number"
+        },
+        {
+          "key": "ifr",
+          "label": "Conducted under IFR",
+          "type": "yes_no"
+        },
+        {
+          "key": "filed",
+          "label": "Flight plan filed with ATC",
+          "type": "yes_no"
+        },
+        {
+          "key": "approaches",
+          "label": "Approach at each airport and navigation systems used",
+          "type": "entries",
+          "columns": [
+            {
+              "key": "airport",
+              "label": "Airport",
+              "type": "text"
+            },
+            {
+              "key": "approach",
+              "label": "Approach procedure",
+              "type": "text"
+            },
+            {
+              "key": "kind",
+              "label": "Kind of approach / navigation system",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    "sort_order": 160
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000017",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "endorsements",
+    "requirement_code": "IR_ENDORSEMENT_KNOWLEDGE",
+    "requirement_type": "endorsement",
+    "title": "A-42 Aeronautical knowledge test",
+    "description": "Attach the endorsement or applicable training-record evidence. No transcription required.",
+    "regulation_citation": "14 CFR \u00a7\u00a7 61.35(a)(1) and 61.65(a) and (b).",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "endorsement_date",
+          "label": "Endorsement date",
+          "type": "date"
+        },
+        {
+          "key": "instructor_name",
+          "label": "Instructor name",
+          "type": "text"
+        }
+      ],
+      "required_text": "I certify that [First name, MI, Last name] has received the required training of 14 CFR \u00a7 61.65(b). I have determined that they are prepared for the Instrument\u2013[airplane, helicopter, or powered-lift] knowledge test."
+    },
+    "sort_order": 170
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000018",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "endorsements",
+    "requirement_code": "IR_ENDORSEMENT_PRACTICAL",
+    "requirement_type": "endorsement",
+    "title": "A-43 Flight proficiency/practical test",
+    "description": "Attach the signed recommendation. The same picture may support multiple cards.",
+    "regulation_citation": "14 CFR \u00a7 61.65(a)(6).",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "endorsement_date",
+          "label": "Endorsement date",
+          "type": "date"
+        },
+        {
+          "key": "instructor_name",
+          "label": "Instructor name",
+          "type": "text"
+        }
+      ],
+      "required_text": "I certify that [First name, MI, Last name] has received the required training of 14 CFR \u00a7 61.65(c) and (d). I have determined they are prepared for the Instrument\u2013[airplane, helicopter, or powered-lift] practical test."
+    },
+    "sort_order": 180
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000019",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "endorsements",
+    "requirement_code": "IR_ENDORSEMENT_PREREQUISITES",
+    "requirement_type": "endorsement",
+    "title": "A-44 Prerequisites for instrument practical tests",
+    "description": "Attach signed certification covering recent preparation, readiness, and satisfactory knowledge of deficient test subject areas. Deficient ACS codes are displayed from the saved report.",
+    "regulation_citation": "14 CFR \u00a7 61.39(a).",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": true,
+    "requires_instructor_verification": true,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "endorsement_date",
+          "label": "Endorsement date",
+          "type": "date"
+        },
+        {
+          "key": "instructor_name",
+          "label": "Instructor name",
+          "type": "text"
+        }
+      ],
+      "required_text": "I certify that [First name, MI, Last name] has received and logged the required flight time/training of 14 CFR \u00a7 61.39(a) in preparation for the practical test within 2 calendar months preceding the date of the test and has satisfactory knowledge of the subject areas in which they were shown to be deficient by the FAA Airman Knowledge Test Report. I have determined they are prepared for the Instrument\u2013[airplane, helicopter, or powered-lift] practical test."
+    },
+    "sort_order": 190
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000020",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "certification",
+    "requirement_code": "IR_APPLICANT_CERTIFICATION",
+    "requirement_type": "applicant_certification",
+    "title": "Applicant certification",
+    "description": "Confirm answers are accurate and uploaded records are complete and legible.",
+    "regulation_citation": "14 CFR \u00a761.39(a)(7)",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": false,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "fields",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": [
+        {
+          "key": "certified_name",
+          "label": "Type your full legal name",
+          "type": "text"
+        },
+        {
+          "key": "certified",
+          "label": "I certify my entries and records are true, complete, and legible.",
+          "type": "checkbox"
+        }
+      ]
+    },
+    "sort_order": 200
+  },
+  {
+    "id": "7a100000-0000-4000-8000-000000000021",
+    "rule_set_id": "7a100000-0000-4000-8000-000000000000",
+    "section_code": "certification",
+    "requirement_code": "IR_INSTRUCTOR_CERTIFICATION",
+    "requirement_type": "instructor_certification",
+    "title": "Instructor certification",
+    "description": "Your instructor reviews answers, records, endorsements, and flags after submission.",
+    "regulation_citation": "14 CFR \u00a7\u00a761.39(a)(6), 61.65",
+    "advisory_circular_citation": null,
+    "required": true,
+    "allows_not_applicable": false,
+    "requires_document": false,
+    "requires_instructor_verification": false,
+    "requires_examiner_review": true,
+    "rule_config": {
+      "answer_type": "instructor_certification",
+      "instrument_rule": true
+    },
+    "display_config": {
+      "fields": []
+    },
+    "sort_order": 210
+  }
+]

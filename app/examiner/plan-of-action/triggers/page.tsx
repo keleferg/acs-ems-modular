@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TriggerQuestionAssociations } from "@/components/poa/trigger-question-associations";
 import {
   CloudSun,
   Pencil,
@@ -543,9 +544,10 @@ export default function TriggerLibraryPage() {
                       key={trigger.id}
                       className="group flex items-start justify-between gap-4 px-5 py-3.5 hover:bg-slate-50"
                     >
-                      <p className="min-w-0 flex-1 text-sm font-medium leading-6 text-slate-800">
-                        {trigger.trigger_text}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-6 text-slate-800">{trigger.trigger_text}</p>
+                        <TriggerQuestionAssociations triggerId={trigger.id} />
+                      </div>
 
                       <div className="flex shrink-0 items-center gap-1">
                         <button

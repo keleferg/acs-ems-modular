@@ -176,6 +176,44 @@ type RequestStatusAudit = {
   changed_at: string;
 };
 
+
+type NoGradesheetDetails = {
+  tailNumber: string;
+  groundDuration: string;
+  simulatorDuration: string;
+  flightDuration: string;
+};
+
+function getNoGradesheetDetails(
+  request: PracticalTestRequest,
+  draft?: NoGradesheetDetails,
+): NoGradesheetDetails {
+  return draft ?? {
+    tailNumber: request.aircraft_registration ?? "",
+    groundDuration: "",
+    simulatorDuration: "",
+    flightDuration: "",
+  };
+}
+
+function noGradesheetDetailsError(details: NoGradesheetDetails): string {
+  if (!details.tailNumber.trim()) return "Tail Number is required.";
+  if (!details.groundDuration.trim()) return "Ground Duration is required.";
+  if (!details.simulatorDuration.trim() && !details.flightDuration.trim()) {
+    return "Enter FTD / FFS Duration, Flight Duration, or both.";
+  }
+  for (const [label, value] of [
+    ["Ground Duration", details.groundDuration],
+    ["FTD / FFS Duration", details.simulatorDuration],
+    ["Flight Duration", details.flightDuration],
+  ]) {
+    if (value.trim() && (!Number.isFinite(Number(value)) || Number(value) < 0)) {
+      return `${label} must be a nonnegative number of hours.`;
+    }
+  }
+  return "";
+}
+
 const statusOptions = [
   {
     value: "submitted",
@@ -739,6 +777,7 @@ export default function ExaminerRequestsPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
+  const [noGradesheetDetails, setNoGradesheetDetails] = useState<Record<string, NoGradesheetDetails>>({});
   const [noGradesheetRequests, setNoGradesheetRequests] = useState<
     Record<string, boolean>
   >({});
@@ -1807,6 +1846,12 @@ export default function ExaminerRequestsPage() {
 
   async function completeWithoutGradesheet(request: PracticalTestRequest) {
     const result = noGradesheetResults[request.id];
+    const details = getNoGradesheetDetails(request, noGradesheetDetails[request.id]);
+    const detailsError = noGradesheetDetailsError(details);
+    if (detailsError) {
+      setPageError(detailsError);
+      return;
+    }
 
     if (!result) {
       setPageError(
@@ -1837,10 +1882,16 @@ export default function ExaminerRequestsPage() {
     const supabase = createClient();
 
     const { data, error } = await supabase.rpc(
-      "examiner_complete_practical_test_without_gradesheet",
+      "examiner_complete_practical_test_without_gradesheet_details",
       {
         p_request_id: request.id,
         p_result: result,
+        p_tail_number: details.tailNumber.trim().toUpperCase(),
+        p_ground_duration: Number(details.groundDuration),
+        p_simulator_duration: details.simulatorDuration.trim()
+          ? Number(details.simulatorDuration) : null,
+        p_flight_duration: details.flightDuration.trim()
+          ? Number(details.flightDuration) : null,
       },
     );
 
@@ -3154,58 +3205,7 @@ export default function ExaminerRequestsPage() {
                                 </div>
                               ) : null}
 
-                              {noGradesheetRequests[request.id] ? (
-                                <div className="flex flex-wrap items-center gap-3">
-                                  {[
-                                    ["pass", "SAT"],
-                                    ["fail", "UNSAT"],
-                                    ["discontinued", "DISCONT"],
-                                  ].map(([value, label]) => (
-                                    <label
-                                      key={value}
-                                      className="flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-slate-700"
-                                    >
-                                      <input
-                                        type="radio"
-                                        name={`no-gradesheet-result-${request.id}`}
-                                        value={value}
-                                        checked={
-                                          noGradesheetResults[request.id] ===
-                                          value
-                                        }
-                                        onChange={() =>
-                                          setNoGradesheetResults((current) => ({
-                                            ...current,
-                                            [request.id]: value as
-                                              "pass" | "fail" | "discontinued",
-                                          }))
-                                        }
-                                        disabled={
-                                          savingNoGradesheetId === request.id
-                                        }
-                                        className="h-4 w-4 accent-amber-700"
-                                      />
-                                      {label}
-                                    </label>
-                                  ))}
 
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void completeWithoutGradesheet(request)
-                                    }
-                                    disabled={
-                                      !noGradesheetResults[request.id] ||
-                                      savingNoGradesheetId === request.id
-                                    }
-                                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    {savingNoGradesheetId === request.id
-                                      ? "Saving…"
-                                      : "Save"}
-                                  </button>
-                                </div>
-                              ) : null}
 
                               <button
                                 type="button"
@@ -3220,6 +3220,106 @@ export default function ExaminerRequestsPage() {
                                 Edit Request Info
                               </button>
                             </div>
+
+
+                            {noGradesheetRequests[request.id] ? (
+                              <section
+                                aria-label="Completed - No Gradesheet details"
+                                className="mt-4 rounded-xl border border-amber-200 bg-white p-5"
+                              >
+                                <h3 className="font-bold text-slate-900">
+                                  Completed - No Gradesheet
+                                </h3>
+                                <fieldset
+                                  disabled={Boolean(savingNoGradesheetId)}
+                                  className="mt-4"
+                                >
+                                  <legend className="text-sm font-semibold text-slate-700">
+                                    Test Result *
+                                  </legend>
+                                  <div className="mt-2 flex flex-wrap gap-6">
+                                    {([
+                                      ["pass", "SAT"],
+                                      ["fail", "UNSAT"],
+                                      ["discontinued", "DISCONT"],
+                                    ] as const).map(([value, label]) => (
+                                      <label key={value} className="flex items-center gap-2 text-sm font-semibold">
+                                        <input
+                                          type="radio"
+                                          required
+                                          name={`no-gradesheet-result-${request.id}`}
+                                          value={value}
+                                          checked={noGradesheetResults[request.id] === value}
+                                          onChange={() => setNoGradesheetResults((current) => ({
+                                            ...current, [request.id]: value,
+                                          }))}
+                                          className="h-4 w-4 accent-amber-700"
+                                        />
+                                        {label}
+                                      </label>
+                                    ))}
+                                  </div>
+                                </fieldset>
+                                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                  {([
+                                    ["tailNumber", "Tail Number"],
+                                    ["groundDuration", "Ground Duration"],
+                                    ["simulatorDuration", "FTD / FFS Duration"],
+                                    ["flightDuration", "Flight Duration"],
+                                  ] as const).map(([key, label]) => {
+                                    const details = getNoGradesheetDetails(
+                                      request, noGradesheetDetails[request.id],
+                                    );
+                                    const required = key === "tailNumber" || key === "groundDuration" ||
+                                      (key === "simulatorDuration" && !details.flightDuration.trim()) ||
+                                      (key === "flightDuration" && !details.simulatorDuration.trim());
+                                    return (
+                                      <label key={key} className="block text-sm font-semibold text-slate-700">
+                                        {label}{key === "tailNumber" || key === "groundDuration" ? " *" : ""}
+                                        <input
+                                          type={key === "tailNumber" ? "text" : "number"}
+                                          min={key === "tailNumber" ? undefined : 0}
+                                          step={key === "tailNumber" ? undefined : "any"}
+                                          required={required}
+                                          placeholder={key === "tailNumber" ? "N12345" : "Hours"}
+                                          value={details[key]}
+                                          disabled={Boolean(savingNoGradesheetId)}
+                                          onChange={(event) => {
+                                            const value = event.target.value;
+                                            setNoGradesheetDetails((current) => ({
+                                              ...current,
+                                              [request.id]: {
+                                                ...getNoGradesheetDetails(request, current[request.id]),
+                                                [key]: value,
+                                              },
+                                            }));
+                                          }}
+                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 disabled:opacity-60"
+                                        />
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                                <p className="mt-3 text-xs text-slate-600">
+                                  Enter times in decimal hours. Ground Duration is required.
+                                  Enter FTD / FFS Duration, Flight Duration, or both.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => void completeWithoutGradesheet(request)}
+                                  disabled={
+                                    !noGradesheetResults[request.id] ||
+                                    Boolean(savingNoGradesheetId) ||
+                                    Boolean(noGradesheetDetailsError(
+                                      getNoGradesheetDetails(request, noGradesheetDetails[request.id]),
+                                    ))
+                                  }
+                                  className="mt-4 rounded-lg bg-amber-700 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {savingNoGradesheetId === request.id ? "Saving…" : "Save"}
+                                </button>
+                              </section>
+                            ) : null}
 
                             {closedStatuses.has(request.status) ? (
                               <p className="mt-3 text-xs font-medium text-slate-500">

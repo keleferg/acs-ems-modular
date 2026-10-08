@@ -94,3 +94,13 @@ const moveDown = flatten(rows[0]).find((entry) => entry.props?.['aria-label'] ==
 moveDown.props.onClick();
 assert.deepEqual(changes[1], ['mixed', ['trigger:t', 'question:a', 'question:b']]);
 console.log('Mixed ordering checks passed: question/trigger/question rendering, arbitrary insertions, existing-item moves, and keyboard reorder controls.');
+
+const targetFile = process.cwd() + '/lib/poa/question-event-targets.ts';
+const targetsModule = new Module(targetFile, module);
+targetsModule._compile(ts.transpileModule(fs.readFileSync(targetFile, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, targetFile);
+const {questionEventTargets} = targetsModule.exports;
+assert.deepEqual(questionEventTargets('q', [], ['a','b']), ['a','b']);
+assert.deepEqual(questionEventTargets('q', [{question_id:'q',event_set_id:'a',review_status:'approved', applies_to_all_triggers:false}], ['a','b']), ['a','b']);
+assert.deepEqual(questionEventTargets('q', [{question_id:'q',event_set_id:'a',review_status:'needs_review'}], ['a','b']), ['a','b']);
+assert.deepEqual(questionEventTargets('q', [{question_id:'other',event_set_id:'a',review_status:'approved'}], ['a','b']), ['a','b']);
+console.log('Question target regression checks passed: unmapped questions allow manual placement; mapped questions remain draggable without selecting triggers first.');

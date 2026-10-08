@@ -77,7 +77,7 @@ export function TimelineEventEditor({ scenario, eventSets, questions, triggers, 
             }} className={`overflow-hidden rounded-2xl border ${dragOver === eventSet.id ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-200"} bg-white`}>
               <button type="button" aria-expanded={!closed} aria-controls={`event-body-${eventSet.id}`} onClick={() => setCollapsed((current) => { const next = new Set(current); if (closed) next.delete(eventSet.id); else next.add(eventSet.id); return next; })} className="flex w-full items-center gap-3 bg-slate-50 p-4 text-left hover:bg-slate-100">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">{index + 1}</span>
-                <span className="min-w-0 flex-1"><span className="block font-bold text-slate-900">{eventSet.name}</span><span className="mt-1 block text-xs text-slate-500">{eventQuestions.length}/{eventSet.maxQuestionCount} questions · {eventTriggers.length}/3 triggers</span></span>
+                <span className="min-w-0 flex-1"><span className="block font-bold text-slate-900">{eventSet.name}</span><span className="mt-1 block text-xs text-slate-500">{eventQuestions.length}/{eventSet.maxQuestionCount} questions · {eventTriggers.length} triggers · 1 required</span></span>
                 {closed ? <ChevronRight className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </button>
               <div id={`event-body-${eventSet.id}`} hidden={closed} className="space-y-4 p-4">

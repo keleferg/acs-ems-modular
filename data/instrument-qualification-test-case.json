@@ -1,0 +1,115 @@
+{
+  "IR_ID": {
+    "identification_type": "Passport",
+    "legal_name": "Test Instrument Applicant",
+    "expiration_date": "2030-04-15"
+  },
+  "IR_CERTIFICATE": {
+    "legal_name": "Test Instrument Applicant",
+    "certificate_number": "TEST-ONLY-0001"
+  },
+  "IR_CERTIFICATE_PREREQUISITE": {
+    "certificate_level": "Private Pilot",
+    "airplane_ratings": "Airplane Single-Engine Land \u2014 TEST ONLY"
+  },
+  "IR_ENGLISH": {
+    "value": true
+  },
+  "IR_PATHWAY": {
+    "training_basis": "Part 61",
+    "existing_instrument": false,
+    "concurrent_private": false
+  },
+  "IR_KNOWLEDGE_TEST": {
+    "test_date": "@knowledge_date",
+    "score": "88",
+    "deficiency_codes": "IR.I.A.K1 \u2014 TEST ONLY"
+  },
+  "IR_APPLICATION": {
+    "application_type": "IACRA",
+    "application_id": "TEST-ONLY-NOT-AN-FAA-APPLICATION",
+    "signed": true
+  },
+  "IR_MEDICAL": {
+    "qualification_type": "Third Class Medical",
+    "examination_date": "2026-01-15",
+    "date_of_birth": "1990-04-15"
+  },
+  "IR_PIC_XC": {
+    "hours": "52",
+    "airplane_hours": "52"
+  },
+  "IR_INSTRUMENT_TOTAL": {
+    "actual_hours": "8",
+    "simulated_hours": "32",
+    "device_hours": "0"
+  },
+  "IR_INSTRUCTOR_TIME": {
+    "hours": "17"
+  },
+  "IR_RECENT_TRAINING": {
+    "entries": [
+      {
+        "date": "@recent_date",
+        "airplane": "TEST C172",
+        "hours": "1.6"
+      },
+      {
+        "date": "@today",
+        "airplane": "TEST C172",
+        "hours": "1.6"
+      }
+    ]
+  },
+  "IR_TRAINING_AREAS": {
+    "ground_training": true,
+    "flight_training": true
+  },
+  "IR_LONG_XC": {
+    "flight_date": "@recent_date",
+    "airplane": "TEST C172",
+    "instructor_name": "Test Instrument Instructor",
+    "departure": "TEST Airport A",
+    "route": "TEST Airport A \u2192 TEST Airport B \u2192 TEST Airport C, simulated ATC-directed routing",
+    "destination": "TEST Airport C",
+    "logged_distance_nm": "275",
+    "ifr": true,
+    "filed": true,
+    "approaches": [
+      {
+        "airport": "TEST Airport A",
+        "approach": "TEST ILS procedure",
+        "kind": "ILS"
+      },
+      {
+        "airport": "TEST Airport B",
+        "approach": "TEST VOR procedure",
+        "kind": "VOR"
+      },
+      {
+        "airport": "TEST Airport C",
+        "approach": "TEST GPS procedure",
+        "kind": "GPS"
+      }
+    ]
+  },
+  "IR_ENDORSEMENT_KNOWLEDGE": {
+    "endorsement_date": "@today",
+    "instructor_name": "Test Instrument Instructor",
+    "instructor_certificate_number": "TEST-ONLY-CFII"
+  },
+  "IR_ENDORSEMENT_PRACTICAL": {
+    "endorsement_date": "@today",
+    "instructor_name": "Test Instrument Instructor",
+    "instructor_certificate_number": "TEST-ONLY-CFII"
+  },
+  "IR_ENDORSEMENT_PREREQUISITES": {
+    "endorsement_date": "@today",
+    "instructor_name": "Test Instrument Instructor",
+    "instructor_certificate_number": "TEST-ONLY-CFII"
+  },
+  "IR_APPLICANT_CERTIFICATION": {
+    "certified_name": "Test Instrument Applicant",
+    "certified": false
+  }
+}

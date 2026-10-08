@@ -13,6 +13,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   },
 });
 
+export async function loadWrittenReviewQuestions(testTypeId) {
+  const rows = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await supabase.from('poa_questions').select('id,question,answer,reference,acs_reference,poa_question_practical_test_types!inner(practical_test_type_id),poa_question_acs_applicability(acs_reference)').eq('is_active',true).eq('poa_question_practical_test_types.practical_test_type_id',testTypeId).order('id').range(offset,offset+499);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if ((data || []).length < 500) return rows;
+  }
+}
+
 export async function getCurrentEmtUser() {
   const {
     data: { user },

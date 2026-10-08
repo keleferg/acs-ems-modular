@@ -7,6 +7,8 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  if (process.env.NODE_ENV === "development" && request.nextUrl.pathname === "/preview/instrument-qualification") return supabaseResponse;
+
   // If the env vars are not set, skip proxy check. You can remove this
   // once you setup the project.
   if (!hasEnvVars) {
