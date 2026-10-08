@@ -1033,16 +1033,12 @@ export default function ApplicantRequestsPage() {
       return;
     }
 
-    const { data: acceptedRequest } = await supabase
-      .from("practical_test_requests").select("status").eq("id", request.id).single();
-    const acceptedStatus = acceptedRequest?.status ?? "scheduled";
-
     setRequests((current) =>
       current.map((item) =>
         item.id === request.id
           ? {
               ...item,
-              status: acceptedStatus,
+              status: "scheduled",
               status_reason: null,
               assigned_examiner_profile_id: proposal.examiner_profile_id,
               examiner_name: proposal.examiner_name,
@@ -1067,7 +1063,7 @@ export default function ApplicantRequestsPage() {
       return next;
     });
 
-    addLocalAudit(request, acceptedStatus, null);
+    addLocalAudit(request, "scheduled", null);
 
     try {
       const emailResponse = await fetch("/api/email/practical-test", {

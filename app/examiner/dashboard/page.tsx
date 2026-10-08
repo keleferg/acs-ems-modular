@@ -14,7 +14,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type DashboardRequest = {
-  assigned_examiner_profile_id: string | null;
   id: string;
   request_number: string;
   status: string;
@@ -147,7 +146,6 @@ export default function ExaminerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [clock, setClock] = useState(0);
-  const [currentExaminerProfileId, setCurrentExaminerProfileId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -167,8 +165,6 @@ export default function ExaminerDashboardPage() {
       setLoading(false);
       return;
     }
-
-    setCurrentExaminerProfileId(user.id);
 
     const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
@@ -194,7 +190,6 @@ export default function ExaminerDashboardPage() {
       .from("practical_test_requests")
       .select(
         `
-          assigned_examiner_profile_id,
         id,
         request_number,
         status,
@@ -266,13 +261,6 @@ export default function ExaminerDashboardPage() {
   const upcomingAppointments = useMemo(() => {
     return requests
       .filter((request) => {
-        if (
-          !currentExaminerProfileId ||
-          request.assigned_examiner_profile_id !== currentExaminerProfileId
-        ) {
-          return false;
-        }
-
         if (!request.scheduled_start_at) {
           return false;
         }
@@ -288,7 +276,7 @@ export default function ExaminerDashboardPage() {
           new Date(first.scheduled_start_at as string).getTime() -
           new Date(second.scheduled_start_at as string).getTime(),
       );
-  }, [clock, requests, currentExaminerProfileId]);
+  }, [clock, requests]);
 
   const completedThisMonth = useMemo(() => {
     const now = new Date(clock);

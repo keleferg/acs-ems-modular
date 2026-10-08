@@ -1,7 +1,10 @@
 "use client";
 
+import { supportsQualificationEvidence } from "@/lib/qualification/instrument";
+
+import { EvidencePanel } from "@/components/qualification/evidence-panel";
+
 import { useState } from "react";
-import RequirementPhotos, { supportsRequirementPhotos } from "@/components/qualification/RequirementPhotos";
 import { createClient } from "@/lib/supabase/client";
 
 export type QualificationWizardSummary = {
@@ -31,6 +34,8 @@ type Requirement = {
   advisory_circular_citation: string | null;
   acs_citation: string | null;
   required: boolean;
+  requires_document: boolean;
+  rule_config: Record<string, unknown>;
   requires_instructor_verification: boolean;
   requires_examiner_review: boolean;
   sort_order: number;
@@ -223,7 +228,8 @@ export default function QualificationReviewPanel({
   wizard,
   onWizardChanged,
 }: Props) {
-  const [openPhotoRequirements, setOpenPhotoRequirements] = useState<Set<string>>(new Set());
+  const [requirementNotes, setRequirementNotes] = useState<Record<string, string>>({});
+  const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState<Revision | null>(null);
@@ -238,6 +244,15 @@ export default function QualificationReviewPanel({
   const [saving, setSaving] = useState(false);
 
   const presentation = getStatusPresentation(wizard);
+
+  async function saveRequirementNote(answer: Answer) {
+    if (!revision) return;
+    setSavingNoteId(answer.requirement_id); setError(""); setMessage("");
+    const result = await createClient().rpc("examiner_save_qualification_note", { p_revision_id: revision.id, p_requirement_id: answer.requirement_id, p_notes: requirementNotes[answer.requirement_id] ?? answer.examiner_notes ?? "" });
+    if (result.error) setError(result.error.message);
+    else { setAnswers((current) => current.map((row) => row.id === answer.id ? { ...row, examiner_notes: requirementNotes[answer.requirement_id] ?? answer.examiner_notes } : row)); setMessage("Requirement comment saved."); }
+    setSavingNoteId(null);
+  }
 
   async function loadDetails(force = false) {
     if (!wizard || (loaded && !force) || loading) return;
@@ -294,6 +309,8 @@ export default function QualificationReviewPanel({
           advisory_circular_citation,
           acs_citation,
           required,
+          requires_document,
+          rule_config,
           requires_instructor_verification,
           requires_examiner_review,
           sort_order
@@ -673,19 +690,11 @@ export default function QualificationReviewPanel({
                       flagsByRequirement[requirement.id] ?? [];
 
                     return (
-                      <details
-                        onToggle={(event) => {
-                          const open = event.currentTarget.open;
-                          setOpenPhotoRequirements((current) => {
-                            const next = new Set(current);
-                            if (open) next.add(requirement.id); else next.delete(requirement.id);
-                            return next;
-                          });
-                        }}
+                      <article
                         key={requirement.id}
                         className="rounded-xl border border-slate-200 bg-white p-5"
                       >
-                        <summary className="cursor-pointer flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wide text-amber-800">
                               {formatStatus(requirement.section_code)}
@@ -741,7 +750,7 @@ export default function QualificationReviewPanel({
                               </>
                             ) : null}
                           </div>
-                        </summary>
+                        </div>
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -761,6 +770,9 @@ export default function QualificationReviewPanel({
                           ) : null}
                         </div>
 
+                        {revision && supportsQualificationEvidence(requirement, answer?.answer_value ?? {}) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} /> : null}
+
+                        {answer && wizard && !["accepted", "closed"].includes(wizard.status) ? <div className="mt-4"><label className="block text-sm font-semibold text-slate-800" htmlFor={`examiner-note-${requirement.id}`}>Examiner comment for this requirement</label><textarea id={`examiner-note-${requirement.id}`} value={requirementNotes[requirement.id] ?? answer.examiner_notes ?? ""} onChange={(event) => setRequirementNotes((current) => ({ ...current, [requirement.id]: event.target.value }))} rows={2} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /><button type="button" disabled={Boolean(savingNoteId)} onClick={() => void saveRequirementNote(answer)} className="mt-2 rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 disabled:opacity-50">{savingNoteId === requirement.id ? "Saving…" : "Save Comment"}</button></div> : null}
                         {answer?.automated_result_message ? (
                           <p className="mt-3 text-sm text-slate-600">
                             <span className="font-semibold">
@@ -803,16 +815,7 @@ export default function QualificationReviewPanel({
                             ))}
                           </div>
                         ) : null}
-                        {wizard && supportsRequirementPhotos(requirement.section_code) && (
-                          <RequirementPhotos
-                            key={`${revision.id}-${requirement.id}`}
-                            wizardId={wizard.id}
-                            revisionId={revision.id}
-                            requirementId={requirement.id}
-                            active={openPhotoRequirements.has(requirement.id)}
-                          />
-                        )}
-                      </details>
+                      </article>
                     );
                   })}
                 </section>

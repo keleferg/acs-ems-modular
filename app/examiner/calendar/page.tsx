@@ -15,7 +15,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type CalendarRequest = {
-  assigned_examiner_profile_id: string | null;
   id: string;
   request_number: string;
   status: string;
@@ -279,7 +278,6 @@ export default function ExaminerCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [clock, setClock] = useState(0);
-  const [currentExaminerProfileId, setCurrentExaminerProfileId] = useState<string | null>(null);
 
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
 
@@ -289,6 +287,8 @@ export default function ExaminerCalendarPage() {
   const loadCalendar = useCallback(async () => {
     setLoading(true);
     setPageError("");
+    setRequests([]);
+    setBlockedPeriods([]);
 
     const supabase = createClient();
 
@@ -304,8 +304,6 @@ export default function ExaminerCalendarPage() {
       setLoading(false);
       return;
     }
-
-    setCurrentExaminerProfileId(user.id);
 
     const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
@@ -332,7 +330,6 @@ export default function ExaminerCalendarPage() {
         .from("practical_test_requests")
         .select(
           `
-          assigned_examiner_profile_id,
             id,
             request_number,
             status,
@@ -347,6 +344,7 @@ export default function ExaminerCalendarPage() {
             dms_preapproval_number
           `,
         )
+        .eq("assigned_examiner_profile_id", user.id)
         .not("scheduled_start_at", "is", null)
         .order("scheduled_start_at", {
           ascending: true,
@@ -482,13 +480,6 @@ export default function ExaminerCalendarPage() {
 
     return requests
       .filter((request) => {
-        if (
-          !currentExaminerProfileId ||
-          request.assigned_examiner_profile_id !== currentExaminerProfileId
-        ) {
-          return false;
-        }
-
         if (!request.scheduled_start_at) {
           return false;
         }
@@ -496,7 +487,7 @@ export default function ExaminerCalendarPage() {
         return new Date(request.scheduled_start_at).getTime() >= clock;
       })
       .slice(0, 8);
-  }, [clock, requests, currentExaminerProfileId]);
+  }, [clock, requests]);
 
   function moveMonth(direction: number) {
     const next = new Date(
@@ -528,7 +519,7 @@ export default function ExaminerCalendarPage() {
           <h1 className="mt-2 text-3xl font-bold text-slate-900">Calendar</h1>
 
           <p className="mt-2 text-slate-600">
-            Review scheduled and confirmed practical-test appointments.
+            Review your scheduled and confirmed practical-test appointments.
           </p>
         </div>
 

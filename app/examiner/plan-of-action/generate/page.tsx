@@ -4,23 +4,26 @@ import Link from "next/link";
 
 import {
   Check,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
   Loader2,
-  Printer,
   RefreshCw,
-  Search,
   Shuffle,
   TriangleAlert,
 } from "lucide-react";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { validateEditableDraft } from "@/lib/poa/validate-editable-draft";
+import { questionEventTargets } from "@/lib/poa/question-event-targets";
+import { taskAppliesToClass } from "@/lib/poa/task-class-applicability";
+import { buildCompliantDraft } from "@/lib/poa/build-compliant-draft";
+import { hasCompleteTaskCoverage } from "@/lib/poa/generation-readiness";
+import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-editor";
+import { EVENT_SET_SEQUENCE } from "@/lib/poa/event-set-sequence";
+import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
+
 import { createClient } from "@/lib/supabase/client";
 import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
 import {
-  acsTaskAppliesToAircraftClass,
   deriveAllFlightTasksFromAcsCatalog,
   filterFlightTasksByParentCodes,
   normalizeAdditionalMapCodes,
@@ -238,6 +241,24 @@ type GeneratorScenarioOption = {
   examiner_notes: string | null;
 };
 
+type CompatibleTrigger = {
+  id: string;
+  eventSetId: string;
+  category: string;
+  title: string;
+  narrative: string | null;
+  weight: number;
+};
+
+type GeneratorEventSet = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  maxQuestionCount: number;
+};
+
 type ScenarioTimelineItem = {
   kind: string;
   label: string;
@@ -254,6 +275,8 @@ type ScenarioTimelineItem = {
   precondition?: string | null;
   event_set_id?: string | null;
   event_set_code?: string | null;
+  trigger_option_order?: number | null;
+  max_question_count?: number | null;
 };
 
 type ScenarioTimelineResult = {
@@ -328,17 +351,31 @@ type TriggerQuestionLink = {
   question_id: string;
   relationship: "primary" | "compatible" | "follow_up";
   weight: number;
+  is_required: boolean;
 };
 
-type TaskQuestion = {
-  question: LibraryQuestion;
-  acsReference: string;
-};
-
-type TaskGroup = {
-  acsReference: string;
-  taskName: string;
-  questions: TaskQuestion[];
+type EventQuestionRule = {
+  id: string;
+  event_set_id: string;
+  question_id: string;
+  sequence_stage:
+    | "foundation"
+    | "planning"
+    | "immediate_response"
+    | "consequence"
+    | "resolution";
+  trigger_timing: "before_trigger" | "after_trigger";
+  sequence_order: number;
+  coverage_kind: "K" | "R" | null;
+  is_required: boolean;
+  applies_to_all_triggers: boolean;
+  review_status: "needs_review" | "approved";
+  poa_event_set_question_rule_test_types: Array<{
+    practical_test_type_id: string;
+  }>;
+  poa_event_set_question_triggers: Array<{
+    trigger_id: string;
+  }>;
 };
 
 function practicalTestDescription(testType: PracticalTestType) {
@@ -353,60 +390,11 @@ function practicalTestDescription(testType: PracticalTestType) {
     .join(" • ");
 }
 
-function escapeHtml(value: unknown) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function splitAcsReferences(value: string | null | undefined) {
   return String(value ?? "")
     .split(/[,;\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function taskLabelForReference(
-  question: LibraryQuestion,
-  acsReference: string,
-) {
-  const taskParts = String(question.task_name ?? "")
-    .split(";")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  const exact = taskParts.find(
-    (part) => part === acsReference || part.startsWith(`${acsReference} `),
-  );
-
-  if (exact) {
-    return exact
-      .replace(
-        new RegExp(
-          `^${acsReference.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`,
-        ),
-        "",
-      )
-      .trim();
-  }
-
-  if (taskParts.length === 1 && taskParts[0]) {
-    return taskParts[0].replace(/^[A-Z]+\.[IVX]+\.[A-Z0-9/]+\s*/, "").trim();
-  }
-
-  const topicParts = String(question.topic ?? "")
-    .split(";")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  if (topicParts.length === 1 && topicParts[0]) {
-    return topicParts[0];
-  }
-
-  return "ACS Task";
 }
 
 function compareAcsReferences(a: string, b: string) {
@@ -422,12 +410,6 @@ function taskParentFromReference(reference: string) {
   return match?.[1] ?? null;
 }
 
-function elementKindFromReference(reference: string) {
-  const cleaned = reference.trim().toUpperCase();
-  const match = cleaned.match(/\.([KRS])(?:\d|$)/);
-  return match?.[1] ?? null;
-}
-
 function isOriginalIssuance(testType: PracticalTestType) {
   const code = (testType.issuance_code ?? "").trim().toUpperCase();
   const name = (testType.issuance_name ?? "").trim().toLowerCase();
@@ -437,6 +419,25 @@ function isOriginalIssuance(testType: PracticalTestType) {
     code === "INITIAL" ||
     name.includes("original") ||
     name.includes("initial")
+  );
+}
+
+function hasSameRatingContent(
+  candidate: PracticalTestType,
+  selected: PracticalTestType,
+) {
+  const normalize = (value: string | null | undefined) =>
+    (value ?? "").trim().toUpperCase();
+
+  return (
+    normalize(candidate.certificate_code || candidate.certificate_name) ===
+      normalize(selected.certificate_code || selected.certificate_name) &&
+    normalize(candidate.category_code || candidate.category_name) ===
+      normalize(selected.category_code || selected.category_name) &&
+    normalize(candidate.class_code || candidate.class_name) ===
+      normalize(selected.class_code || selected.class_name) &&
+    normalize(candidate.rating_code || candidate.rating_name) ===
+      normalize(selected.rating_code || selected.rating_name)
   );
 }
 
@@ -514,16 +515,6 @@ export default function GeneratePoaPage() {
     "manual" | "automatic"
   >("manual");
 
-  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(
-    () => new Set(),
-  );
-
-  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(
-    null,
-  );
-
-  const [searchText, setSearchText] = useState("");
-
   const [loading, setLoading] = useState(true);
 
   const [generating, setGenerating] = useState(false);
@@ -551,6 +542,9 @@ export default function GeneratePoaPage() {
   const [scenarioTimeline, setScenarioTimeline] =
     useState<ScenarioTimelineResult | null>(null);
 
+  const [eventItemOrder, setEventItemOrder] = useState<Record<string, string[]>>({});
+  const [questionEventAssignments, setQuestionEventAssignments] = useState<Record<string, string>>({});
+
   const [loadingTimeline, setLoadingTimeline] = useState(false);
 
   const [scenarioAltitude, setScenarioAltitude] = useState(8000);
@@ -560,6 +554,14 @@ export default function GeneratePoaPage() {
   const [selectedPoaVersionId, setSelectedPoaVersionId] = useState("new");
 
   const [additionalRatingHeld, setAdditionalRatingHeld] = useState("");
+
+  const [eventQuestionRules, setEventQuestionRules] = useState<
+    EventQuestionRule[]
+  >([]);
+
+  const [generatorEventSets, setGeneratorEventSets] = useState<GeneratorEventSet[]>([]);
+  const [compatibleTriggers, setCompatibleTriggers] = useState<CompatibleTrigger[]>([]);
+  const [selectedTriggerIds, setSelectedTriggerIds] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -677,11 +679,18 @@ export default function GeneratePoaPage() {
     setTitle(`${loadedTestType.display_name} Plan of Action`);
 
     /*
-     * Important:
-     * Questions must be associated with THIS
-     * practical test type, not merely the same
-     * certificate family.
+     * Original and additional issuances share one rating-level Question
+     * Library. The additional-rating task table narrows the required ACS
+     * Tasks later; it does not create a separate set of question content.
      */
+    const sharedContentTestTypeIds = practicalTestTypes
+      .filter((candidate) => hasSameRatingContent(candidate, loadedTestType))
+      .map((candidate) => candidate.id);
+
+    if (!sharedContentTestTypeIds.includes(loadedTestType.id)) {
+      sharedContentTestTypeIds.push(loadedTestType.id);
+    }
+
     const { data: questionData, error: questionError } = await supabase
       .from("poa_questions")
       .select(
@@ -706,9 +715,9 @@ export default function GeneratePoaPage() {
           `,
       )
       .eq("is_active", true)
-      .eq(
+      .in(
         "poa_question_practical_test_types.practical_test_type_id",
-        loadedTestType.id,
+        sharedContentTestTypeIds,
       )
       .order("created_at", {
         ascending: true,
@@ -716,7 +725,7 @@ export default function GeneratePoaPage() {
 
     if (questionError) {
       setErrorMessage(
-        `Question Library could not be loaded: ${questionError.message}`,
+        `Scenario Library could not be loaded: ${questionError.message}`,
       );
 
       setLoading(false);
@@ -728,13 +737,36 @@ export default function GeneratePoaPage() {
     setQuestions(loadedQuestions);
 
     if (loadedQuestions.length > 0) {
-      const { data: linkData, error: linkError } = await supabase
-        .from("poa_trigger_questions")
-        .select("trigger_id, question_id, relationship, weight")
-        .in(
-          "question_id",
-          loadedQuestions.map((question) => question.id),
-        );
+      const questionIds = loadedQuestions.map((question) => question.id);
+      const [linkResult, ruleResult] = await Promise.all([
+        supabase
+          .from("poa_trigger_questions")
+          .select("trigger_id, question_id, relationship, weight, is_required")
+          .in("question_id", questionIds),
+        supabase
+          .from("poa_event_set_question_rules")
+          .select(`
+            id,
+            event_set_id,
+            question_id,
+            sequence_stage,
+            trigger_timing,
+            sequence_order,
+            coverage_kind,
+            is_required,
+            applies_to_all_triggers,
+            review_status,
+            poa_event_set_question_rule_test_types (
+              practical_test_type_id
+            ),
+            poa_event_set_question_triggers (
+              trigger_id
+            )
+          `)
+          .in("question_id", questionIds),
+      ]);
+
+      const { data: linkData, error: linkError } = linkResult;
 
       if (linkError) {
         setErrorMessage(
@@ -745,17 +777,38 @@ export default function GeneratePoaPage() {
       }
 
       setTriggerQuestionLinks((linkData ?? []) as TriggerQuestionLink[]);
+
+      if (ruleResult.error) {
+        setErrorMessage(
+          `Event Set question sequences could not be loaded: ${ruleResult.error.message}`,
+        );
+        setLoading(false);
+        return;
+      }
+
+      const loadedRules = (ruleResult.data ?? []) as EventQuestionRule[];
+      setEventQuestionRules(
+        loadedRules.filter((rule) => {
+          const scopedTestTypes =
+            rule.poa_event_set_question_rule_test_types ?? [];
+          return (
+            scopedTestTypes.length === 0 ||
+            scopedTestTypes.some((scope) =>
+              sharedContentTestTypeIds.includes(scope.practical_test_type_id),
+            )
+          );
+        }),
+      );
     } else {
       setTriggerQuestionLinks([]);
+      setEventQuestionRules([]);
     }
 
     setSelectedIds([]);
     setSelectionMethod("manual");
-    setExpandedTasks(new Set());
-    setExpandedQuestionId(null);
 
     setLoading(false);
-  }, [testTypeId]);
+  }, [practicalTestTypes, testTypeId]);
 
   useEffect(() => {
     if (testTypeId) {
@@ -858,15 +911,11 @@ export default function GeneratePoaPage() {
 
   function selectPracticalTest(nextTestTypeId: string) {
     setTestTypeId(nextTestTypeId);
-    setGeneratorTab("scenario");
 
     setTestType(null);
     setQuestions([]);
     setSelectedIds([]);
     setSelectionMethod("manual");
-    setExpandedTasks(new Set());
-    setExpandedQuestionId(null);
-    setSearchText("");
     setMessage("");
     setErrorMessage("");
     setGeneratedPoaId("");
@@ -1006,103 +1055,25 @@ export default function GeneratePoaPage() {
     isAdditionalIssuance,
   ]);
 
-  const filteredQuestions = useMemo(() => {
-    const search = searchText.trim().toLowerCase();
-
-    if (!search) {
-      return questions;
-    }
-
-    return questions.filter((question) => {
-      const acsText = question.poa_question_acs_applicability
-        .map((item) => item.acs_reference)
-        .join(" ");
-
-      const haystack = [
-        acsText,
-        question.question,
-        question.answer ?? "",
-        question.reference ?? "",
-        question.topic ?? "",
-        question.task_name ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(search);
-    });
-  }, [questions, searchText]);
-
-  const taskGroups = useMemo(() => {
-    if (!testType) {
-      return [];
-    }
-
-    const groups = new Map<string, TaskGroup>();
-
-    for (const question of filteredQuestions) {
-      const references = [
-        ...new Set(
-          question.poa_question_acs_applicability
-            .filter(
-              (item) => item.certificate_name === testType.certificate_name,
-            )
-            .flatMap((item) => splitAcsReferences(item.acs_reference)),
-        ),
-      ];
-
-      for (const acsReference of references) {
-        const taskName = taskLabelForReference(question, acsReference);
-
-        const existing = groups.get(acsReference);
-
-        if (existing) {
-          if (
-            !existing.questions.some((item) => item.question.id === question.id)
-          ) {
-            existing.questions.push({
-              question,
-              acsReference,
-            });
-          }
-
-          if (existing.taskName === "ACS Task" && taskName !== "ACS Task") {
-            existing.taskName = taskName;
-          }
-        } else {
-          groups.set(acsReference, {
-            acsReference,
-            taskName,
-            questions: [
-              {
-                question,
-                acsReference,
-              },
-            ],
-          });
-        }
-      }
-    }
-
-    return [...groups.values()]
-      .map((group) => ({
-        ...group,
-
-        questions: group.questions.sort((a, b) =>
-          a.question.question.localeCompare(b.question.question),
-        ),
-      }))
-      .sort((a, b) => compareAcsReferences(a.acsReference, b.acsReference));
-  }, [filteredQuestions, testType]);
-
   const [generatorTab, setGeneratorTab] = useState<
-    "scenario" | "timeline" | "questions" | "compliance"
-  >("scenario");
+    "timeline" | "flight_tasks" | "compliance"
+  >("timeline");
 
   const selectedQuestions = useMemo(
     () => questions.filter((question) => selectedIds.includes(question.id)),
     [questions, selectedIds],
   );
+
+  const isPrivatePilotAsel = Boolean(
+    testType &&
+      (testType.certificate_code ?? "").toUpperCase() === "PRIVATE" &&
+      (testType.category_code ?? "").toUpperCase() === "AIRPLANE" &&
+      (testType.class_code ?? "").toUpperCase() === "ASEL",
+  );
+
+  useEffect(() => {
+    setGeneratorTab("timeline");
+  }, [isPrivatePilotAsel, testTypeId]);
 
   const complianceAcsPrefixes = useMemo(() => {
     if (!testType) {
@@ -1124,18 +1095,7 @@ export default function GeneratePoaPage() {
     for (const entry of faaAcsComplianceCatalog.entries) {
       const prefix = acsPrefix(entry.code);
 
-      const parent = taskParentFromReference(entry.code);
-
-      if (
-        prefix &&
-        prefixSet.has(prefix) &&
-        parent &&
-        acsTaskAppliesToAircraftClass(
-          parent,
-          String(entry.task_name ?? ""),
-          testType?.class_code,
-        )
-      ) {
+      if (prefix && prefixSet.has(prefix) && taskAppliesToClass(entry.task_name, testType?.class_code, entry.code)) {
         codes.add(entry.code);
       }
     }
@@ -1173,6 +1133,88 @@ export default function GeneratePoaPage() {
       return (elementOrder[aParts[3]] ?? 9) - (elementOrder[bParts[3]] ?? 9);
     });
   }, [complianceAcsPrefixes, testType?.class_code]);
+
+  const [selectedFlightTaskCodes, setSelectedFlightTaskCodes] = useState<string[]>([]);
+  useEffect(() => { setSelectedFlightTaskCodes([]); }, [testTypeId, additionalRatingHeld]);
+  const flightTaskLibrary = (() => {
+      let generatedFlightTasks = deriveAllFlightTasksFromAcsCatalog(
+        complianceAcsPrefixes,
+      ).filter(task => taskAppliesToClass(task.task_name_snapshot, testType?.class_code, task.acs_task_code_snapshot));
+
+      if (isAdditionalIssuance) {
+        if (!additionalRatingHeld) return [];
+
+        const certificateMaps =
+          (ADDITIONAL_MAPS as Record<string, Record<string, unknown>>)[
+            additionalMapCertificateKey
+          ] ?? {};
+
+        const mapKey = `${additionalTargetRatingKey}_from_${additionalRatingHeld}`;
+
+        const parentCodes = normalizeAdditionalMapCodes(
+          certificateMaps[mapKey],
+          complianceAcsPrefixes[0] ?? "",
+        );
+
+        if (parentCodes.length === 0) return [];
+
+        generatedFlightTasks = filterFlightTasksByParentCodes(
+          generatedFlightTasks,
+          parentCodes,
+        );
+      }
+
+      const commercialSingleEngineOriginal =
+        (testType?.certificate_code ?? "").toUpperCase() === "COMMERCIAL" &&
+        (testType?.category_code ?? "").toUpperCase() === "AIRPLANE" &&
+        ["ASEL", "ASES"].includes((testType?.class_code ?? "").toUpperCase()) &&
+        Boolean(testType && isOriginalIssuance(testType));
+
+      if (commercialSingleEngineOriginal) {
+        const selectedParents = new Set(
+          selectedQuestions.flatMap((question) =>
+            acsReferencesForQuestion(question)
+              .map((reference) => taskParentFromReference(reference))
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+
+        const chooseFromPair = (first: string, second: string) => {
+          if (selectedParents.has(first) && !selectedParents.has(second)) {
+            return first;
+          }
+
+          if (selectedParents.has(second) && !selectedParents.has(first)) {
+            return second;
+          }
+
+          return first;
+        };
+
+        const firstChoice = chooseFromPair("CA.V.A", "CA.V.B");
+
+        const secondChoice = chooseFromPair("CA.V.C", "CA.V.D");
+
+        generatedFlightTasks = generatedFlightTasks
+          .filter(
+            (task) =>
+              !["CA.V.A", "CA.V.B", "CA.V.C", "CA.V.D"].includes(
+                task.acs_task_code_snapshot,
+              ) ||
+              task.acs_task_code_snapshot === firstChoice ||
+              task.acs_task_code_snapshot === secondChoice,
+          )
+          .map((task, index) => ({
+            ...task,
+            sort_order: (index + 1) * 10,
+          }));
+      }
+
+    return generatedFlightTasks;
+  })();
+  const selectedFlightTaskDrafts = selectedFlightTaskCodes.flatMap((code) => flightTaskLibrary.filter((task) => task.acs_task_code_snapshot === code)).map((task, index) => ({ ...task, sort_order: (index + 1) * 10 }));
+  const flightComplianceCodes = flightTaskLibrary.map((task) => `${task.acs_task_code_snapshot}.S`);
+  const selectedFlightComplianceCodes = new Set(selectedFlightTaskDrafts.map((task) => `${task.acs_task_code_snapshot}.S`));
 
   const requiredComplianceCodes = useMemo(() => {
     let codes = complianceCodes.filter((code) => !code.endsWith(".S"));
@@ -1238,7 +1280,7 @@ export default function GeneratePoaPage() {
 
           /*
            * Knowledge and Risk are satisfied by selected
-           * Question Library questions.
+           * Scenario Library questions.
            *
            * Skills will be satisfied later by the flight
            * maneuver compliance source.
@@ -1253,290 +1295,35 @@ export default function GeneratePoaPage() {
     return covered;
   }, [selectedQuestions, complianceAcsPrefixes]);
 
-  const coveredComplianceCount = requiredComplianceCodes.filter((code) =>
-    coveredComplianceCodes.has(code),
+  const displayedComplianceCodes = [...requiredComplianceCodes, ...flightComplianceCodes];
+  const coveredComplianceCount = displayedComplianceCodes.filter((code) =>
+    coveredComplianceCodes.has(code) || selectedFlightComplianceCodes.has(code),
   ).length;
 
   const missingComplianceCodes = requiredComplianceCodes.filter(
     (code) => !coveredComplianceCodes.has(code),
   );
 
-  const availableComplianceCodes = useMemo(() => {
-    const available = new Set<string>();
-    const applicablePrefixes = new Set(complianceAcsPrefixes);
+  const allRatingTasksCovered = hasCompleteTaskCoverage(
+    displayedComplianceCodes,
+    new Set([...coveredComplianceCodes, ...selectedFlightComplianceCodes]),
+  );
 
-    for (const question of questions) {
-      for (const applicability of question.poa_question_acs_applicability) {
-        for (const reference of splitAcsReferences(
-          applicability.acs_reference,
-        )) {
-          const prefix = acsPrefix(reference);
-          const code = complianceParentCode(reference);
-
-          if (
-            prefix &&
-            applicablePrefixes.has(prefix) &&
-            code &&
-            !code.endsWith(".S")
-          ) {
-            available.add(code);
-          }
-        }
-      }
+  function selectedTriggerForRule(rule: EventQuestionRule) {
+    if (rule.applies_to_all_triggers) {
+      return null;
     }
 
-    return available;
-  }, [complianceAcsPrefixes, questions]);
-
-  const selectableComplianceGaps = missingComplianceCodes.filter((code) =>
-    availableComplianceCodes.has(code),
-  );
-
-  const unmappedComplianceGaps = missingComplianceCodes.filter(
-    (code) => !availableComplianceCodes.has(code),
-  );
-
-  function selectedCountForTask(group: TaskGroup) {
-    return new Set(
-      group.questions
-        .filter((item) => selectedIds.includes(item.question.id))
-        .map((item) => item.question.id),
-    ).size;
-  }
-
-  function toggleTask(acsReference: string) {
-    setExpandedTasks((current) => {
-      const next = new Set(current);
-
-      if (next.has(acsReference)) {
-        next.delete(acsReference);
-      } else {
-        next.add(acsReference);
-      }
-
-      return next;
-    });
-  }
-
-  function toggleQuestion(questionId: string) {
-    setSelectionMethod("manual");
-    setSelectedIds((current) =>
-      current.includes(questionId)
-        ? current.filter((id) => id !== questionId)
-        : [...current, questionId],
-    );
-  }
-
-  function selectAllDisplayed() {
-    setSelectionMethod("manual");
-    setSelectedIds((current) => [
-      ...new Set([
-        ...current,
-        ...filteredQuestions.map((question) => question.id),
-      ]),
-    ]);
-  }
-
-  function clearSelection() {
-    setSelectionMethod("manual");
-    setSelectedIds([]);
-    setMessage("");
-    setErrorMessage("");
-    setGeneratedPoaId("");
-  }
-
-  function chooseBestQuestion(items: LibraryQuestion[]) {
-    const timelineTriggerIds = new Set(
-      (scenarioTimeline?.timeline ?? [])
-        .map((item) => item.trigger_id)
-        .filter((value): value is string => Boolean(value)),
-    );
-
+    const selectedForEvent = new Set(selectedTriggerIds[rule.event_set_id] ?? []);
     return (
-      [...items]
-        .map((question) => {
-          const narrativeScore = triggerQuestionLinks
-            .filter(
-              (link) =>
-                link.question_id === question.id &&
-                timelineTriggerIds.has(link.trigger_id),
-            )
-            .reduce(
-              (score, link) =>
-                score +
-                link.weight +
-                (link.relationship === "primary"
-                  ? 40
-                  : link.relationship === "follow_up"
-                    ? 10
-                    : 20),
-              0,
-            );
-
-          const difficultyScore =
-            question.difficulty.toLowerCase() === "standard" ? 5 : 0;
-
-          return { question, score: narrativeScore + difficultyScore };
-        })
-        .sort(
-          (a, b) =>
-            b.score - a.score ||
-            a.question.question.localeCompare(b.question.question) ||
-            a.question.id.localeCompare(b.question.id),
-        )[0]?.question ?? null
+      rule.poa_event_set_question_triggers.find((link) =>
+        selectedForEvent.has(link.trigger_id),
+      )?.trigger_id ?? null
     );
   }
 
-  function buildCompliantSelection() {
-    if (!testType) {
-      return;
-    }
-
-    const prefixSet = new Set(complianceAcsPrefixes);
-    const taskCandidates = new Map<
-      string,
-      { K: LibraryQuestion[]; R: LibraryQuestion[]; any: LibraryQuestion[] }
-    >();
-
-    for (const question of questions) {
-      for (const applicability of question.poa_question_acs_applicability) {
-        if (applicability.certificate_name !== testType.certificate_name) {
-          continue;
-        }
-
-        for (const reference of splitAcsReferences(
-          applicability.acs_reference,
-        )) {
-          const prefix = acsPrefix(reference);
-          const taskParent = taskParentFromReference(reference);
-          const elementKind = elementKindFromReference(reference);
-
-          if (!prefix || !prefixSet.has(prefix) || !taskParent) {
-            continue;
-          }
-
-          const current = taskCandidates.get(taskParent) ?? {
-            K: [],
-            R: [],
-            any: [],
-          };
-
-          if (!current.any.some((item) => item.id === question.id)) {
-            current.any.push(question);
-          }
-
-          if (
-            elementKind === "K" &&
-            !current.K.some((item) => item.id === question.id)
-          ) {
-            current.K.push(question);
-          }
-
-          if (
-            elementKind === "R" &&
-            !current.R.some((item) => item.id === question.id)
-          ) {
-            current.R.push(question);
-          }
-
-          taskCandidates.set(taskParent, current);
-        }
-      }
-    }
-
-    /*
-     * FAA-S-ACS-7B Appendix 3: for an INITIAL Commercial ASEL/ASES
-     * practical test, Area V requires A or B, C or D, and E.
-     * Pick one from each alternative pair so an automatic POA does not
-     * incorrectly require both alternatives.
-     */
-    const excludedTaskParents = new Set<string>();
-    const commercialSingleEngine =
-      (testType.certificate_code ?? "").toUpperCase() === "COMMERCIAL" &&
-      (testType.category_code ?? "").toUpperCase() === "AIRPLANE" &&
-      ["ASEL", "ASES"].includes((testType.class_code ?? "").toUpperCase()) &&
-      isOriginalIssuance(testType);
-
-    if (commercialSingleEngine) {
-      const firstPair = "CA.V.A";
-      const secondPair = "CA.V.C";
-
-      for (const candidate of ["CA.V.A", "CA.V.B"]) {
-        if (candidate !== firstPair) {
-          excludedTaskParents.add(candidate);
-        }
-      }
-
-      for (const candidate of ["CA.V.C", "CA.V.D"]) {
-        if (candidate !== secondPair) {
-          excludedTaskParents.add(candidate);
-        }
-      }
-    }
-
-    const selected = new Set<string>();
-    const requiredTaskParents = new Set(
-      requiredComplianceCodes
-        .map((code) => taskParentFromReference(code))
-        .filter((value): value is string => Boolean(value)),
-    );
-    let taskCount = 0;
-
-    for (const [taskParent, candidates] of [...taskCandidates.entries()].sort(
-      ([a], [b]) => compareAcsReferences(a, b),
-    )) {
-      if (excludedTaskParents.has(taskParent)) {
-        continue;
-      }
-
-      if (!requiredTaskParents.has(taskParent)) {
-        continue;
-      }
-
-      taskCount += 1;
-
-      const knowledgeQuestion = chooseBestQuestion(candidates.K);
-      const riskQuestion = chooseBestQuestion(candidates.R);
-
-      if (knowledgeQuestion) {
-        selected.add(knowledgeQuestion.id);
-      }
-
-      if (riskQuestion) {
-        selected.add(riskQuestion.id);
-      }
-
-      if (!knowledgeQuestion && !riskQuestion) {
-        const fallback = chooseBestQuestion(candidates.any);
-        if (fallback) {
-          selected.add(fallback.id);
-        }
-      }
-    }
-
-    const selectedList = [...selected];
-    const missingKnowledge = requiredComplianceCodes.filter(
-      (code) => code.endsWith(".K") && !availableComplianceCodes.has(code),
-    ).length;
-    const missingRisk = requiredComplianceCodes.filter(
-      (code) => code.endsWith(".R") && !availableComplianceCodes.has(code),
-    ).length;
-
-    setSelectionMethod("automatic");
-    setSelectedIds(selectedList);
-    setErrorMessage("");
-    setGeneratedPoaId("");
-    setMessage(
-      `Built an ACS-driven selection with ${selectedList.length} question${
-        selectedList.length === 1 ? "" : "s"
-      } across ${taskCount} Task${taskCount === 1 ? "" : "s"}. ${
-        missingKnowledge + missingRisk > 0
-          ? `${missingKnowledge} Knowledge and ${missingRisk} Risk coverage slot${
-              missingKnowledge + missingRisk === 1 ? "" : "s"
-            } have no mapped Question Library item; review the Compliance tab before generating.`
-          : "Knowledge and Risk coverage is represented for every Task found in the current practical-test Question Library."
-      }`,
-    );
+  function ruleAppliesToSelectedTriggers(rule: EventQuestionRule) {
+    return rule.applies_to_all_triggers || Boolean(selectedTriggerForRule(rule));
   }
 
   function acsReferenceForQuestion(question: LibraryQuestion) {
@@ -1622,8 +1409,101 @@ export default function GeneratePoaPage() {
   }, [testType?.id]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadTriggerChoices() {
+      setScenarioTimeline(null);
+      setGeneratorEventSets([]);
+      setCompatibleTriggers([]);
+      setSelectedTriggerIds({});
+
+      if (!selectedScenarioId) return;
+
+      const supabase = createClient();
+      const { data: sequenceRows, error: sequenceError } = await supabase
+        .from("poa_event_sets")
+        .select("id, code, name, description, default_phase, is_active")
+        .in("code", EVENT_SET_SEQUENCE.map((eventSet) => eventSet.code))
+        .eq("is_active", true);
+
+      if (cancelled) return;
+      if (sequenceError) { setErrorMessage(`Event sets could not be loaded: ${sequenceError.message}`); return; }
+      const eventSets = EVENT_SET_SEQUENCE.flatMap((definition, index) => {
+        const row = (sequenceRows ?? []).find((eventSet) => eventSet.code === definition.code);
+        return row ? [{ id: row.id, code: row.code, name: definition.name, description: row.description, sortOrder: index + 1, maxQuestionCount: definition.maxQuestionCount }] : [];
+      });
+      if (eventSets.length !== EVENT_SET_SEQUENCE.length) {
+        setErrorMessage("The shared eight-event-set library is incomplete. Restore the missing event sets before generating.");
+        return;
+      }
+
+      const eventSetIds = eventSets.map((eventSet) => eventSet.id);
+      if (eventSetIds.length === 0) return;
+
+      const { data: optionRows, error: optionError } = await supabase
+        .from("poa_event_set_trigger_options")
+        .select(`
+          event_set_id,
+          option_order,
+          is_active,
+          poa_triggers!inner (
+            id, category, trigger_text, trigger_narrative, is_active, trigger_role
+          )
+        `)
+        .in("event_set_id", eventSetIds)
+        .eq("is_active", true)
+        .eq("poa_triggers.is_active", true)
+        .eq("poa_triggers.trigger_role", "operational")
+        .order("option_order", { ascending: true });
+
+      if (cancelled || optionError) return;
+
+      const choices = (optionRows ?? []).map((row) => {
+        const related = Array.isArray(row.poa_triggers)
+          ? row.poa_triggers[0]
+          : row.poa_triggers;
+        return {
+          id: related?.id ?? "",
+          eventSetId: row.event_set_id,
+          category: related?.category ?? "event",
+          title: related?.trigger_text ?? "Trigger",
+          narrative: related?.trigger_narrative ?? null,
+          weight: 100 - row.option_order,
+        };
+      }).filter((choice) => choice.id);
+
+      setGeneratorEventSets(eventSets);
+      setCompatibleTriggers(choices);
+      setSelectedTriggerIds(Object.fromEntries(eventSets.map((eventSet) => [eventSet.id, []])));
+    }
+
+    void loadTriggerChoices();
+    return () => { cancelled = true; };
+  }, [selectedScenarioId]);
+
+  useEffect(() => {
     setScenarioTimeline(null);
+    setQuestionEventAssignments({});
+    setEventItemOrder({});
   }, [testType?.id, additionalRatingHeld, selectedScenarioId]);
+
+  useEffect(() => {
+    setScenarioTimeline((current) => {
+      if (!current) return current;
+      const timeline = (current.timeline ?? []).filter((item) => item.kind !== "trigger_option" && !(item.kind === "gap" && item.event_set_id && (current.timeline ?? []).some((event) => event.kind === "event_set" && event.event_set_id === item.event_set_id))).flatMap((item) => {
+        if (item.kind !== "event_set" || !item.event_set_id) return [item];
+        const choices = selectedTriggerIds[item.event_set_id] ?? [];
+        const options: ScenarioTimelineItem[] = choices.flatMap((id, index) => {
+          const trigger = compatibleTriggers.find((candidate) => candidate.id === id && candidate.eventSetId === item.event_set_id);
+          return trigger ? [{ kind: "trigger_option", label: `${item.title} — Option ${index + 1}`, phase: item.phase, title: trigger.title, narrative: trigger.narrative, trigger_id: id, category: trigger.category, event_set_id: item.event_set_id, event_set_code: item.event_set_code, trigger_option_order: index + 1, branch_worthy: true }] : [];
+        });
+        const order = eventItemOrder[item.event_set_id] ?? [];
+        options.sort((a, b) => (order.includes(`trigger:${a.trigger_id}`) ? order.indexOf(`trigger:${a.trigger_id}`) : Number.MAX_SAFE_INTEGER) - (order.includes(`trigger:${b.trigger_id}`) ? order.indexOf(`trigger:${b.trigger_id}`) : Number.MAX_SAFE_INTEGER));
+        return [item, ...options, ...(options.length >= 1 ? [] : [{ kind: "gap", label: item.title, title: "Choose at least one trigger", phase: item.phase, event_set_id: item.event_set_id }])];
+      });
+      return { ...current, timeline };
+    });
+  }, [selectedTriggerIds, compatibleTriggers, eventItemOrder]);
 
   const selectedScenario = useMemo(
     () =>
@@ -1632,7 +1512,55 @@ export default function GeneratePoaPage() {
     [scenarioOptions, selectedScenarioId],
   );
 
-  async function buildScenarioTimeline() {
+  function removeTriggerChoice(eventSetId: string, triggerId: string) {
+    setSelectedTriggerIds((current) => ({ ...current, [eventSetId]: (current[eventSetId] ?? []).filter((id) => id !== triggerId) }));
+  }
+
+  const timelineEditorEventSets = (scenarioTimeline?.timeline ?? [])
+    .filter((item) => item.kind === "event_set" && item.event_set_id)
+    .map((item) => generatorEventSets.find((eventSet) => eventSet.id === item.event_set_id))
+    .filter((eventSet): eventSet is GeneratorEventSet => Boolean(eventSet));
+
+  const timelineEditorQuestions = questions.map((question) => {
+    const rules = eventQuestionRules.filter((rule) => rule.question_id === question.id && rule.review_status === "approved");
+    const assignedEventSetId = questionEventAssignments[question.id] ?? timelineEditorEventSets.find((eventSet) => rules.some((rule) => eventSet.id === rule.event_set_id))?.id;
+    return { id: question.id, title: question.question, eventSetIds: questionEventTargets(question.id, eventQuestionRules, timelineEditorEventSets.map((eventSet) => eventSet.id)), assignedEventSetId, selected: selectedIds.includes(question.id) };
+  });
+
+  const effectiveEventItemOrder = Object.fromEntries(timelineEditorEventSets.map((eventSet) => {
+    const active = [
+      ...timelineEditorQuestions.filter((question) => question.selected && question.assignedEventSetId === eventSet.id).map((question) => `question:${question.id}`),
+      ...(selectedTriggerIds[eventSet.id] ?? []).map((id) => `trigger:${id}`),
+    ];
+    const manual = (eventItemOrder[eventSet.id] ?? []).filter((key) => active.includes(key));
+    return [eventSet.id, [...manual, ...active.filter((key) => !manual.includes(key))]];
+  }));
+
+  function assignTimelineEntry(kind: "question" | "trigger", id: string, eventSetId: string) {
+    setErrorMessage("");
+    if (kind === "trigger") {
+      if ((selectedTriggerIds[eventSetId] ?? []).includes(id)) return true;
+      const trigger = compatibleTriggers.find((item) => item.id === id && item.eventSetId === eventSetId);
+      if (!trigger) { setErrorMessage("This trigger is not compatible with the event set."); return false; }
+      setSelectedTriggerIds((current) => {
+        const existing = current[eventSetId] ?? [];
+        return existing.includes(id) ? current : { ...current, [eventSetId]: [...existing, id] };
+      });
+      return true;
+    }
+    const eventSet = generatorEventSets.find((item) => item.id === eventSetId);
+    const assigned = timelineEditorQuestions.filter((question) => question.selected && question.assignedEventSetId === eventSetId && question.id !== id);
+    if (eventSet && assigned.length >= eventSet.maxQuestionCount) {
+      setErrorMessage(`${eventSet.name} allows at most ${eventSet.maxQuestionCount} questions. Remove a question first.`);
+      return false;
+    }
+    setSelectionMethod("manual");
+    setQuestionEventAssignments((current) => ({ ...current, [id]: eventSetId }));
+    setSelectedIds((current) => current.includes(id) ? current : [...current, id]);
+    return true;
+  }
+
+  async function buildScenarioTimeline(automaticallyPopulate = false) {
     if (!testType) {
       return;
     }
@@ -1643,9 +1571,7 @@ export default function GeneratePoaPage() {
 
     try {
       if (!selectedScenarioId) {
-        throw new Error(
-          "Select a Scenario Library record before building the timeline.",
-        );
+        throw new Error("Select a Scenario Library record before building the timeline.");
       }
 
       if (isAdditionalIssuance && !additionalRatingHeld) {
@@ -1653,6 +1579,20 @@ export default function GeneratePoaPage() {
           "Select the rating already held before building the Scenario Timeline.",
         );
       }
+
+      const draft = automaticallyPopulate ? buildCompliantDraft({
+        events: generatorEventSets,
+        triggers: compatibleTriggers,
+        requiredCodes: requiredComplianceCodes,
+        requiredQuestionIds: [],
+        links: triggerQuestionLinks,
+        questions: questions.map(question => ({
+          id: question.id,
+          codes: [...new Set(question.poa_question_acs_applicability.flatMap(item => splitAcsReferences(item.acs_reference)).filter(reference => complianceAcsPrefixes.includes(acsPrefix(reference) ?? "")).map(complianceParentCode).filter((code): code is string => Boolean(code && !code.endsWith(".S"))))],
+          placements: eventQuestionRules.filter(rule => rule.question_id === question.id && rule.review_status === "approved" && generatorEventSets.some(event => event.id === rule.event_set_id)).map(rule => ({ eventSetId: rule.event_set_id, afterTrigger: rule.trigger_timing === "after_trigger", order: rule.sequence_order, required: rule.is_required, triggerIds: rule.applies_to_all_triggers ? undefined : rule.poa_event_set_question_triggers.map(link => link.trigger_id) })),
+        })),
+      }) : null;
+      const triggerSelections = draft?.triggers ?? selectedTriggerIds;
 
       const crossCountryParents = new Set(
         crossCountryTaskParentsForPrefixes(complianceAcsPrefixes),
@@ -1701,6 +1641,7 @@ export default function GeneratePoaPage() {
           p_altitude: Number.isFinite(scenarioAltitude)
             ? Math.round(scenarioAltitude)
             : 8000,
+          p_trigger_selections: triggerSelections,
         },
       );
 
@@ -1710,26 +1651,54 @@ export default function GeneratePoaPage() {
         );
       }
 
-      const result = data as ScenarioTimelineResult;
+      const rawResult = data as ScenarioTimelineResult;
+      const rawItems = rawResult.timeline ?? [];
+      const result: ScenarioTimelineResult = {
+        ...rawResult,
+        timeline: [
+          ...rawItems.filter((item) => !item.event_set_id),
+          ...generatorEventSets.flatMap((eventSet) => {
+            const options: ScenarioTimelineItem[] = (triggerSelections[eventSet.id] ?? []).flatMap((id, index) => {
+              const trigger = compatibleTriggers.find((item) => item.eventSetId === eventSet.id && item.id === id);
+              return trigger ? [{ kind: "trigger_option", label: `${eventSet.name} — Option ${index + 1}`, phase: eventSet.code.toLowerCase(), title: trigger.title, narrative: trigger.narrative, trigger_id: id, event_set_id: eventSet.id, event_set_code: eventSet.code, category: trigger.category, trigger_option_order: index + 1 }] : [];
+            });
+            return [{ kind: "event_set", label: "Event Set", title: eventSet.name, narrative: eventSet.description, phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id, event_set_code: eventSet.code, max_question_count: eventSet.maxQuestionCount }, ...options, ...(options.length >= 1 ? [] : [{ kind: "gap", label: eventSet.name, title: "Choose at least one trigger", phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id }])];
+          }),
+        ],
+      };
 
       setScenarioTimeline(result);
+      if (draft) {
+        setSelectedTriggerIds(draft.triggers);
+        setSelectedIds(draft.questionIds);
+        setQuestionEventAssignments(draft.assignments);
+        setEventItemOrder(draft.order);
+        setSelectedFlightTaskCodes(flightTaskLibrary.map(task => task.acs_task_code_snapshot));
+        setSelectionMethod("automatic");
+        setGeneratorTab("timeline");
+        setMessage(`POA draft built. ${draft.provisionalQuestionIds.length ? `${draft.provisionalQuestionIds.length} questions were placed provisionally; review their event sets. ` : ""}Review the Timeline, Flight Tasks, and Compliance tabs before generating.`);
+        if (draft.missingCodes.length) {
+          setErrorMessage(`The draft still needs ${draft.missingCodes.length} Knowledge/Risk groups. Review Compliance for gaps; final generation remains disabled until they are covered.`);
+        }
+        return;
+      }
 
       const itemCount = result.timeline?.length ?? 0;
 
       const branchCount =
-        result.timeline?.filter((item) => item.kind === "branch").length ?? 0;
+        result.timeline?.filter((item) => item.kind === "trigger_option").length ?? 0;
 
       setMessage(
         `Scenario Timeline generated with ${itemCount} timeline item${
           itemCount === 1 ? "" : "s"
-        } and ${branchCount} decision branch${
-          branchCount === 1 ? "" : "es"
+        } and ${branchCount} trigger option${
+          branchCount === 1 ? "" : "s"
         }. Cross-country planning ${
           result.cross_country_required ? "is required" : "is not required"
         } for this ACS task set.`,
       );
     } catch (error) {
-      setScenarioTimeline(null);
+      if (!automaticallyPopulate) setScenarioTimeline(null);
 
       setErrorMessage(
         error instanceof Error
@@ -1757,9 +1726,22 @@ export default function GeneratePoaPage() {
     }
 
     if (!selectedScenario || !scenarioTimeline) {
-      setErrorMessage(
-        "Select a scenario and build its Event Sequence before generating.",
+      setErrorMessage("Select a scenario and build its Event Sequence before generating.");
+      return;
+    }
+
+    try {
+      const incompleteTriggerSets = generatorEventSets.filter(
+        (eventSet) => (selectedTriggerIds[eventSet.id] ?? []).length < 1,
       );
+      if (incompleteTriggerSets.length > 0) {
+        throw new Error(
+          `Choose at least one trigger for: ${incompleteTriggerSets.map((eventSet) => eventSet.name).join(", ")}.`,
+        );
+      }
+
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Review the trigger selections.");
       return;
     }
 
@@ -1779,6 +1761,47 @@ export default function GeneratePoaPage() {
       setErrorMessage(
         `The POA is missing ${missingComplianceCodes.length} required ACS Knowledge/Risk group${missingComplianceCodes.length === 1 ? "" : "s"}. Select mapped questions before generating.`,
       );
+      return;
+    }
+
+    for (const eventSet of timelineEditorEventSets) {
+      const count = timelineEditorQuestions.filter((question) => question.selected && question.assignedEventSetId === eventSet.id).length;
+      if (count > eventSet.maxQuestionCount) {
+        setErrorMessage(`${eventSet.name} exceeds its maximum of ${eventSet.maxQuestionCount} questions.`);
+        return;
+      }
+    }
+    const invalidAssignment = timelineEditorQuestions.find((question) => question.selected && questionEventAssignments[question.id] && !question.eventSetIds.includes(questionEventAssignments[question.id]));
+    if (invalidAssignment) {
+      setErrorMessage("A question is no longer compatible with its event set's trigger choices. Reassign or remove it before generating.");
+      return;
+    }
+
+    const selectedCandidateTriggerIds = new Set(Object.values(selectedTriggerIds).flat());
+    const missingRequiredTriggerQuestions = triggerQuestionLinks.filter((link) =>
+      link.is_required && selectedCandidateTriggerIds.has(link.trigger_id) && !selectedIds.includes(link.question_id),
+    );
+    if (missingRequiredTriggerQuestions.length > 0) {
+      setErrorMessage("Add the required conditional questions for your selected triggers before generating the POA.");
+      return;
+    }
+
+    const missingFlightTasks = flightTaskLibrary.filter((task) => task.is_required && !selectedFlightTaskCodes.includes(task.acs_task_code_snapshot));
+    if (missingFlightTasks.length > 0) {
+      setGeneratorTab("compliance");
+      setErrorMessage(`Add ${missingFlightTasks.length} required flight task${missingFlightTasks.length === 1 ? "" : "s"} to the Flight Tasks sequence before generating.`);
+      return;
+    }
+
+    const draftIssues = validateEditableDraft({
+      events: timelineEditorEventSets,
+      questions: timelineEditorQuestions,
+      triggers: selectedTriggerIds,
+      compatibleTriggers,
+      allTasksCovered: allRatingTasksCovered,
+    });
+    if (draftIssues.length) {
+      setErrorMessage(`Resolve the oral structure before generating. ${draftIssues.join(" ")}`);
       return;
     }
 
@@ -1825,12 +1848,12 @@ export default function GeneratePoaPage() {
 
           scenario_id: selectedScenario.id,
 
-          scenario_timeline_snapshot: scenarioTimeline.timeline ?? [],
+          scenario_timeline_snapshot: (scenarioTimeline.timeline ?? []).map((item) => item.kind === "event_set" && item.event_set_id ? { ...item, item_order: effectiveEventItemOrder[item.event_set_id] ?? [] } : item),
 
           compliance_snapshot: {
-            required: requiredComplianceCodes,
-            covered: [...coveredComplianceCodes].sort(compareAcsReferences),
-            missing: missingComplianceCodes,
+            required: displayedComplianceCodes,
+            covered: [...coveredComplianceCodes, ...selectedFlightComplianceCodes].sort(compareAcsReferences),
+            missing: [...missingComplianceCodes, ...flightComplianceCodes.filter((code) => !selectedFlightComplianceCodes.has(code))],
           },
 
           cross_country_required: Boolean(
@@ -1841,7 +1864,7 @@ export default function GeneratePoaPage() {
 
           status: "ready",
 
-          notes: `Generated from Question Library for ${testType.display_name}. Selection method: ${selectionMethod}.`,
+          notes: `Generated from Scenario Library for ${testType.display_name}. Selection method: ${selectionMethod}.`,
         })
         .select("id")
         .single();
@@ -1854,107 +1877,87 @@ export default function GeneratePoaPage() {
       }
 
       /*
-       * Preserve the selected order by ACS task,
-       * then question text. The snapshots remain
-       * immutable after generation.
+       * ACS references prove coverage; they do not define narrative order.
+       * Freeze questions by Event Set, pre/post-trigger timing, instructional
+       * stage, and the examiner-approved sequence position. Unmapped questions
+       * remain visible at the end so they cannot disappear silently.
        */
-      const orderedSelected = [...selectedQuestions].sort((a, b) => {
-        const aRef = acsReferenceForQuestion(a);
-
-        const bRef = acsReferenceForQuestion(b);
-
-        const refCompare = compareAcsReferences(aRef, bRef);
-
-        if (refCompare !== 0) {
-          return refCompare;
+      const eventSetOrder = new Map<string, number>();
+      for (const item of scenarioTimeline.timeline ?? []) {
+        if (item.event_set_id && !eventSetOrder.has(item.event_set_id)) {
+          eventSetOrder.set(item.event_set_id, eventSetOrder.size);
         }
-
-        return a.question.localeCompare(b.question);
-      });
-
-      let generatedFlightTasks = deriveAllFlightTasksFromAcsCatalog(
-        complianceAcsPrefixes,
-        testType.class_code,
-      );
-
-      if (isAdditionalIssuance) {
-        if (!additionalRatingHeld) {
-          throw new Error(
-            "Select the rating already held before generating an Additional Rating POA.",
-          );
-        }
-
-        const certificateMaps =
-          (ADDITIONAL_MAPS as Record<string, Record<string, unknown>>)[
-            additionalMapCertificateKey
-          ] ?? {};
-
-        const mapKey = `${additionalTargetRatingKey}_from_${additionalRatingHeld}`;
-
-        const parentCodes = normalizeAdditionalMapCodes(
-          certificateMaps[mapKey],
-          complianceAcsPrefixes[0] ?? "",
-        );
-
-        if (parentCodes.length === 0) {
-          throw new Error(
-            `No Additional Rating ACS task map was found for ${mapKey}.`,
-          );
-        }
-
-        generatedFlightTasks = filterFlightTasksByParentCodes(
-          generatedFlightTasks,
-          parentCodes,
-        );
       }
 
-      const commercialSingleEngineOriginal =
-        (testType.certificate_code ?? "").toUpperCase() === "COMMERCIAL" &&
-        (testType.category_code ?? "").toUpperCase() === "AIRPLANE" &&
-        ["ASEL", "ASES"].includes((testType.class_code ?? "").toUpperCase()) &&
-        isOriginalIssuance(testType);
+      const stageOrder: Record<EventQuestionRule["sequence_stage"], number> = {
+        foundation: 0,
+        planning: 1,
+        immediate_response: 2,
+        consequence: 3,
+        resolution: 4,
+      };
 
-      if (commercialSingleEngineOriginal) {
-        const selectedParents = new Set(
-          selectedQuestions.flatMap((question) =>
-            acsReferencesForQuestion(question)
-              .map((reference) => taskParentFromReference(reference))
-              .filter((value): value is string => Boolean(value)),
-          ),
-        );
-
-        const chooseFromPair = (first: string, second: string) => {
-          if (selectedParents.has(first) && !selectedParents.has(second)) {
-            return first;
-          }
-
-          if (selectedParents.has(second) && !selectedParents.has(first)) {
-            return second;
-          }
-
-          return first;
-        };
-
-        const firstChoice = chooseFromPair("CA.V.A", "CA.V.B");
-
-        const secondChoice = chooseFromPair("CA.V.C", "CA.V.D");
-
-        generatedFlightTasks = generatedFlightTasks
+      const ruleForQuestion = (questionId: string) =>
+        eventQuestionRules
           .filter(
-            (task) =>
-              !["CA.V.A", "CA.V.B", "CA.V.C", "CA.V.D"].includes(
-                task.acs_task_code_snapshot,
-              ) ||
-              task.acs_task_code_snapshot === firstChoice ||
-              task.acs_task_code_snapshot === secondChoice,
+            (rule) =>
+              rule.question_id === questionId &&
+              rule.review_status === "approved" &&
+              (!questionEventAssignments[questionId] || rule.event_set_id === questionEventAssignments[questionId]) &&
+              eventSetOrder.has(rule.event_set_id) &&
+              ruleAppliesToSelectedTriggers(rule),
           )
-          .map((task, index) => ({
-            ...task,
-            sort_order: (index + 1) * 10,
-          }));
-      }
+          .sort(
+            (a, b) =>
+              (eventSetOrder.get(a.event_set_id) ?? Number.MAX_SAFE_INTEGER) -
+                (eventSetOrder.get(b.event_set_id) ?? Number.MAX_SAFE_INTEGER) ||
+              stageOrder[a.sequence_stage] - stageOrder[b.sequence_stage] ||
+              a.sequence_order - b.sequence_order,
+          )[0] ?? null;
 
-      const snapshots = orderedSelected.map((question, index) => ({
+      const orderedSelected = selectedQuestions
+        .map((question) => ({
+          question,
+          rule: ruleForQuestion(question.id),
+        }))
+        .sort((a, b) => {
+          const aEvent = questionEventAssignments[a.question.id] ?? a.rule?.event_set_id;
+          const bEvent = questionEventAssignments[b.question.id] ?? b.rule?.event_set_id;
+          if (aEvent || bEvent) {
+            const eventDifference = (aEvent ? eventSetOrder.get(aEvent) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER) - (bEvent ? eventSetOrder.get(bEvent) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER);
+            if (eventDifference) return eventDifference;
+            if (aEvent && aEvent === bEvent) {
+              const keys = effectiveEventItemOrder[aEvent] ?? [];
+              const difference = keys.indexOf(`question:${a.question.id}`) - keys.indexOf(`question:${b.question.id}`);
+              if (difference) return difference;
+            }
+          }
+
+          if (!a.rule && !b.rule) {
+            return (
+              compareAcsReferences(
+                acsReferenceForQuestion(a.question),
+                acsReferenceForQuestion(b.question),
+              ) || a.question.question.localeCompare(b.question.question)
+            );
+          }
+
+          if (!a.rule) return 1;
+          if (!b.rule) return -1;
+
+          return (
+            (eventSetOrder.get(a.rule.event_set_id) ?? Number.MAX_SAFE_INTEGER) -
+              (eventSetOrder.get(b.rule.event_set_id) ?? Number.MAX_SAFE_INTEGER) ||
+            ((effectiveEventItemOrder[a.rule.event_set_id] ?? []).indexOf(`question:${a.question.id}`) - (effectiveEventItemOrder[b.rule.event_set_id] ?? []).indexOf(`question:${b.question.id}`)) ||
+            stageOrder[a.rule.sequence_stage] - stageOrder[b.rule.sequence_stage] ||
+            a.rule.sequence_order - b.rule.sequence_order ||
+            a.question.question.localeCompare(b.question.question)
+          );
+        });
+
+      const generatedFlightTasks = selectedFlightTaskDrafts;
+
+      const snapshots = orderedSelected.map(({ question, rule }, index) => ({
         generated_plan_of_action_id: generated.id,
 
         question_library_id: question.id,
@@ -1974,6 +1977,18 @@ export default function GeneratePoaPage() {
         task_name_snapshot: question.task_name,
 
         question_type_snapshot: question.question_type,
+
+        event_set_id: questionEventAssignments[question.id] ?? rule?.event_set_id ?? null,
+
+        question_rule_id: rule?.id ?? null,
+
+        sequence_stage: rule?.sequence_stage ?? null,
+
+        trigger_timing: rule && eventItemOrder[rule.event_set_id]
+          ? (effectiveEventItemOrder[rule.event_set_id] ?? []).slice(0, (effectiveEventItemOrder[rule.event_set_id] ?? []).indexOf(`question:${question.id}`)).some((key) => key.startsWith("trigger:")) ? "after_trigger" : "before_trigger"
+          : rule?.trigger_timing ?? null,
+
+        trigger_option_id: (rule ? selectedTriggerForRule(rule) : null) ?? triggerQuestionLinks.find(link => link.question_id === question.id && selectedCandidateTriggerIds.has(link.trigger_id) && compatibleTriggers.some(trigger => trigger.id === link.trigger_id && trigger.eventSetId === (questionEventAssignments[question.id] ?? rule?.event_set_id)))?.trigger_id ?? null,
 
         sort_order: (index + 1) * 10,
       }));
@@ -2016,12 +2031,9 @@ export default function GeneratePoaPage() {
         (item, index) => ({
           trigger_library_id: item.trigger_id ?? null,
           event_set_id: item.event_set_id ?? null,
-          placement_section: [
-            "departure",
-            "cruise",
-            "branch",
-            "arrival",
-          ].includes(item.phase)
+          placement_section: ["departure", "cruise", "branch", "arrival"].includes(
+            item.phase,
+          )
             ? "flight"
             : "oral",
           timeline_kind: item.kind,
@@ -2073,133 +2085,6 @@ export default function GeneratePoaPage() {
     }
   }
 
-  function printComplianceReport() {
-    if (!testType) {
-      setErrorMessage("Select a practical test before printing a report.");
-      return;
-    }
-
-    const printWindow = window.open("", "_blank", "width=1100,height=800");
-
-    if (!printWindow) {
-      setErrorMessage(
-        "The compliance report could not open. Allow pop-ups for this site and try again.",
-      );
-      return;
-    }
-
-    printWindow.opener = null;
-
-    const savedVersionIndex = savedPoaVersions.findIndex(
-      (poa) => poa.id === selectedPoaVersionId,
-    );
-    const selectedVersion =
-      savedVersionIndex >= 0
-        ? formatSavedPoaVersion(
-            savedPoaVersions[savedVersionIndex],
-            savedVersionIndex,
-          )
-        : `New POA — ${testType.display_name}`;
-
-    const reportRows = requiredComplianceCodes
-      .map((code) => {
-        const covered = coveredComplianceCodes.has(code);
-        const selectable = availableComplianceCodes.has(code);
-        const status = covered
-          ? "Covered"
-          : selectable
-            ? "Needs Selection"
-            : "No Library Mapping";
-        const matchedQuestions = selectedQuestions.filter((question) =>
-          acsReferencesForQuestion(question).some(
-            (reference) => complianceParentCode(reference) === code,
-          ),
-        );
-        const questionText =
-          matchedQuestions.length > 0
-            ? matchedQuestions
-                .map((question) => escapeHtml(question.question))
-                .join("<br><br>")
-            : "—";
-
-        return `
-          <tr>
-            <td class="code">${escapeHtml(code)}</td>
-            <td><span class="status ${covered ? "covered" : selectable ? "selectable" : "unmapped"}">${status}</span></td>
-            <td>${questionText}</td>
-          </tr>`;
-      })
-      .join("");
-
-    const scenarioName = selectedScenario?.scenario_name ?? "Not selected";
-    const timelineSummary = scenarioTimeline
-      ? `${scenarioTimeline.timeline?.length ?? 0} timeline items; cross-country ${
-          scenarioTimeline.cross_country_required ? "required" : "not required"
-        }`
-      : "Not built";
-
-    printWindow.document.write(`<!doctype html>
-      <html lang="en">
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>ACS Compliance Report — ${escapeHtml(title || testType.display_name)}</title>
-          <style>
-            @page { margin: 0.55in; }
-            * { box-sizing: border-box; }
-            body { margin: 0; color: #0f172a; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.45; }
-            h1 { margin: 0; font-size: 24px; }
-            h2 { margin: 28px 0 10px; font-size: 16px; }
-            .subtitle { margin-top: 4px; color: #475569; }
-            .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 22px; margin-top: 22px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 10px; }
-            .label { color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-            .value { margin-top: 2px; font-weight: 700; }
-            .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
-            .metric { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
-            .metric strong { display: block; margin-top: 3px; font-size: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 9px; border: 1px solid #cbd5e1; text-align: left; vertical-align: top; }
-            th { background: #f1f5f9; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
-            .code { width: 145px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
-            .status { display: inline-block; white-space: nowrap; border-radius: 999px; padding: 3px 8px; font-weight: 700; }
-            .covered { background: #dcfce7; color: #166534; }
-            .selectable { background: #fef3c7; color: #92400e; }
-            .unmapped { background: #ffe4e6; color: #9f1239; }
-            .footer { margin-top: 18px; color: #64748b; font-size: 10px; }
-            tr { break-inside: avoid; }
-            @media print { .no-print { display: none; } }
-          </style>
-        </head>
-        <body>
-          <h1>ACS Compliance Report</h1>
-          <p class="subtitle">Plan of Action coverage at the time this report was printed.</p>
-          <section class="meta">
-            <div><div class="label">POA Title</div><div class="value">${escapeHtml(title || "Untitled POA")}</div></div>
-            <div><div class="label">POA Version</div><div class="value">${escapeHtml(selectedVersion)}</div></div>
-            <div><div class="label">Practical Test</div><div class="value">${escapeHtml(testType.display_name)}</div></div>
-            <div><div class="label">Certificate / Rating</div><div class="value">${escapeHtml(practicalTestDescription(testType))}</div></div>
-            <div><div class="label">Scenario</div><div class="value">${escapeHtml(scenarioName)}</div></div>
-            <div><div class="label">Timeline</div><div class="value">${escapeHtml(timelineSummary)}</div></div>
-          </section>
-          <section class="summary">
-            <div class="metric"><div class="label">Required</div><strong>${requiredComplianceCodes.length}</strong></div>
-            <div class="metric"><div class="label">Covered</div><strong>${coveredComplianceCount}</strong></div>
-            <div class="metric"><div class="label">Needs Selection</div><strong>${selectableComplianceGaps.length}</strong></div>
-            <div class="metric"><div class="label">Library Gaps</div><strong>${unmappedComplianceGaps.length}</strong></div>
-          </section>
-          <h2>Compliance Detail</h2>
-          <table>
-            <thead><tr><th>ACS Parent Code</th><th>Status</th><th>Selected Question Coverage</th></tr></thead>
-            <tbody>${reportRows || '<tr><td colspan="3">No ACS compliance elements are available for this practical test.</td></tr>'}</tbody>
-          </table>
-          <p class="footer">Printed ${escapeHtml(new Date().toLocaleString())} · ${selectedQuestions.length} selected question${selectedQuestions.length === 1 ? "" : "s"}</p>
-        </body>
-      </html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.setTimeout(() => printWindow.print(), 250);
-  }
-
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -2234,10 +2119,10 @@ export default function GeneratePoaPage() {
           </Link>
 
           <Link
-            href="/examiner/plan-of-action/questions"
+            href="/examiner/plan-of-action/scenarios"
             className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-800 hover:bg-sky-100"
           >
-            Question Library
+            Scenario Library
           </Link>
 
           <button
@@ -2283,24 +2168,288 @@ export default function GeneratePoaPage() {
             ))}
           </select>
         </div>
+      </section>
 
-        {testType && isAdditionalIssuance ? (
-          <div className="mt-5 grid gap-3 border-t border-slate-200 pt-5 lg:grid-cols-[220px_1fr] lg:items-center">
+      {!loading && testType ? (
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
+              <div>
+                <span className="mb-2 block text-sm font-semibold text-slate-700">
+                  POA Version
+                </span>
+
+                <select
+                  value={selectedPoaVersionId}
+                  onChange={(event) => selectPoaVersion(event.target.value)}
+                  disabled={loadingPoaVersions}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
+                >
+                  <option value="new">
+                    {loadingPoaVersions
+                      ? "Loading saved POAs…"
+                      : `New POA — ${testType.display_name}`}
+                  </option>
+
+                  {savedPoaVersions.map((poa, index) => (
+                    <option key={poa.id} value={poa.id}>
+                      {formatSavedPoaVersion(poa, index)}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="mt-4 block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">
+                    New POA Title
+                  </span>
+
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
+                  />
+                </label>
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-semibold text-slate-700">
+                  Selected Questions
+                </p>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-2xl font-bold text-slate-900">
+                  {selectedIds.length}
+                </div>
+              </div>
+            </div>
+          </section>
+      ) : null}
+
+      <div className="mt-6 flex gap-1 border-b border-slate-300" role="tablist" aria-label="POA generator views">
+        {(["timeline", "flight_tasks", "compliance"] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" id={`poa-tab-${tab}`} aria-controls={`poa-panel-${tab}`} aria-selected={generatorTab === tab} onClick={() => setGeneratorTab(tab)} className={`border-b-2 px-6 py-3 text-sm font-bold ${generatorTab === tab ? "border-sky-700 text-sky-800" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
+            {tab === "timeline" ? "Timeline" : tab === "flight_tasks" ? "Flight Tasks" : "Compliance"}
+          </button>
+        ))}
+      </div>
+
+
+
+      {testType && generatorTab === "timeline" ? (
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                Scenario Library Selection
+              </p>
+
+              <h2 className="mt-1 text-xl font-bold text-slate-900">
+                Scenario
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-600">
+                Select the scenario that will organize this Plan of Action
+                chronologically.
+              </p>
+            </div>
+
+            <div className="mt-5">
+              <label>
+                <span className="mb-2 block text-sm font-semibold text-slate-700">
+                  Scenario
+                </span>
+
+                <select
+                  value={selectedScenarioId}
+                  onChange={(event) =>
+                    setSelectedScenarioId(event.target.value)
+                  }
+                  disabled={loadingScenarios}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
+                >
+                  <option value="">
+                    {loadingScenarios
+                      ? "Loading scenarios…"
+                      : scenarioOptions.length === 0
+                        ? "No active scenarios available"
+                        : "Select a scenario…"}
+                  </option>
+
+                  {scenarioOptions.map((scenario) => (
+                    <option key={scenario.id} value={scenario.id}>
+                      {scenario.scenario_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {selectedScenario ? (
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Scenario Brief
+                </p>
+
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                  {selectedScenario.scenario_brief ||
+                    "No scenario brief entered."}
+                </p>
+
+                {selectedScenario.initial_conditions ? (
+                  <div className="mt-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Initial Conditions
+                    </p>
+
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                      {selectedScenario.initial_conditions}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+
+      ) : null}
+
+
+
+      <section id="poa-panel-timeline" role="tabpanel" aria-labelledby="poa-tab-timeline" hidden={generatorTab !== "timeline"} className="mt-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+              Scenario Engine
+            </p>
+
+            <h2 className="mt-1 text-xl font-bold text-slate-900">
+              Scenario POA Timeline
+            </h2>
+
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Builds the oral as an ordered Event Set sequence. Each Event Set
+              contains ground questions and requires at least one plan-changing trigger.
+              Add more triggers if you want additional options.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                Scenario Altitude
+              </span>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={500}
+                  value={scenarioAltitude}
+                  onChange={(event) =>
+                    setScenarioAltitude(Number(event.target.value))
+                  }
+                  className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500"
+                />
+
+                <span className="text-sm text-slate-500">ft MSL</span>
+              </div>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void buildScenarioTimeline(true)}
+              disabled={loading || loadingTimeline || !testType || !selectedScenarioId || generatorEventSets.length === 0 || requiredComplianceCodes.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingTimeline ? "Building…" : "Build Compliant POA"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void buildScenarioTimeline()}
+              disabled={loadingTimeline || !testType}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingTimeline ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Shuffle className="h-4 w-4" />
+              )}
+
+              {scenarioTimeline ? "Regenerate Timeline" : "Build Timeline"}
+            </button>
+          </div>
+        </div>
+
+        {!scenarioTimeline ? (
+          <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm text-slate-600">
+            Build the timeline after selecting a scenario, then drag questions and triggers into its event sets. The engine
+            will determine whether Cross-Country Flight Planning belongs in this
+            test before inserting it into the scenario.
+          </div>
+        ) : (
+          <>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  scenarioTimeline.cross_country_required
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                Cross-Country{" "}
+                {scenarioTimeline.cross_country_required
+                  ? "Required"
+                  : "Not Required"}
+              </span>
+
+              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">
+                {scenarioTimeline.timeline?.length ?? 0} Timeline Items
+              </span>
+
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800">
+                {scenarioTimeline.timeline?.filter(
+                  (item) => item.kind === "trigger_option",
+                ).length ?? 0}{" "}
+                Trigger Option
+                {(scenarioTimeline.timeline?.filter(
+                  (item) => item.kind === "trigger_option",
+                ).length ?? 0) === 1
+                  ? ""
+                  : "es"}
+              </span>
+            </div>
+
+            <TimelineEventEditor
+              scenario={{ title: scenarioTimeline.scenario?.title ?? selectedScenario?.scenario_name ?? "Scenario", narrative: scenarioTimeline.scenario?.narrative ?? selectedScenario?.scenario_brief }}
+              eventSets={timelineEditorEventSets}
+              questions={timelineEditorQuestions}
+              triggers={compatibleTriggers.map((trigger) => ({ id: trigger.id, title: trigger.title, eventSetIds: [trigger.eventSetId], assignedEventSetId: trigger.eventSetId, selected: (selectedTriggerIds[trigger.eventSetId] ?? []).includes(trigger.id) }))}
+              itemOrder={effectiveEventItemOrder}
+              onOrderChange={(eventSetId, keys) => setEventItemOrder((current) => ({ ...current, [eventSetId]: keys }))}
+              onAssign={assignTimelineEntry}
+              onRemove={(kind, id, eventSetId) => {
+                if (kind === "trigger") removeTriggerChoice(eventSetId, id);
+                else setSelectedIds((current) => current.filter((questionId) => questionId !== id));
+              }}
+            />
+          </>
+        )}
+      </section>
+
+      {testType && isAdditionalIssuance ? (
+        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
             <div>
               <p className="text-sm font-bold text-slate-900">
                 Rating Already Held
               </p>
 
-              <p className="mt-1 text-xs text-slate-500">
-                Used to determine the correct FAA Additional Rating flight-task
-                matrix.
+              <p className="mt-1 text-xs text-slate-600">
+                Required to determine the correct FAA Additional Rating
+                flight-task matrix.
               </p>
             </div>
 
             <select
               value={additionalRatingHeld}
               onChange={(event) => setAdditionalRatingHeld(event.target.value)}
-              className="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
+              className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
             >
               <option value="">Select rating already held</option>
 
@@ -2310,59 +2459,6 @@ export default function GeneratePoaPage() {
                 </option>
               ))}
             </select>
-          </div>
-        ) : null}
-      </section>
-
-      {!loading && testType ? (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
-            <div>
-              <span className="mb-2 block text-sm font-semibold text-slate-700">
-                POA Version
-              </span>
-
-              <select
-                value={selectedPoaVersionId}
-                onChange={(event) => selectPoaVersion(event.target.value)}
-                disabled={loadingPoaVersions}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
-              >
-                <option value="new">
-                  {loadingPoaVersions
-                    ? "Loading saved POAs…"
-                    : `New POA — ${testType.display_name}`}
-                </option>
-
-                {savedPoaVersions.map((poa, index) => (
-                  <option key={poa.id} value={poa.id}>
-                    {formatSavedPoaVersion(poa, index)}
-                  </option>
-                ))}
-              </select>
-
-              <label className="mt-4 block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  New POA Title
-                </span>
-
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
-                />
-              </label>
-            </div>
-
-            <div>
-              <p className="mb-2 text-sm font-semibold text-slate-700">
-                Selected Questions
-              </p>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-2xl font-bold text-slate-900">
-                {selectedIds.length}
-              </div>
-            </div>
           </div>
         </section>
       ) : null}
@@ -2393,516 +2489,23 @@ export default function GeneratePoaPage() {
 
       {loading ? (
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">
-          Loading Question Library…
+          {isPrivatePilotAsel
+            ? "Loading Event Set Plan…"
+            : "Loading Scenario Library…"}
         </div>
       ) : null}
 
       {!loading && testType ? (
-        <nav
-          aria-label="POA generator sections"
-          className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-300"
-        >
-          {(["scenario", "timeline", "questions", "compliance"] as const).map(
-            (tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setGeneratorTab(tab)}
-                className={`whitespace-nowrap border-b-2 px-6 py-3 text-sm font-bold capitalize ${
-                  generatorTab === tab
-                    ? "border-sky-700 text-sky-800"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {tab}
-              </button>
-            ),
-          )}
-        </nav>
-      ) : null}
-
-      {!loading && testType && generatorTab === "timeline" ? (
-        <section className="mt-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
-                Scenario Engine
-              </p>
-
-              <h2 className="mt-1 text-xl font-bold text-slate-900">
-                Scenario POA Timeline
-              </h2>
-
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Builds the scenario as an ordered operational sequence using the
-                Trigger Library. Required ACS coverage remains a separate
-                background constraint.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-3">
-              <label>
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Scenario Altitude
-                </span>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    step={500}
-                    value={scenarioAltitude}
-                    onChange={(event) =>
-                      setScenarioAltitude(Number(event.target.value))
-                    }
-                    className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500"
-                  />
-
-                  <span className="text-sm text-slate-500">ft MSL</span>
-                </div>
-              </label>
-
-              <button
-                type="button"
-                onClick={() => void buildScenarioTimeline()}
-                disabled={loadingTimeline || !testType}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loadingTimeline ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Shuffle className="h-4 w-4" />
-                )}
-
-                {scenarioTimeline ? "Regenerate Timeline" : "Build Timeline"}
-              </button>
-            </div>
-          </div>
-
-          {!scenarioTimeline ? (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm text-slate-600">
-              Build the timeline after selecting the practical test. The engine
-              will determine whether Cross-Country Flight Planning belongs in
-              this test before inserting it into the scenario.
-            </div>
-          ) : (
-            <>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    scenarioTimeline.cross_country_required
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  Cross-Country{" "}
-                  {scenarioTimeline.cross_country_required
-                    ? "Required"
-                    : "Not Required"}
-                </span>
-
-                <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">
-                  {scenarioTimeline.timeline?.length ?? 0} Timeline Items
-                </span>
-
-                <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800">
-                  {scenarioTimeline.timeline?.filter(
-                    (item) => item.kind === "branch",
-                  ).length ?? 0}{" "}
-                  Decision Branch
-                  {(scenarioTimeline.timeline?.filter(
-                    (item) => item.kind === "branch",
-                  ).length ?? 0) === 1
-                    ? ""
-                    : "es"}
-                </span>
-              </div>
-
-              <div className="mt-6 space-y-3">
-                {(scenarioTimeline.timeline ?? []).map((item, index) => {
-                  const isBranch = item.kind === "branch";
-
-                  const isReconverge = item.kind === "reconverge";
-
-                  const isRequired =
-                    item.kind === "required_task" || item.required;
-
-                  return (
-                    <article
-                      key={`${index}-${item.kind}-${item.trigger_id ?? item.source_trigger_id ?? item.title}`}
-                      className={`rounded-2xl border p-4 ${
-                        isBranch
-                          ? "border-amber-300 bg-amber-50"
-                          : isReconverge
-                            ? "border-violet-300 bg-violet-50"
-                            : isRequired
-                              ? "border-emerald-300 bg-emerald-50"
-                              : "border-slate-200 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
-                          {index + 1}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-700">
-                              {item.label}
-                            </span>
-
-                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                              {item.phase.replaceAll("_", " ")}
-                            </span>
-
-                            {item.branch_worthy ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-                                <TriangleAlert className="h-3.5 w-3.5" />
-                                Decision Point
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <h3 className="mt-2 font-bold text-slate-900">
-                            {item.title}
-                          </h3>
-
-                          {item.narrative ? (
-                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                              {item.narrative}
-                            </p>
-                          ) : null}
-
-                          {item.precondition ? (
-                            <p className="mt-2 text-xs text-slate-500">
-                              Preconditions: {item.precondition}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </section>
-      ) : null}
-
-      {!loading && testType ? (
         <>
-          {generatorTab === "scenario" ? (
-            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
-                  Scenario Library Selection
-                </p>
 
-                <h2 className="mt-1 text-xl font-bold text-slate-900">
-                  Scenario
-                </h2>
 
-                <p className="mt-2 text-sm text-slate-600">
-                  Select the scenario that will organize this Plan of Action
-                  chronologically.
-                </p>
-              </div>
 
-              <div className="mt-5">
-                <label>
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">
-                    Scenario
-                  </span>
+          {generatorTab === "flight_tasks" ? <FlightTaskSequenceEditor library={flightTaskLibrary} selected={selectedFlightTaskCodes.filter((code) => flightTaskLibrary.some((task) => task.acs_task_code_snapshot === code))} onChange={setSelectedFlightTaskCodes} /> : null}
 
-                  <select
-                    value={selectedScenarioId}
-                    onChange={(event) =>
-                      setSelectedScenarioId(event.target.value)
-                    }
-                    disabled={loadingScenarios}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
-                  >
-                    <option value="">
-                      {loadingScenarios
-                        ? "Loading scenarios…"
-                        : scenarioOptions.length === 0
-                          ? "No active scenarios available"
-                          : "Select a scenario…"}
-                    </option>
-
-                    {scenarioOptions.map((scenario) => (
-                      <option key={scenario.id} value={scenario.id}>
-                        {scenario.scenario_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {selectedScenario ? (
-                <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Scenario Brief
-                  </p>
-
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                    {selectedScenario.scenario_brief ||
-                      "No scenario brief entered."}
-                  </p>
-
-                  {selectedScenario.initial_conditions ? (
-                    <div className="mt-4">
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        Initial Conditions
-                      </p>
-
-                      <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                        {selectedScenario.initial_conditions}
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          {generatorTab === "questions" ? (
-            <>
-              <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                  <label className="min-w-0 flex-1">
-                    <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Search Question Library
-                    </span>
-
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-
-                      <input
-                        value={searchText}
-                        onChange={(event) => setSearchText(event.target.value)}
-                        placeholder="Question, ACS reference, topic, source reference..."
-                        className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-sky-500"
-                      />
-                    </div>
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={buildCompliantSelection}
-                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
-                    >
-                      <Check className="h-4 w-4" />
-                      Build Compliant Selection
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={selectAllDisplayed}
-                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Select Displayed
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={clearSelection}
-                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-sm text-slate-600">
-                  {filteredQuestions.length} applicable library question
-                  {filteredQuestions.length === 1 ? "" : "s"} across{" "}
-                  <strong>{taskGroups.length}</strong> ACS Task
-                  {taskGroups.length === 1 ? "" : "s"}.
-                </p>
-              </section>
-
-              {questions.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-                  <p className="font-bold text-slate-900">
-                    No applicable library questions
-                  </p>
-
-                  <p className="mt-2 text-sm text-slate-600">
-                    Add or approve Question Library questions for this practical
-                    test before generating a POA.
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-6 space-y-3">
-                  {taskGroups.map((group) => {
-                    const taskExpanded = expandedTasks.has(group.acsReference);
-
-                    const selectedCount = selectedCountForTask(group);
-
-                    return (
-                      <section
-                        key={group.acsReference}
-                        className={`overflow-hidden rounded-2xl border bg-white ${
-                          selectedCount > 0
-                            ? "border-sky-300"
-                            : "border-slate-200"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => toggleTask(group.acsReference)}
-                          className="flex w-full items-center gap-4 px-5 py-4 text-left hover:bg-slate-50"
-                        >
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-                            {taskExpanded ? (
-                              <ChevronDown className="h-5 w-5 text-slate-600" />
-                            ) : (
-                              <ChevronRight className="h-5 w-5 text-slate-600" />
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                              <span className="font-mono text-sm font-bold text-sky-800">
-                                {group.acsReference}
-                              </span>
-
-                              <span className="font-bold text-slate-900">
-                                {group.taskName}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                              {group.questions.length} available
-                            </span>
-
-                            {selectedCount > 0 ? (
-                              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">
-                                {selectedCount} selected
-                              </span>
-                            ) : null}
-                          </div>
-                        </button>
-
-                        {taskExpanded ? (
-                          <div className="border-t border-slate-200 bg-slate-50/40 p-3 sm:p-4">
-                            <div className="space-y-2">
-                              {group.questions.map(
-                                ({ question, acsReference }) => {
-                                  const selected = selectedIds.includes(
-                                    question.id,
-                                  );
-
-                                  const questionKey = `${acsReference}:${question.id}`;
-
-                                  const expanded =
-                                    expandedQuestionId === questionKey;
-
-                                  return (
-                                    <article
-                                      key={questionKey}
-                                      className={`overflow-hidden rounded-xl border bg-white ${
-                                        selected
-                                          ? "border-sky-400 ring-1 ring-sky-200"
-                                          : "border-slate-200"
-                                      }`}
-                                    >
-                                      <div className="flex items-start gap-4 px-4 py-4">
-                                        <label className="mt-1 flex shrink-0 cursor-pointer items-center">
-                                          <input
-                                            type="checkbox"
-                                            checked={selected}
-                                            onChange={() =>
-                                              toggleQuestion(question.id)
-                                            }
-                                            className="h-5 w-5"
-                                          />
-                                        </label>
-
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setExpandedQuestionId(
-                                              expanded ? null : questionKey,
-                                            )
-                                          }
-                                          className="flex min-w-0 flex-1 items-start gap-4 text-left"
-                                        >
-                                          <div className="min-w-0 flex-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                              <span className="rounded-lg bg-sky-100 px-2.5 py-1 font-mono text-xs font-bold text-sky-800">
-                                                {acsReference}
-                                              </span>
-
-                                              {question.topic ? (
-                                                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                                  {question.topic}
-                                                </span>
-                                              ) : null}
-                                            </div>
-
-                                            <p className="mt-3 font-semibold leading-6 text-slate-900">
-                                              {question.question}
-                                            </p>
-                                          </div>
-
-                                          {expanded ? (
-                                            <ChevronUp className="mt-1 h-5 w-5 shrink-0 text-slate-400" />
-                                          ) : (
-                                            <ChevronDown className="mt-1 h-5 w-5 shrink-0 text-slate-400" />
-                                          )}
-                                        </button>
-                                      </div>
-
-                                      {expanded ? (
-                                        <div className="border-t border-slate-200 bg-slate-50/40 px-5 py-5">
-                                          <div className="grid gap-5 lg:grid-cols-2">
-                                            <div>
-                                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Answer
-                                              </p>
-
-                                              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                                                {question.answer ||
-                                                  "No answer entered."}
-                                              </p>
-                                            </div>
-
-                                            <div>
-                                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Reference
-                                              </p>
-
-                                              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                                                {question.reference ||
-                                                  "No reference entered."}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ) : null}
-                                    </article>
-                                  );
-                                },
-                              )}
-                            </div>
-                          </div>
-                        ) : null}
-                      </section>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          ) : null}
-
+          <div>
           {generatorTab === "compliance" ? (
-            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <section id="poa-panel-compliance" role="tabpanel" aria-labelledby="poa-tab-compliance" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
                     ACS Compliance
@@ -2911,59 +2514,30 @@ export default function GeneratePoaPage() {
                   <p className="mt-1 text-sm leading-6 text-slate-600">
                     A Knowledge or Risk element turns green when at least one
                     selected question covers that ACS parent code. Flight Skill
-                    elements will be connected to the maneuver list later.
+                    elements turn green when their flight task is added to your flight sequence.
                   </p>
                 </div>
 
-                <div className="flex shrink-0 flex-col gap-3">
-                  <button
-                    type="button"
-                    onClick={printComplianceReport}
-                    className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-bold text-sky-800 hover:bg-sky-100 lg:self-end"
-                  >
-                    <Printer className="h-4 w-4" />
-                    Print Compliance Report
-                  </button>
+                <div className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Covered
+                  </p>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                        Covered
-                      </p>
-                      <p className="mt-1 text-xl font-bold text-emerald-900">
-                        {coveredComplianceCount}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                        Selectable
-                      </p>
-                      <p className="mt-1 text-xl font-bold text-amber-900">
-                        {selectableComplianceGaps.length}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                        Library Gaps
-                      </p>
-                      <p className="mt-1 text-xl font-bold text-rose-900">
-                        {unmappedComplianceGaps.length}
-                      </p>
-                    </div>
-                  </div>
+                  <p className="mt-1 text-xl font-bold text-slate-900">
+                    {coveredComplianceCount} / {displayedComplianceCodes.length}
+                  </p>
                 </div>
               </div>
 
-              {requiredComplianceCodes.length === 0 ? (
+              {displayedComplianceCodes.length === 0 ? (
                 <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-600">
                   No ACS compliance elements are available for this practical
                   test.
                 </div>
               ) : (
                 <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
-                  {requiredComplianceCodes.map((code) => {
-                    const covered = coveredComplianceCodes.has(code);
-                    const selectable = availableComplianceCodes.has(code);
+                  {displayedComplianceCodes.map((code) => {
+                    const covered = coveredComplianceCodes.has(code) || selectedFlightComplianceCodes.has(code);
 
                     const skill = code.endsWith(".S");
 
@@ -2977,13 +2551,9 @@ export default function GeneratePoaPage() {
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
                               <Check className="h-5 w-5 text-emerald-700" />
                             </span>
-                          ) : selectable ? (
+                          ) : (
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
                               <TriangleAlert className="h-5 w-5 text-amber-700" />
-                            </span>
-                          ) : (
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100">
-                              <TriangleAlert className="h-5 w-5 text-rose-700" />
                             </span>
                           )}
 
@@ -2998,8 +2568,7 @@ export default function GeneratePoaPage() {
 
                             {skill ? (
                               <p className="mt-1 text-xs text-slate-500">
-                                Flight maneuver coverage will be connected
-                                later.
+                                {covered ? "Included in the flight sequence." : "Add this task on the Flight Tasks tab."}
                               </p>
                             ) : null}
                           </div>
@@ -3009,16 +2578,10 @@ export default function GeneratePoaPage() {
                           className={`rounded-full px-3 py-1 text-xs font-bold ${
                             covered
                               ? "bg-emerald-100 text-emerald-800"
-                              : selectable
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-rose-100 text-rose-800"
+                              : "bg-amber-100 text-amber-800"
                           }`}
                         >
-                          {covered
-                            ? "Covered"
-                            : selectable
-                              ? "Needs Selection"
-                              : "No Library Mapping"}
+                          {covered ? "Covered" : "Needs Coverage"}
                         </span>
                       </div>
                     );
@@ -3027,6 +2590,7 @@ export default function GeneratePoaPage() {
               )}
             </section>
           ) : null}
+          </div>
 
           <section className="sticky bottom-4 mt-8 rounded-2xl border border-slate-300 bg-white/95 p-5 shadow-xl backdrop-blur">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3037,8 +2601,9 @@ export default function GeneratePoaPage() {
                 </p>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Only checked questions will be included in the generated POA.
-                  Current selection mode: <strong>{selectionMethod}</strong>.
+                  {allRatingTasksCovered
+                    ? "All required tasks for this rating are covered."
+                    : `Cover all required tasks before generating (${coveredComplianceCount}/${displayedComplianceCodes.length} covered).`}
                 </p>
               </div>
 
@@ -3047,7 +2612,11 @@ export default function GeneratePoaPage() {
                 disabled={
                   generating ||
                   selectedQuestions.length === 0 ||
-                  missingComplianceCodes.length > 0
+                  !allRatingTasksCovered ||
+                  !scenarioTimeline ||
+                  loadingTimeline ||
+                  Boolean(isAdditionalIssuance && !additionalRatingHeld) ||
+                  Boolean(scenarioTimeline.timeline?.some((item) => item.kind === "gap"))
                 }
                 onClick={() => void generatePoa()}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"

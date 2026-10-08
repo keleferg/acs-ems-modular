@@ -19,8 +19,6 @@ import OpenAssignmentsPanel from "@/components/portal/OpenAssignmentsPanel";
 type PracticalTestRequest = {
   id: string;
   request_number: string;
-  applicant_profile_id: string;
-  offered_in_open_time: boolean;
   status: string;
   status_reason: string | null;
 
@@ -748,8 +746,6 @@ export default function ExaminerRequestsPage() {
   >("assigned");
 
   const [requests, setRequests] = useState<PracticalTestRequest[]>([]);
-  const [applicantsConfirmedElsewhere, setApplicantsConfirmedElsewhere] =
-    useState<Set<string>>(new Set());
   const [declineRequestTarget, setDeclineRequestTarget] =
     useState<PracticalTestRequest | null>(null);
   const [declineReasonDraft, setDeclineReasonDraft] = useState("");
@@ -845,7 +841,6 @@ export default function ExaminerRequestsPage() {
   const loadRequests = useCallback(async () => {
     setLoading(true);
     setPageError("");
-    setApplicantsConfirmedElsewhere(new Set());
 
     const supabase = createClient();
 
@@ -890,8 +885,6 @@ export default function ExaminerRequestsPage() {
         `
         id,
         request_number,
-        applicant_profile_id,
-        offered_in_open_time,
         status,
         status_reason,
 
@@ -989,38 +982,6 @@ export default function ExaminerRequestsPage() {
       const loadedRequests = (data ?? []) as PracticalTestRequest[];
 
       setRequests(loadedRequests);
-
-      // Match stable account IDs, never names, across the examiner's queue.
-      const applicantIds = [...new Set(
-        loadedRequests
-          .filter((request) => !closedStatuses.has(request.status))
-          .map((request) => request.applicant_profile_id)
-          .filter(Boolean),
-      )];
-      const confirmedApplicantIds = new Set<string>();
-      // Bound URL size and paginate to avoid silently missing matches.
-      for (let offset = 0; offset < applicantIds.length; offset += 100) {
-        for (let page = 0; ; page += 1) {
-          const { data: confirmedRequests, error: confirmedError } = await supabase
-            .from("practical_test_requests")
-            .select("id, applicant_profile_id")
-            .in("applicant_profile_id", applicantIds.slice(offset, offset + 100))
-            .eq("status", "confirmed")
-            .neq("assigned_examiner_profile_id", user.id)
-            .order("id")
-            .range(page * 500, page * 500 + 499);
-
-          if (confirmedError) {
-            setPageError(`Other-examiner confirmations could not be checked: ${confirmedError.message}`);
-            break;
-          }
-          for (const confirmedRequest of confirmedRequests ?? []) {
-            confirmedApplicantIds.add(confirmedRequest.applicant_profile_id);
-          }
-          if ((confirmedRequests ?? []).length < 500) break;
-        }
-      }
-      setApplicantsConfirmedElsewhere(confirmedApplicantIds);
 
       setFeeDrafts(
         Object.fromEntries(
@@ -1157,10 +1118,7 @@ export default function ExaminerRequestsPage() {
         Object.fromEntries(
           loadedRequests.map((request) => [
             request.id,
-            request.scheduled_location ??
-              request.oral_test_location ??
-              request.flight_airport_code ??
-              "",
+            request.scheduled_location ?? request.oral_test_location ?? "",
           ]),
         ),
       );
@@ -1693,19 +1651,6 @@ export default function ExaminerRequestsPage() {
     setEditingRequestId(null);
     setSavingRequestInfoId(null);
     setMessage(`Request information saved for ${request.request_number}.`);
-  }
-
-  async function offerInOpenTime(request: PracticalTestRequest) {
-    if (savingRequestId || request.offered_in_open_time) return;
-    setSavingRequestId(request.id);
-    setPageError("");
-    const { error } = await createClient().rpc("examiner_offer_request_in_open_time", { p_request_id: request.id });
-    if (error) setPageError(`Request could not be offered in Open Time: ${error.message}`);
-    else {
-      setRequests((current) => current.map((item) => item.id === request.id ? { ...item, offered_in_open_time: true } : item));
-      setMessage(`${request.request_number} is offered in Open Time and remains in your queue until an appointment is confirmed.`);
-    }
-    setSavingRequestId(null);
   }
 
   async function updateRequestStatus(
@@ -2261,11 +2206,7 @@ export default function ExaminerRequestsPage() {
     const durationMinutes = Number(appointmentDurationDrafts[request.id] ?? "");
 
     const scheduledLocation = (
-      appointmentLocationDrafts[request.id] ??
-      request.scheduled_location ??
-      request.oral_test_location ??
-      request.flight_airport_code ??
-      ""
+      appointmentLocationDrafts[request.id] ?? ""
     ).trim();
 
     if (!scheduledStartAt) {
@@ -3055,10 +2996,6 @@ export default function ExaminerRequestsPage() {
                 const savingAppointment =
                   savingAppointmentRequestId === request.id;
 
-                const confirmedElsewhere =
-                  !closedStatuses.has(request.status) &&
-                  applicantsConfirmedElsewhere.has(request.applicant_profile_id);
-
                 return (
                   <Fragment key={request.id}>
                     {showGroupHeading ? (
@@ -3080,16 +3017,13 @@ export default function ExaminerRequestsPage() {
                         directRequestId === request.id
                           ? "ring-4 ring-amber-300 ring-offset-2"
                           : ""
-                      } ${confirmedElsewhere ? "border-orange-400 bg-orange-100" : getDmsDeadlineCardClasses(request, deadlineClock)}`}
+                      } ${getDmsDeadlineCardClasses(request, deadlineClock)}`}
                     >
                       <details
                         className="group/request"
                         open={directRequestId === request.id}
                       >
-                        <summary
-                          title={confirmedElsewhere ? "Test confirmed with another examiner" : undefined}
-                          className={`cursor-pointer list-none border-b px-4 py-3 transition [&::-webkit-details-marker]:hidden ${confirmedElsewhere ? "border-orange-300 bg-orange-100 hover:bg-orange-200" : "border-slate-200 bg-white hover:bg-slate-50"}`}
-                        >
+                        <summary className="cursor-pointer list-none border-b border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
                           <div className="flex items-center gap-3">
                             <span
                               aria-hidden="true"
@@ -3246,16 +3180,6 @@ export default function ExaminerRequestsPage() {
                                   </option>
                                 ))}
                               </select>
-
-                              {!closedStatuses.has(request.status) && request.status !== "confirmed" && (
-                                <button type="button"
-                                  onClick={() => void offerInOpenTime(request)}
-                                  disabled={Boolean(savingRequestId) || request.offered_in_open_time}
-                                  className="rounded-lg border border-sky-700 bg-white px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:opacity-60"
-                                >
-                                  {request.offered_in_open_time ? "Offered in Open Time" : "Offer in Open Time"}
-                                </button>
-                              )}
 
                               {canOpenPpcEvaluation(request) ? (
                                 <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
@@ -4613,9 +4537,17 @@ export default function ExaminerRequestsPage() {
                                         onClick={() =>
                                           void saveFinalizedAppointment(request)
                                         }
-                                        disabled={Boolean(
-                                          savingAppointmentRequestId,
-                                        )}
+                                        disabled={
+                                          Boolean(savingAppointmentRequestId) ||
+                                          !(
+                                            appointmentDrafts[request.id] ?? ""
+                                          ) ||
+                                          !(
+                                            appointmentLocationDrafts[
+                                              request.id
+                                            ] ?? ""
+                                          ).trim()
+                                        }
                                         className="rounded-lg border border-amber-700 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
                                       >
                                         {savingAppointment

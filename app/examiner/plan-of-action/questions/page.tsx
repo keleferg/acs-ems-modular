@@ -260,6 +260,14 @@ export default function PoaQuestionLibraryPage() {
   );
 
   const [showEditor, setShowEditor] = useState(false);
+  const [associateTriggerId, setAssociateTriggerId] = useState("");
+  useEffect(() => {
+    const triggerId = new URLSearchParams(window.location.search).get("addForTrigger");
+    if (triggerId && /^[0-9a-f-]{36}$/i.test(triggerId)) {
+      setAssociateTriggerId(triggerId);
+      setShowEditor(true);
+    }
+  }, []);
 
   const [form, setForm] = useState<QuestionForm>(EMPTY_FORM);
   const [typeRatings, setTypeRatings] = useState<TypeRatingOption[]>([]);
@@ -818,10 +826,17 @@ export default function PoaQuestionLibraryPage() {
         }
       }
 
+      if (associateTriggerId) {
+        const { error: associationError } = await supabase.from("poa_trigger_questions").upsert({
+          trigger_id: associateTriggerId, question_id: questionId,
+          relationship: "follow_up", is_required: true, weight: 100,
+        }, { onConflict: "trigger_id,question_id" });
+        if (associationError) throw associationError;
+        window.location.href = "/examiner/plan-of-action/triggers";
+        return;
+      }
       setShowEditor(false);
-
       setForm(EMPTY_FORM);
-
       await loadPage();
     } catch (error) {
       setPageError(
@@ -872,7 +887,7 @@ export default function PoaQuestionLibraryPage() {
           </p>
 
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
-            Question Library
+            Scenario Library
           </h1>
 
           <p className="mt-2 max-w-3xl text-slate-600">
@@ -920,19 +935,6 @@ export default function PoaQuestionLibraryPage() {
           aria-label="Plan of Action Library Views"
         >
           <Link
-            href="/examiner/plan-of-action/questions"
-            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-300 bg-white px-6 py-4 text-base font-bold text-amber-800 shadow-sm transition"
-          >
-            <span aria-hidden="true" className="text-2xl leading-none">
-              ?
-            </span>
-
-            <span>Questions</span>
-
-            <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
-          </Link>
-
-          <Link
             href="/examiner/plan-of-action/scenarios"
             className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
           >
@@ -953,7 +955,21 @@ export default function PoaQuestionLibraryPage() {
 
             <span>Triggers</span>
           </Link>
-                  <Link
+
+          <Link
+            href="/examiner/plan-of-action/questions"
+            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-300 bg-white px-6 py-4 text-base font-bold text-amber-800 shadow-sm transition"
+          >
+            <span aria-hidden="true" className="text-2xl leading-none">
+              ?
+            </span>
+
+            <span>Questions</span>
+
+            <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
+          </Link>
+
+          <Link
             href="/examiner/plan-of-action/flight-tasks"
             className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
           >
@@ -962,7 +978,7 @@ export default function PoaQuestionLibraryPage() {
             </span>
             <span>Flight Tasks</span>
           </Link>
-</nav>
+        </nav>
       </div>
 
       {message ? (

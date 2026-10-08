@@ -1,5 +1,7 @@
 "use client";
 
+import { orderPrintedEventSets } from "@/lib/poa/print-event-order";
+
 import {
   Suspense,
   useEffect,
@@ -12,6 +14,7 @@ import { Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type GeneratedPlan = {
+  compliance_snapshot: { required?: string[] } | null;
   id: string;
   practical_test_type_id: string;
   title: string;
@@ -23,6 +26,7 @@ type GeneratedPlan = {
 };
 
 type GeneratedQuestion = {
+  event_set_id: string | null;
   id: string;
   acs_reference_snapshot: string | null;
   question_snapshot: string | null;
@@ -31,15 +35,20 @@ type GeneratedQuestion = {
   topic_snapshot: string | null;
   task_name_snapshot: string | null;
   question_type_snapshot: string | null;
+  trigger_option_id: string | null;
   sort_order: number | null;
 };
 
 type GeneratedPoaTrigger = {
+  event_set_id: string | null;
+  timeline_kind: string | null;
   id: string;
+  trigger_library_id: string | null;
   placement_section: "oral" | "flight";
   category_snapshot: string | null;
   trigger_text_snapshot: string;
   trigger_narrative_snapshot: string;
+  is_selected: boolean;
   sort_order: number;
 };
 
@@ -123,9 +132,6 @@ function titleForTest(testType: PracticalTestType | null) {
 
   const className =
     testType.class_name?.toUpperCase() || "";
-
-  const category =
-    testType.category_name?.toUpperCase() || "";
 
   if (
     cert.includes("COMMERCIAL") &&
@@ -279,10 +285,14 @@ function GeneratedPoaPrintContent() {
         .from("generated_plan_of_action_triggers")
         .select(`
           id,
+          trigger_library_id,
+          timeline_kind,
+          event_set_id,
           placement_section,
           category_snapshot,
           trigger_text_snapshot,
           trigger_narrative_snapshot,
+          is_selected,
           sort_order
         `)
         .eq("generated_plan_of_action_id", id)
@@ -344,7 +354,8 @@ function GeneratedPoaPrintContent() {
           selection_method,
           status,
           notes,
-          created_at
+          created_at,
+          compliance_snapshot
         `)
         .eq("id", id)
         .eq("examiner_profile_id", user.id)
@@ -379,6 +390,8 @@ function GeneratedPoaPrintContent() {
             topic_snapshot,
             task_name_snapshot,
             question_type_snapshot,
+            trigger_option_id,
+            event_set_id,
             sort_order
           `)
           .eq(
@@ -546,7 +559,7 @@ function GeneratedPoaPrintContent() {
 
   const chronologicalOralTimeline =
     useMemo(() => {
-      return [
+      return orderPrintedEventSets([
         ...questions.map((question) => ({
           kind: "question" as const,
           sortOrder: Number(
@@ -566,11 +579,7 @@ function GeneratedPoaPrintContent() {
             ),
             trigger,
           })),
-      ].sort(
-        (a, b) =>
-          a.sortOrder - b.sortOrder ||
-          (a.kind === "trigger" ? -1 : 1),
-      );
+      ]);
     }, [questions, poaTriggers]);
 
   const chronologicalFlightTimeline =
@@ -977,8 +986,8 @@ function GeneratedPoaPrintContent() {
                     style={{
                       margin: "16px 0",
                       padding: "14px 16px",
-                      borderLeft: "5px solid #f59e0b",
-                      background: "#fffbeb",
+                      borderLeft: entry.trigger.timeline_kind === "event_set" ? "5px solid #6366f1" : entry.trigger.timeline_kind === "scenario" ? "5px solid #f59e0b" : "5px solid #dc2626",
+                      background: entry.trigger.timeline_kind === "event_set" ? "#eef2ff" : entry.trigger.timeline_kind === "scenario" ? "#fffbeb" : "#fee2e2",
                       borderRadius: "8px",
                       breakInside: "avoid",
                     }}
@@ -986,27 +995,35 @@ function GeneratedPoaPrintContent() {
                     <div
                       style={{
                         fontWeight: 800,
-                        color: "#92400e",
+                        color: entry.trigger.timeline_kind === "event_set" ? "#3730a3" : entry.trigger.timeline_kind === "scenario" ? "#92400e" : "#991b1b",
                         marginBottom: "6px",
                       }}
                     >
-                      TRIGGER —{" "}
+                      {entry.trigger.timeline_kind === "scenario" ? "SCENARIO" : entry.trigger.timeline_kind === "event_set" ? "EVENT SET" : "TRIGGER"} —{" "}
                       {entry.trigger.trigger_text_snapshot}
+                      {entry.trigger.is_selected ? " — SELECTED" : ""}
                     </div>
 
                     <div>
-                      {entry.trigger.trigger_narrative_snapshot}
+                      {entry.trigger.timeline_kind !== "event_set" ? entry.trigger.trigger_narrative_snapshot : null}
                     </div>
                   </article>
                 );
               }
 
               const question = entry.question;
+              const conditionalTrigger = question.trigger_option_id
+                ? poaTriggers.find(
+                    (trigger) =>
+                      trigger.trigger_library_id === question.trigger_option_id,
+                  )
+                : null;
 
               return (
                 <article
                   key={question.id}
                   className="question-block"
+                  style={conditionalTrigger ? { background: "#fee2e2", borderLeft: "5px solid #dc2626", padding: "14px 16px", borderRadius: "8px" } : undefined}
                 >
                   <div
                     style={{
@@ -1021,6 +1038,19 @@ function GeneratedPoaPrintContent() {
                       ? ` — ${question.task_name_snapshot}`
                       : ""}
                   </div>
+
+                  {conditionalTrigger ? (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        marginBottom: "5px",
+                        color: conditionalTrigger.is_selected ? "#166534" : "#92400e",
+                      }}
+                    >
+                      {conditionalTrigger.is_selected ? "ACTIVE TRIGGER" : "ASK ONLY IF USED"}: {conditionalTrigger.trigger_text_snapshot}
+                    </div>
+                  ) : null}
 
                   <div className="question-line">
                     <span className="question-box">□</span>
@@ -1154,8 +1184,8 @@ function GeneratedPoaPrintContent() {
                     style={{
                       margin: "16px 0",
                       padding: "14px 16px",
-                      borderLeft: "5px solid #f59e0b",
-                      background: "#fffbeb",
+                      borderLeft: entry.trigger.timeline_kind === "event_set" ? "5px solid #6366f1" : entry.trigger.timeline_kind === "scenario" ? "5px solid #f59e0b" : "5px solid #dc2626",
+                      background: entry.trigger.timeline_kind === "event_set" ? "#eef2ff" : entry.trigger.timeline_kind === "scenario" ? "#fffbeb" : "#fee2e2",
                       borderRadius: "8px",
                       breakInside: "avoid",
                     }}
@@ -1163,16 +1193,17 @@ function GeneratedPoaPrintContent() {
                     <div
                       style={{
                         fontWeight: 800,
-                        color: "#92400e",
+                        color: entry.trigger.timeline_kind === "event_set" ? "#3730a3" : entry.trigger.timeline_kind === "scenario" ? "#92400e" : "#991b1b",
                         marginBottom: "6px",
                       }}
                     >
-                      TRIGGER —{" "}
+                      {entry.trigger.timeline_kind === "scenario" ? "SCENARIO" : entry.trigger.timeline_kind === "event_set" ? "EVENT SET" : "TRIGGER"} —{" "}
                       {entry.trigger.trigger_text_snapshot}
+                      {entry.trigger.is_selected ? " — SELECTED" : ""}
                     </div>
 
                     <div>
-                      {entry.trigger.trigger_narrative_snapshot}
+                      {entry.trigger.timeline_kind !== "event_set" ? entry.trigger.trigger_narrative_snapshot : null}
                     </div>
                   </article>
                 );
@@ -1324,6 +1355,23 @@ function GeneratedPoaPrintContent() {
               Complete practical-test outcome and required administrative actions.
             </CheckboxLine>
           </section>
+        </section>
+        <section className="dynamic-pages" style={{ breakBefore: "page", padding: "0.5in", fontSize: "10px" }}>
+          <h2 className="section-title">COMPLIANCE REPORT</h2>
+          <p>Required ACS groups and the saved POA questions or flight tasks used to satisfy them.</p>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "14px" }}>
+            <thead><tr><th style={{ textAlign: "left" }}>Requirement</th><th style={{ textAlign: "left" }}>ACS codes used</th><th style={{ textAlign: "left" }}>Evidence</th></tr></thead>
+            <tbody>{(plan.compliance_snapshot?.required ?? []).map(requirement => {
+              const oral = questions.flatMap(q => {
+                const codes = [...new Set((q.acs_reference_snapshot ?? "").match(/[A-Z]{2,5}\.[IVX]+\.[A-Z]+\.[KR]\d*[a-z]*/g) ?? [])].filter(code => code.replace(/([KR])\d*[a-z]*$/, "$1") === requirement);
+                return codes.length ? [{ codes, text: q.question_snapshot ?? "Question" }] : [];
+              });
+              const flight = flightTasks.filter(task => `${task.acs_task_code_snapshot}.S` === requirement).map(task => ({ codes: task.skill_elements_snapshot?.length ? task.skill_elements_snapshot.map(element => element.code) : [`${task.acs_task_code_snapshot}.S`], text: task.task_name_snapshot }));
+              const evidence = [...oral, ...flight];
+              return <tr key={requirement} style={{ breakInside: "avoid", borderBottom: "1px solid #cbd5e1" }}><td style={{ padding: "6px", verticalAlign: "top", fontWeight: 700 }}>{requirement}</td><td style={{ padding: "6px", verticalAlign: "top" }}>{[...new Set(evidence.flatMap(item => item.codes))].join(", ") || "Not covered"}</td><td style={{ padding: "6px", verticalAlign: "top" }}>{evidence.map((item,index) => <div key={index}>{item.text}</div>)}</td></tr>;
+            })}</tbody>
+          </table>
+          {!plan.compliance_snapshot?.required?.length ? <p>No saved requirement list is available for this POA.</p> : null}
         </section>
       </main>
 

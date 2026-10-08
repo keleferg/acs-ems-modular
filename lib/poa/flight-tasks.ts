@@ -75,59 +75,6 @@ function acsPrefix(reference: string) {
   return match?.[1] ?? null;
 }
 
-const AIRPLANE_CLASS_CODES = new Set(["ASEL", "AMEL", "ASES", "AMES"]);
-
-/**
- * The airplane ACS documents share one prefix across land, sea,
- * single-engine, and multiengine practical tests. Task names carry the
- * class applicability, so prefix matching alone is not sufficient.
- */
-export function acsTaskAppliesToAircraftClass(
-  taskCode: string,
-  taskName: string,
-  classCode: string | null | undefined,
-) {
-  const selectedClass = String(classCode ?? "")
-    .trim()
-    .toUpperCase();
-
-  if (!AIRPLANE_CLASS_CODES.has(selectedClass)) {
-    return true;
-  }
-
-  const normalizedTaskCode = taskCode.trim().toUpperCase();
-  const normalizedTaskName = taskName.trim().toUpperCase();
-  const explicitClasses = [
-    ...normalizedTaskName.matchAll(/\b(ASEL|AMEL|ASES|AMES)\b/g),
-  ].map((match) => match[1]);
-
-  if (explicitClasses.length > 0) {
-    return explicitClasses.includes(selectedClass);
-  }
-
-  const isSeaClass = selectedClass === "ASES" || selectedClass === "AMES";
-  const isMultiengineClass =
-    selectedClass === "AMEL" || selectedClass === "AMES";
-
-  if (
-    normalizedTaskName.includes("SEAPLANE") ||
-    normalizedTaskName.includes("WATER AND SEAPLANE")
-  ) {
-    return isSeaClass;
-  }
-
-  /*
-   * Private Pilot Area X is multiengine operations. One OCR-derived task
-   * name in the local FAA catalog is truncated before its class qualifier,
-   * so keep the authoritative area rule as a defensive fallback.
-   */
-  if (normalizedTaskCode.startsWith("PA.X.")) {
-    return isMultiengineClass;
-  }
-
-  return true;
-}
-
 function textValue(entry: CatalogEntry, keys: string[]) {
   for (const key of keys) {
     const value = entry[key];
@@ -364,7 +311,6 @@ function buildTasks(
 
 export function deriveAllFlightTasksFromAcsCatalog(
   allowedPrefixes: string[],
-  classCode?: string | null,
 ) {
   const entries = catalogEntries();
 
@@ -405,10 +351,6 @@ export function deriveAllFlightTasksFromAcsCatalog(
         "title",
         "label",
       ]) || "ACS Task";
-
-    if (!acsTaskAppliesToAircraftClass(parent, taskName, classCode)) {
-      continue;
-    }
 
     if (!parents.has(parent)) {
       parents.set(parent, taskName);

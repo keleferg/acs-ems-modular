@@ -75,7 +75,6 @@ where not exists (
   where q.examiner_profile_id = 'c1a1420e-149d-402c-8d4e-65e659bfd8cd'::uuid
     and q.question = n.question
 );
-
 with new_questions (question, acs_reference) as (
   values
     (
@@ -107,7 +106,6 @@ join public.poa_questions q
  and q.question = n.question
 on conflict (question_id, certificate_name)
 do update set acs_reference = excluded.acs_reference;
-
 with new_question_ids as (
   select q.id
   from public.poa_questions q
@@ -125,7 +123,6 @@ where upper(coalesce(p.certificate_code, '')) = 'PRIVATE'
   and upper(coalesce(p.category_code, '')) = 'AIRPLANE'
   and p.is_active
 on conflict (question_id, practical_test_type_id) do nothing;
-
 -- Add reviewed secondary ACS coverage to existing scenario questions.
 with mapping (question_id, acs_reference) as (
   values

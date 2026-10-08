@@ -1030,39 +1030,32 @@ export default function NewRequestPage() {
         throw insertError;
       }
 
-      const submissionEmailEvents = ["request_submitted_applicant"];
-      if (formData.examinerProfileId && formData.examinerProfileId !== "__ANY__") {
-        submissionEmailEvents.push("request_submitted_examiner");
-      }
-      for (const eventType of submissionEmailEvents) {
-        try {
-          const emailResponse = await fetch("/api/email/practical-test", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              eventType,
-              requestId: insertedRequest.id,
-            }),
-          });
+      try {
+        const emailResponse = await fetch("/api/email/practical-test", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventType: "request_submitted_applicant",
+            requestId: insertedRequest.id,
+          }),
+        });
 
-          if (!emailResponse.ok) {
-            const emailResult = await emailResponse.json().catch(() => null);
+        if (!emailResponse.ok) {
+          const emailResult = await emailResponse.json().catch(() => null);
 
-            console.warn(
-              "Practical-test request was submitted, but the confirmation email was not sent:",
-              emailResult,
-            );
-          }
-        } catch (emailError) {
           console.warn(
-            "Practical-test request was submitted, but the confirmation email request failed:",
-            emailError,
+            "Practical-test request was submitted, but the confirmation email was not sent:",
+            emailResult,
           );
         }
+      } catch (emailError) {
+        console.warn(
+          "Practical-test request was submitted, but the confirmation email request failed:",
+          emailError,
+        );
       }
-
 
       window.localStorage.removeItem(STORAGE_KEY);
 

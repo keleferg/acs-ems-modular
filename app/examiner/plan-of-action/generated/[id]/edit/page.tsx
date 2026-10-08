@@ -95,6 +95,7 @@ type GeneratedPoaTrigger = {
   trigger_narrative_snapshot: string;
   branch_worthy?: boolean;
   source_trigger_id?: string | null;
+  is_selected?: boolean;
   sort_order: number;
 };
 
@@ -138,6 +139,7 @@ type SnapshotQuestion = {
   topic_snapshot: string;
   task_name_snapshot: string;
   question_type_snapshot: string;
+  trigger_option_id: string | null;
   sort_order: number;
 };
 
@@ -190,6 +192,7 @@ function snapshotFromLibrary(
       question.task_name || "",
     question_type_snapshot:
       question.question_type || "knowledge",
+    trigger_option_id: null,
     sort_order: 0,
   };
 }
@@ -437,6 +440,7 @@ function GeneratedPoaEditContent() {
             topic_snapshot,
             task_name_snapshot,
             question_type_snapshot,
+            trigger_option_id,
             sort_order
           `)
           .eq(
@@ -600,6 +604,8 @@ function GeneratedPoaEditContent() {
               question_type_snapshot:
                 question.question_type_snapshot ||
                 "knowledge",
+              trigger_option_id:
+                question.trigger_option_id ?? null,
               sort_order:
                 question.sort_order || 0,
             }),
@@ -803,7 +809,7 @@ function GeneratedPoaEditContent() {
 
     const confirmed =
       window.confirm(
-        `Remove this question from this POA?\n\n${question.question_snapshot}\n\nThe Question Library record will NOT be deleted.`,
+        `Remove this question from this POA?\n\n${question.question_snapshot}\n\nThe Scenario Library record will NOT be deleted.`,
       );
 
     if (!confirmed) {
@@ -848,6 +854,7 @@ function GeneratedPoaEditContent() {
         task_name_snapshot: "",
         question_type_snapshot:
           "knowledge",
+        trigger_option_id: null,
         sort_order: 0,
       },
     ]);
@@ -1307,6 +1314,7 @@ function GeneratedPoaEditContent() {
             trigger_narrative_snapshot,
             branch_worthy,
             source_trigger_id,
+            is_selected,
             sort_order
           `)
           .eq(
@@ -1378,6 +1386,7 @@ function GeneratedPoaEditContent() {
                 branch_worthy: Boolean(row.branch_worthy),
                 source_trigger_id:
                   row.source_trigger_id ?? null,
+                is_selected: Boolean(row.is_selected),
                 sort_order:
                   row.sort_order || 0,
               }),
@@ -1571,6 +1580,28 @@ function GeneratedPoaEditContent() {
             itemIndex !== index,
         ),
     );
+  }
+
+  async function selectTriggerForOral(trigger: GeneratedPoaTrigger) {
+    if (!plan?.id || !trigger.event_set_id || !trigger.trigger_library_id) return;
+    const supabase = createClient();
+    const { error } = await supabase.rpc("examiner_select_generated_poa_trigger", {
+      p_generated_plan_of_action_id: plan.id,
+      p_event_set_id: trigger.event_set_id,
+      p_trigger_id: trigger.trigger_library_id,
+    });
+    if (error) {
+      setErrorMessage(`Trigger could not be activated: ${error.message}`);
+      return;
+    }
+    setPoaTriggers((current) => current.map((item) => ({
+      ...item,
+      is_selected:
+        item.event_set_id === trigger.event_set_id
+          ? item.trigger_library_id === trigger.trigger_library_id
+          : item.is_selected,
+    })));
+    setMessage(`Activated trigger: ${trigger.trigger_text_snapshot}`);
   }
 
   function updatePoaTriggerPlacement(
@@ -1926,6 +1957,8 @@ function GeneratedPoaEditContent() {
                     question_type_snapshot:
                       question.question_type_snapshot ||
                       "knowledge",
+                    trigger_option_id:
+                      question.trigger_option_id,
                     sort_order:
                       (index + 1) * 10,
                   })
@@ -1993,6 +2026,8 @@ function GeneratedPoaEditContent() {
               question_type_snapshot:
                 question.question_type_snapshot ||
                 "knowledge",
+              trigger_option_id:
+                question.trigger_option_id,
               sort_order:
                 (index + 1) * 10,
             }),
@@ -2083,6 +2118,7 @@ function GeneratedPoaEditContent() {
                   Boolean(trigger.branch_worthy),
                 source_trigger_id:
                   trigger.source_trigger_id ?? null,
+                is_selected: Boolean(trigger.is_selected),
                 sort_order:
                   trigger.sort_order,
               }),
@@ -2114,6 +2150,7 @@ function GeneratedPoaEditContent() {
           topic_snapshot,
           task_name_snapshot,
           question_type_snapshot,
+          trigger_option_id,
           sort_order
         `)
         .eq(
@@ -2158,6 +2195,8 @@ function GeneratedPoaEditContent() {
             question_type_snapshot:
               question.question_type_snapshot ||
               "knowledge",
+            trigger_option_id:
+              question.trigger_option_id ?? null,
             sort_order:
               question.sort_order || 0,
           }),
@@ -2235,7 +2274,7 @@ function GeneratedPoaEditContent() {
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             These changes affect only this generated
-            POA. The Question Library is not changed.
+            POA. The Scenario Library is not changed.
             EMT and PDF export use this same frozen
             snapshot.
           </p>
@@ -2614,6 +2653,12 @@ function GeneratedPoaEditContent() {
                         <span className="text-sm font-bold text-slate-900">
                           {trigger.trigger_text_snapshot}
                         </span>
+
+                        {trigger.is_selected ? (
+                          <span className="rounded bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
+                            Selected for oral
+                          </span>
+                        ) : null}
                       </div>
 
                       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
@@ -2621,15 +2666,24 @@ function GeneratedPoaEditContent() {
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        removePoaTrigger(index)
-                      }
-                      className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex gap-2">
+                      {trigger.timeline_kind === "trigger_option" ? (
+                        <button
+                          type="button"
+                          onClick={() => void selectTriggerForOral(trigger)}
+                          className={`rounded-lg border px-3 py-2 text-xs font-bold ${trigger.is_selected ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"}`}
+                        >
+                          {trigger.is_selected ? "Active" : "Use this trigger"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => removePoaTrigger(index)}
+                        className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -2935,7 +2989,7 @@ function GeneratedPoaEditContent() {
               className="inline-flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 hover:bg-sky-100"
             >
               <Search className="h-4 w-4" />
-              Add From Question Library
+              Add From Scenario Library
             </button>
           </div>
         </div>
@@ -2952,7 +3006,7 @@ function GeneratedPoaEditContent() {
                     event.target.value,
                   )
                 }
-                placeholder="Search applicable Question Library..."
+                placeholder="Search applicable Scenario Library..."
                 className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-4 outline-none focus:border-sky-500"
               />
             </div>
@@ -3035,6 +3089,13 @@ function GeneratedPoaEditContent() {
               const isDropTarget =
                 dragOverIndex === index &&
                 draggedIndex !== index;
+
+              const conditionalTrigger = question.trigger_option_id
+                ? poaTriggers.find(
+                    (trigger) =>
+                      trigger.trigger_library_id === question.trigger_option_id,
+                  )
+                : null;
 
               return (
                 <article
@@ -3120,6 +3181,20 @@ function GeneratedPoaEditContent() {
                           "NO ACS"}
                       </span>
 
+                      {conditionalTrigger ? (
+                        <span
+                          className={`mt-0.5 shrink-0 rounded px-2 py-1 text-xs font-bold ${
+                            conditionalTrigger.is_selected
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-900"
+                          }`}
+                        >
+                          {conditionalTrigger.is_selected
+                            ? `Active: ${conditionalTrigger.trigger_text_snapshot}`
+                            : `Ask only if used: ${conditionalTrigger.trigger_text_snapshot}`}
+                        </span>
+                      ) : null}
+
                       <span className="min-w-0 flex-1 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-900">
                         {question.question_snapshot ||
                           "Untitled question"}
@@ -3147,7 +3222,7 @@ function GeneratedPoaEditContent() {
                             {question.id
                               ? "Frozen snapshot"
                               : question.question_library_id
-                                ? "New from Question Library"
+                                ? "New from Scenario Library"
                                 : "POA-only question"}
                           </p>
                         </div>

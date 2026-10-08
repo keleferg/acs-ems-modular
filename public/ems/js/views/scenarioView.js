@@ -1013,6 +1013,25 @@ async function generateScenario() {
         ? adaptGeneratedPlanToScenario(plan)
         : adaptDatabasePlanToScenario(plan);
 
+    const deficiencies = window.getApplicantWrittenDeficiencies?.() || [];
+    const parentCodes = text => [...new Set(String(text || '').toUpperCase().match(/[A-Z]{2,5}\.[IVX]+\.[A-Z]+/g) || [])];
+    const covered = new Set(generatedSegments.flatMap(segment => (segment.flows || []).flatMap(flow => (flow.items || []).flatMap(item => parentCodes(item.ACS_Code)))));
+    const missing = [...new Set(deficiencies.flatMap(parentCodes))].filter(code => !covered.has(code));
+    const inserted = [];
+    if (missing.length) {
+      const service = await import('../services/supabaseService.js');
+      const library = await service.loadWrittenReviewQuestions(practicalTestId);
+      for (const code of missing) {
+        if (covered.has(code)) continue;
+        const question = library.find(q => parentCodes([q.acs_reference,...(q.poa_question_acs_applicability || []).map(a => a.acs_reference)].join('; ')).includes(code));
+        if (!question) continue;
+        const refs = [question.acs_reference,...(question.poa_question_acs_applicability || []).map(a => a.acs_reference)].filter(Boolean).join('; ');
+        inserted.push({Question_ID:`WRITTEN-${question.id}`,Question:question.question,Answer:[question.answer,question.reference ? `Reference: ${question.reference}` : ''].filter(Boolean).join(' — '),ACS_Code:refs,Applicable_Rating:'ALL'});
+        parentCodes(refs).forEach(c => covered.add(c));
+      }
+      if (inserted.length) generatedSegments.push({phase:{Phase_ID:'APPLICANT-WRITTEN-REVIEW',Phase_Name:'Applicant Written-Test Review'},flows:[{flow:{Flow_Type:'Question_Block',Title:'Written-test deficiencies',Narrative:'Questions added for this applicant. The base POA is unchanged.'},items:inserted}]});
+    }
+    scenario.Written_Test_Review = { required: deficiencies, added_question_ids: inserted.map(q => q.Question_ID), missing: missing.filter(code => !covered.has(code)) };
     window.storeGeneratedScenario?.({
       scenario,
       generatedSegments
@@ -1023,6 +1042,9 @@ async function generateScenario() {
       scenario,
       generatedSegments
     );
+    if (scenario.Written_Test_Review.missing.length) {
+      output.insertAdjacentHTML('afterbegin', `<div class="scenario-card"><h4>Written-test review needs questions</h4><p>No applicable library question was found for: ${escapeHtml(scenario.Written_Test_Review.missing.join(', '))}. Add questions before finalizing this applicant’s POA.</p></div>`);
+    }
   } catch (error) {
     console.error(error);
 

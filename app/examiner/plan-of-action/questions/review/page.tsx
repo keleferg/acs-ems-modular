@@ -737,7 +737,7 @@ export default function PoaQuestionReviewPage() {
 
 
       setMessage(
-        "Question approved and added to the Question Library.",
+        "Question approved and added to the Scenario Library.",
       );
     } catch (error) {
       setErrorMessage(
@@ -853,10 +853,10 @@ export default function PoaQuestionReviewPage() {
           </Link>
 
           <Link
-            href="/examiner/plan-of-action/questions"
+            href="/examiner/plan-of-action/scenarios"
             className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100"
           >
-            Question Library
+            Scenario Library
           </Link>
 
           <button

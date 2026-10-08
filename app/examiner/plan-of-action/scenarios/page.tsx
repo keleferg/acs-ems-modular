@@ -66,6 +66,7 @@ type ScenarioEventSetJoin = {
   is_required: boolean;
   min_triggers: number;
   max_triggers: number;
+  max_question_count: number;
   sort_order: number;
   poa_event_sets: EventSetRecord | EventSetRecord[] | null;
 };
@@ -76,6 +77,7 @@ type EventSequenceItem = {
   isRequired: boolean;
   minTriggers: number;
   maxTriggers: number;
+  maxQuestionCount: number;
   sortOrder: number;
 };
 
@@ -188,6 +190,10 @@ function normalizeEventSet(
   return value;
 }
 
+function questionCapForEventSet(eventSet: EventSetRecord) {
+  return eventSet.code === "PREFLIGHT_PREPARATION" ? 60 : 15;
+}
+
 
 export default function ScenarioLibraryPage() {
   const [scenarios, setScenarios] =
@@ -285,6 +291,7 @@ export default function ScenarioLibraryPage() {
             is_required,
             min_triggers,
             max_triggers,
+            max_question_count,
             sort_order,
             poa_event_sets (
               id,
@@ -539,12 +546,11 @@ export default function ScenarioLibraryPage() {
       ...EMPTY_EDITOR,
       eventSequence: eventSets.map((eventSet, index) => ({
         eventSetId: eventSet.id,
-        phase: eventSet.default_phase ?? "ground",
-        isRequired: eventSet.event_set_kind === "structural" ||
-          !["CRUISE_PASSENGER", "CRUISE_AIRCRAFT_SYSTEM"].includes(eventSet.code),
-        minTriggers: eventSet.event_set_kind === "structural" ||
-          ["CRUISE_PASSENGER", "CRUISE_AIRCRAFT_SYSTEM"].includes(eventSet.code) ? 0 : 1,
-        maxTriggers: eventSet.event_set_kind === "structural" ? 0 : 1,
+        phase: eventSet.default_phase ?? "preflight_preparation",
+        isRequired: true,
+        minTriggers: 1,
+        maxTriggers: 1,
+        maxQuestionCount: questionCapForEventSet(eventSet),
         sortOrder: (index + 1) * 10,
       })),
     });
@@ -616,6 +622,7 @@ export default function ScenarioLibraryPage() {
                 isRequired: join.is_required,
                 minTriggers: join.min_triggers,
                 maxTriggers: join.max_triggers,
+                maxQuestionCount: join.max_question_count,
                 sortOrder: join.sort_order,
               }),
           ),
@@ -913,15 +920,28 @@ export default function ScenarioLibraryPage() {
         const { error: eventSequenceError } = await supabase
           .from("poa_scenario_event_sets")
           .insert(
-            editor.eventSequence.map((item) => ({
-              scenario_id: scenarioId,
-              event_set_id: item.eventSetId,
-              phase: item.phase,
-              is_required: item.isRequired,
-              min_triggers: item.minTriggers,
-              max_triggers: item.maxTriggers,
-              sort_order: item.sortOrder,
-            })),
+            editor.eventSequence.map((item) => {
+              const eventSet = eventSets.find(
+                (candidate) => candidate.id === item.eventSetId,
+              );
+              const questionCap = eventSet
+                ? questionCapForEventSet(eventSet)
+                : 15;
+
+              return {
+                scenario_id: scenarioId,
+                event_set_id: item.eventSetId,
+                phase: item.phase,
+                is_required: item.isRequired,
+                min_triggers: item.minTriggers,
+                max_triggers: item.maxTriggers,
+                max_question_count: Math.min(
+                  questionCap,
+                  Math.max(1, item.maxQuestionCount),
+                ),
+                sort_order: item.sortOrder,
+              };
+            }),
           );
 
         if (eventSequenceError) {
@@ -1013,7 +1033,7 @@ export default function ScenarioLibraryPage() {
           </p>
 
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
-            Question Library
+            Scenario Library
           </h1>
 
           <p className="mt-2 max-w-3xl text-slate-600">
@@ -1037,24 +1057,6 @@ export default function ScenarioLibraryPage() {
           className="flex flex-wrap items-end gap-1"
           aria-label="Plan of Action Library Views"
         >
-
-          <Link
-            href="/examiner/plan-of-action/questions"
-            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
-          >
-            <span
-              aria-hidden
-              className="text-2xl leading-none"
-            >
-              ?
-            </span>
-
-            <span>
-              Questions
-            </span>
-          </Link>
-
-
           <Link
             href="/examiner/plan-of-action/scenarios"
             className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-300 bg-white px-6 py-4 text-base font-bold text-amber-800 shadow-sm transition"
@@ -1073,7 +1075,6 @@ export default function ScenarioLibraryPage() {
             <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
           </Link>
 
-
           <Link
             href="/examiner/plan-of-action/triggers"
             className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
@@ -1090,7 +1091,23 @@ export default function ScenarioLibraryPage() {
             </span>
           </Link>
 
-                  <Link
+          <Link
+            href="/examiner/plan-of-action/questions"
+            className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
+          >
+            <span
+              aria-hidden
+              className="text-2xl leading-none"
+            >
+              ?
+            </span>
+
+            <span>
+              Questions
+            </span>
+          </Link>
+
+          <Link
             href="/examiner/plan-of-action/flight-tasks"
             className="relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-6 py-4 text-base font-bold text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800"
           >
@@ -1099,7 +1116,7 @@ export default function ScenarioLibraryPage() {
             </span>
             <span>Flight Tasks</span>
           </Link>
-</nav>
+        </nav>
 
       </div>
 
@@ -1980,6 +1997,7 @@ export default function ScenarioLibraryPage() {
                       }
 
                       const structural = eventSet.event_set_kind === "structural";
+                      const questionCap = questionCapForEventSet(eventSet);
 
                       return (
                         <div
@@ -2041,8 +2059,9 @@ export default function ScenarioLibraryPage() {
                                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                               >
                                 {[
-                                  "ground", "preflight", "departure", "cruise",
-                                  "branch", "arrival", "postflight",
+                                  "preflight_preparation", "preflight_procedures",
+                                  "engine_start_taxi", "takeoff_climb", "cruise",
+                                  "descent", "approach_landing", "after_landing",
                                 ].map((phase) => (
                                   <option key={phase} value={phase}>{phase}</option>
                                 ))}
@@ -2050,35 +2069,30 @@ export default function ScenarioLibraryPage() {
                             </label>
 
                             <label className="text-xs font-semibold text-slate-600">
-                              Minimum triggers
+                              Maximum questions
                               <input
                                 type="number"
-                                min={0}
-                                max={structural ? 0 : item.maxTriggers}
-                                disabled={structural}
-                                value={item.minTriggers}
+                                min={1}
+                                max={questionCap}
+                                value={item.maxQuestionCount}
                                 onChange={(event) => updateEventSequence(
                                   item.eventSetId,
-                                  { minTriggers: Math.max(0, Number(event.target.value)) },
+                                  {
+                                    maxQuestionCount: Math.min(
+                                      questionCap,
+                                      Math.max(1, Number(event.target.value)),
+                                    ),
+                                  },
                                 )}
-                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
+                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                aria-label="Maximum questions"
                               />
                             </label>
 
-                            <label className="text-xs font-semibold text-slate-600">
-                              Maximum triggers
-                              <input
-                                type="number"
-                                min={item.minTriggers}
-                                disabled={structural}
-                                value={item.maxTriggers}
-                                onChange={(event) => updateEventSequence(
-                                  item.eventSetId,
-                                  { maxTriggers: Math.max(item.minTriggers, Number(event.target.value)) },
-                                )}
-                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
-                              />
-                            </label>
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                              <span className="block font-semibold text-slate-700">Trigger policy</span>
+                              <span className="mt-1 block">3 options · use 1 during oral</span>
+                            </div>
 
                             <label className="flex items-center gap-2 self-end rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
                               <input
