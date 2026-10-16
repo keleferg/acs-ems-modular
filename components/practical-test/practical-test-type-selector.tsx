@@ -52,6 +52,8 @@ type Props = {
   examinerProfileId?: string;
   selection: PracticalTestTypeSelection;
   onChange: (selection: PracticalTestTypeSelection) => void;
+  /** Shown when the examiner offers no practical test types. */
+  emptyMessage?: React.ReactNode;
 };
 
 const PILOT_PPC = "Pilot Proficiency Check (61.58)";
@@ -174,6 +176,7 @@ export default function PracticalTestTypeSelector({
   examinerProfileId,
   selection,
   onChange,
+  emptyMessage,
 }: Props) {
   const [testTypes, setTestTypes] = useState<PracticalTestType[]>([]);
 
@@ -636,7 +639,7 @@ export default function PracticalTestTypeSelector({
   if (testTypes.length === 0) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
-        No practical test types are currently marked as offered.
+        {emptyMessage ?? "No practical test types are currently marked as offered."}
       </div>
     );
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import PracticalTestTypeSelector, {
@@ -42,6 +43,9 @@ export default function ExaminerCreateRequestPage() {
   const router = useRouter();
   const [applicants, setApplicants] = useState<ApplicantOption[]>([]);
   const [applicantId, setApplicantId] = useState("");
+  // The signed-in examiner; the request is assigned to them, so the test
+  // list is the practical tests they offer.
+  const [examinerProfileId, setExaminerProfileId] = useState("");
   const [search, setSearch] = useState("");
   const [test, setTest] = useState(emptyTest);
   const [flightSchools, setFlightSchools] = useState<FlightSchoolOption[]>([]);
@@ -70,7 +74,8 @@ export default function ExaminerCreateRequestPage() {
 
     async function loadApplicants() {
       const supabase = createClient();
-      const [applicantResult, schoolResult] = await Promise.all([
+      const [userResult, applicantResult, schoolResult] = await Promise.all([
+        supabase.auth.getUser(),
         supabase.rpc("examiner_list_request_applicants"),
         supabase
           .from("flight_schools")
@@ -81,6 +86,7 @@ export default function ExaminerCreateRequestPage() {
       ]);
 
       if (cancelled) return;
+      setExaminerProfileId(userResult.data.user?.id ?? "");
       if (applicantResult.error) setError(applicantResult.error.message);
       else setApplicants((applicantResult.data ?? []) as ApplicantOption[]);
       if (!schoolResult.error) {
@@ -257,7 +263,29 @@ export default function ExaminerCreateRequestPage() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-bold text-slate-950">Practical Test</h2>
-          <PracticalTestTypeSelector selection={test} onChange={setTest} />
+          {examinerProfileId ? (
+            <PracticalTestTypeSelector
+              examinerProfileId={examinerProfileId}
+              selection={test}
+              onChange={setTest}
+              emptyMessage={
+                <>
+                  You have no practical tests marked as offered.{" "}
+                  <Link
+                    href="/examiner/settings/practical-tests"
+                    className="font-semibold underline"
+                  >
+                    Choose the tests you offer in Settings
+                  </Link>
+                  , then return to this request.
+                </>
+              }
+            />
+          ) : (
+            <p className="text-sm text-slate-500">
+              {loading ? "Loading practical tests…" : "Sign in again to load your practical tests."}
+            </p>
+          )}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
