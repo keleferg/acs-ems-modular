@@ -309,6 +309,47 @@ export default function PracticalTestTypeSelector({
     selection.certificateSought,
   ]);
 
+  // Editing an existing request: only practicalTestTypeId is known, so fill in
+  // the dropdown path (certificate, issuance, category/class or rating) from
+  // the catalog once the examiner's offered tests have loaded.
+  useEffect(() => {
+    if (!selection.practicalTestTypeId || selection.certificateType) return;
+    const testType = testTypes.find(
+      (item) => item.id === selection.practicalTestTypeId,
+    );
+    if (!testType) return;
+
+    const certificateType = getCertificateType(testType);
+    const ppc =
+      testType.issuance_code === "PPC" ||
+      testType.certificate_code === "PILOT_PPC_6158" ||
+      testType.certificate_code === "FLIGHT_ENGINEER_PPC_91529";
+    const ratingBased =
+      !ppc &&
+      (testType.certificate_name === "Instrument Rating" ||
+        certificateType === "Flight Engineer" ||
+        certificateType === "Mechanic" ||
+        certificateType === "Ground Instructor");
+    const categoryBased = !ppc && !ratingBased;
+
+    onChange({
+      ...selection,
+      certificateType,
+      certificateSought: testType.certificate_name,
+      issuanceType: ppc ? "Proficiency Check" : testType.issuance_name,
+      categorySought: categoryBased ? (testType.category_name ?? "") : "",
+      classSought:
+        !categoryBased || testType.certificate_name === "Sport Pilot"
+          ? ""
+          : certificateType === "Flight Instructor"
+            ? flightInstructorClassLabel(testType)
+            : (testType.class_name ?? ""),
+      ratingSought: ratingBased ? testType.rating_name : "",
+    });
+    // onChange/selection are read at the moment the catalog arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testTypes, selection.practicalTestTypeId, selection.certificateType]);
+
   const certificateTypes = useMemo(
     () =>
       orderedValues(testTypes.map(getCertificateType), certificateTypeOrder),

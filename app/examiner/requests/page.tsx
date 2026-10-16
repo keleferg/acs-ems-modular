@@ -15,6 +15,11 @@ import QualificationReviewPanel, {
 } from "./QualificationReviewPanel";
 
 import OpenAssignmentsPanel from "@/components/portal/OpenAssignmentsPanel";
+import PracticalTestTypeSelector, {
+  type PracticalTestTypeSelection,
+} from "@/components/practical-test/practical-test-type-selector";
+import AirportSelector from "@/components/practical-test/airport-selector";
+import AircraftTypeSelector from "@/components/practical-test/aircraft-type-selector";
 
 type PracticalTestRequest = {
   id: string;
@@ -33,6 +38,10 @@ type PracticalTestRequest = {
   rating_sought: string;
   issuance_type: string | null;
   practical_test_type_id: string | null;
+  ppc_type_rating_aircraft_id: string | null;
+  ppc_type_rating_designation: string | null;
+  ppc_aircraft_type_certificate_holder: string | null;
+  ppc_aircraft_civil_model_designation: string | null;
 
   fee_amount: number | null;
   travel_fee_amount: number;
@@ -55,10 +64,16 @@ type PracticalTestRequest = {
   previous_examiner: string | null;
   retest_areas: string | null;
 
+  flight_school_id: string | null;
   flight_school_name_snapshot: string | null;
   oral_test_location: string | null;
+  flight_airport_id: string | null;
   flight_airport_code: string | null;
+  flight_airport_icao: string | null;
+  flight_airport_name: string | null;
 
+  aircraft_type_id: string | null;
+  aircraft_type_designator: string | null;
   aircraft_description: string | null;
   aircraft_make: string | null;
   aircraft_model: string | null;
@@ -106,6 +121,11 @@ type RequestEditDraft = {
   category_sought: string;
   class_sought: string;
   rating_sought: string;
+  practical_test_type_id: string;
+  ppc_type_rating_aircraft_id: string;
+  ppc_type_rating_designation: string;
+  ppc_aircraft_type_certificate_holder: string;
+  ppc_aircraft_civil_model_designation: string;
 
   is_retest: boolean;
   part_141_graduate: string;
@@ -113,10 +133,16 @@ type RequestEditDraft = {
   previous_examiner: string;
   retest_areas: string;
 
+  flight_school_id: string;
   flight_school_name_snapshot: string;
   oral_test_location: string;
+  flight_airport_id: string;
   flight_airport_code: string;
+  flight_airport_icao: string;
+  flight_airport_name: string;
 
+  aircraft_type_id: string;
+  aircraft_type_designator: string;
   aircraft_description: string;
   aircraft_make: string;
   aircraft_model: string;
@@ -281,6 +307,13 @@ function createRequestEditDraft(
     category_sought: request.category_sought ?? "",
     class_sought: request.class_sought ?? "",
     rating_sought: request.rating_sought ?? "",
+    practical_test_type_id: request.practical_test_type_id ?? "",
+    ppc_type_rating_aircraft_id: request.ppc_type_rating_aircraft_id ?? "",
+    ppc_type_rating_designation: request.ppc_type_rating_designation ?? "",
+    ppc_aircraft_type_certificate_holder:
+      request.ppc_aircraft_type_certificate_holder ?? "",
+    ppc_aircraft_civil_model_designation:
+      request.ppc_aircraft_civil_model_designation ?? "",
 
     is_retest: request.is_retest,
     part_141_graduate:
@@ -291,10 +324,16 @@ function createRequestEditDraft(
     previous_examiner: request.previous_examiner ?? "",
     retest_areas: request.retest_areas ?? "",
 
+    flight_school_id: request.flight_school_id ?? "",
     flight_school_name_snapshot: request.flight_school_name_snapshot ?? "",
     oral_test_location: request.oral_test_location ?? "",
+    flight_airport_id: request.flight_airport_id ?? "",
     flight_airport_code: request.flight_airport_code ?? "",
+    flight_airport_icao: request.flight_airport_icao ?? "",
+    flight_airport_name: request.flight_airport_name ?? "",
 
+    aircraft_type_id: request.aircraft_type_id ?? "",
+    aircraft_type_designator: request.aircraft_type_designator ?? "",
     aircraft_description: request.aircraft_description ?? "",
     aircraft_make: request.aircraft_make ?? "",
     aircraft_model: request.aircraft_model ?? "",
@@ -794,6 +833,12 @@ export default function ExaminerRequestsPage() {
   const [savingRequestId, setSavingRequestId] = useState<string | null>(null);
 
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  // Signed-in examiner (requests on this page are assigned to them); the edit
+  // form's practical-test dropdowns list the tests they offer.
+  const [currentExaminerId, setCurrentExaminerId] = useState("");
+  const [testSelections, setTestSelections] = useState<
+    Record<string, PracticalTestTypeSelection>
+  >({});
   const [savingRequestInfoId, setSavingRequestInfoId] = useState<string | null>(
     null,
   );
@@ -857,6 +902,8 @@ export default function ExaminerRequestsPage() {
       return;
     }
 
+    setCurrentExaminerId(user.id);
+
     const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
       .select("role")
@@ -899,6 +946,10 @@ export default function ExaminerRequestsPage() {
         rating_sought,
         issuance_type,
         practical_test_type_id,
+        ppc_type_rating_aircraft_id,
+        ppc_type_rating_designation,
+        ppc_aircraft_type_certificate_holder,
+        ppc_aircraft_civil_model_designation,
 
         fee_amount,
         travel_fee_amount,
@@ -921,10 +972,16 @@ export default function ExaminerRequestsPage() {
         previous_examiner,
         retest_areas,
 
+        flight_school_id,
         flight_school_name_snapshot,
         oral_test_location,
+        flight_airport_id,
         flight_airport_code,
+        flight_airport_icao,
+        flight_airport_name,
 
+        aircraft_type_id,
+        aircraft_type_designator,
         aircraft_description,
         aircraft_make,
         aircraft_model,
@@ -1533,13 +1590,56 @@ export default function ExaminerRequestsPage() {
       ...current,
       [request.id]: createRequestEditDraft(request),
     }));
+    setTestSelections((current) => ({
+      ...current,
+      [request.id]: {
+        practicalTestTypeId: request.practical_test_type_id ?? "",
+        certificateType: "",
+        certificateSought: "",
+        issuanceType: "",
+        categorySought: "",
+        classSought: "",
+        ratingSought: "",
+        ppcTypeRatingAircraftId: request.ppc_type_rating_aircraft_id ?? "",
+        ppcTypeRatingDesignation: request.ppc_type_rating_designation ?? "",
+        ppcAircraftTypeCertificateHolder:
+          request.ppc_aircraft_type_certificate_holder ?? "",
+        ppcAircraftCivilModelDesignation:
+          request.ppc_aircraft_civil_model_designation ?? "",
+      },
+    }));
     setEditingRequestId(request.id);
     setPageError("");
     setMessage("");
   }
 
+  function updateTestSelection(
+    requestId: string,
+    selection: PracticalTestTypeSelection,
+  ) {
+    setTestSelections((current) => ({ ...current, [requestId]: selection }));
+    setRequestEditDrafts((current) => ({
+      ...current,
+      [requestId]: {
+        ...current[requestId],
+        practical_test_type_id: selection.practicalTestTypeId,
+        ppc_type_rating_aircraft_id: selection.ppcTypeRatingAircraftId ?? "",
+        ppc_type_rating_designation: selection.ppcTypeRatingDesignation ?? "",
+        ppc_aircraft_type_certificate_holder:
+          selection.ppcAircraftTypeCertificateHolder ?? "",
+        ppc_aircraft_civil_model_designation:
+          selection.ppcAircraftCivilModelDesignation ?? "",
+      },
+    }));
+  }
+
   function cancelEditingRequest(requestId: string) {
     setEditingRequestId(null);
+    setTestSelections((current) => {
+      const next = { ...current };
+      delete next[requestId];
+      return next;
+    });
     setRequestEditDrafts((current) => {
       const next = { ...current };
       delete next[requestId];
@@ -1599,6 +1699,21 @@ export default function ExaminerRequestsPage() {
       return;
     }
 
+    const testSelection = testSelections[request.id];
+
+    if (testSelection?.certificateType && !testSelection.practicalTestTypeId) {
+      setPageError("Finish choosing the practical test before saving.");
+      return;
+    }
+
+    if (
+      testSelection?.issuanceType === "Proficiency Check" &&
+      !testSelection.ppcTypeRatingAircraftId
+    ) {
+      setPageError("Choose the type-rating aircraft for this proficiency check.");
+      return;
+    }
+
     setSavingRequestInfoId(request.id);
     setPageError("");
     setMessage("");
@@ -1606,7 +1721,9 @@ export default function ExaminerRequestsPage() {
     const supabase = createClient();
 
     const { data, error } = await supabase.rpc(
-      "examiner_update_practical_test_request_info",
+      // Saves the text fields and the dropdown selections (test type, flight
+      // school, airport, aircraft) together.
+      "examiner_save_practical_test_request_edit",
       {
         p_request_id: request.id,
         p_changes: draft,
@@ -1648,6 +1765,11 @@ export default function ExaminerRequestsPage() {
       return next;
     });
 
+    setTestSelections((current) => {
+      const next = { ...current };
+      delete next[request.id];
+      return next;
+    });
     setEditingRequestId(null);
     setSavingRequestInfoId(null);
     setMessage(`Request information saved for ${request.request_number}.`);
@@ -3475,43 +3597,39 @@ export default function ExaminerRequestsPage() {
                                     Practical Test
                                   </h4>
 
-                                  <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    Currently:{" "}
                                     {[
-                                      ["certificate_sought", "Certificate"],
-                                      ["issuance_type", "Issuance Type"],
-                                      ["category_sought", "Category"],
-                                      ["class_sought", "Class"],
-                                      ["rating_sought", "Rating"],
-                                    ].map(([field, label]) => (
-                                      <label
-                                        key={field}
-                                        className="text-sm font-semibold text-slate-700"
-                                      >
-                                        {label}
-                                        <input
-                                          type="text"
-                                          value={
-                                            requestEditDrafts[request.id][
-                                              field as keyof RequestEditDraft
-                                            ] as string
-                                          }
-                                          onChange={(event) =>
-                                            updateRequestEditDraft(
-                                              request.id,
-                                              field as
-                                                | "certificate_sought"
-                                                | "issuance_type"
-                                                | "category_sought"
-                                                | "class_sought"
-                                                | "rating_sought",
-                                              event.target.value,
-                                            )
-                                          }
-                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                                        />
-                                      </label>
-                                    ))}
+                                      request.certificate_sought,
+                                      request.issuance_type?.replaceAll("_", " "),
+                                      request.category_sought,
+                                      request.class_sought,
+                                      request.rating_sought !== request.class_sought
+                                        ? request.rating_sought
+                                        : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </p>
 
+                                  <div className="mt-4">
+                                    {currentExaminerId &&
+                                    testSelections[request.id] ? (
+                                      <PracticalTestTypeSelector
+                                        examinerProfileId={currentExaminerId}
+                                        selection={testSelections[request.id]}
+                                        onChange={(selection) =>
+                                          updateTestSelection(
+                                            request.id,
+                                            selection,
+                                          )
+                                        }
+                                        emptyMessage="You have no practical tests marked as offered, so the test can't be changed here."
+                                      />
+                                    ) : null}
+                                  </div>
+
+                                  <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                     <label className="text-sm font-semibold text-slate-700">
                                       Retest
                                       <select
@@ -3626,49 +3744,154 @@ export default function ExaminerRequestsPage() {
                                   </h4>
 
                                   <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                    {[
-                                      [
-                                        "flight_school_name_snapshot",
-                                        "Flight School",
-                                      ],
-                                      [
-                                        "oral_test_location",
-                                        "Oral Test Location",
-                                      ],
-                                      ["flight_airport_code", "Flight Airport"],
-                                      ["aircraft_make", "Aircraft Make"],
-                                      ["aircraft_model", "Aircraft Model"],
-                                      ["aircraft_registration", "Registration"],
-                                    ].map(([field, label]) => (
-                                      <label
-                                        key={field}
-                                        className="text-sm font-semibold text-slate-700"
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Flight School
+                                      <select
+                                        value={requestEditDrafts[request.id].flight_school_id}
+                                        onChange={(event) => {
+                                          const school =
+                                            schedulingLocations.find(
+                                              (item) =>
+                                                item.id === event.target.value,
+                                            );
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "flight_school_id",
+                                            school?.id ?? "",
+                                          );
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "flight_school_name_snapshot",
+                                            school?.name ?? "",
+                                          );
+                                        }}
+                                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal"
                                       >
-                                        {label}
+                                        <option value="">
+                                          Not listed / other
+                                        </option>
+                                        {schedulingLocations.map((school) => (
+                                          <option
+                                            key={school.id}
+                                            value={school.id}
+                                          >
+                                            {school.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+
+                                    {!requestEditDrafts[request.id].flight_school_id ? (
+                                      <label className="text-sm font-semibold text-slate-700">
+                                        Flight School Name (if not listed)
                                         <input
                                           type="text"
                                           value={
-                                            requestEditDrafts[request.id][
-                                              field as keyof RequestEditDraft
-                                            ] as string
+                                            requestEditDrafts[request.id].flight_school_name_snapshot
                                           }
                                           onChange={(event) =>
                                             updateRequestEditDraft(
                                               request.id,
-                                              field as
-                                                | "flight_school_name_snapshot"
-                                                | "oral_test_location"
-                                                | "flight_airport_code"
-                                                | "aircraft_make"
-                                                | "aircraft_model"
-                                                | "aircraft_registration",
+                                              "flight_school_name_snapshot",
                                               event.target.value,
                                             )
                                           }
                                           className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
                                         />
                                       </label>
-                                    ))}
+                                    ) : null}
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Oral Test Location
+                                      <input
+                                        type="text"
+                                        value={requestEditDrafts[request.id].oral_test_location}
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "oral_test_location",
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
+                                    </label>
+
+                                    <div className="text-sm font-semibold text-slate-700">
+                                      Flight Airport
+                                      <div className="mt-2 font-normal">
+                                        <AirportSelector
+                                          selectedLabel={
+                                            requestEditDrafts[request.id].flight_airport_code
+                                              ? [
+                                                  requestEditDrafts[request.id].flight_airport_icao ||
+                                                    requestEditDrafts[request.id].flight_airport_code,
+                                                  requestEditDrafts[request.id].flight_airport_name,
+                                                ]
+                                                  .filter(Boolean)
+                                                  .join(" — ")
+                                              : ""
+                                          }
+                                          onSelect={(airport) => {
+                                            updateRequestEditDraft(request.id, "flight_airport_id", airport.id);
+                                            updateRequestEditDraft(request.id, "flight_airport_code", airport.faa_identifier);
+                                            updateRequestEditDraft(request.id, "flight_airport_icao", airport.icao_identifier ?? "");
+                                            updateRequestEditDraft(request.id, "flight_airport_name", airport.airport_name);
+                                          }}
+                                          onClear={() => {
+                                            updateRequestEditDraft(request.id, "flight_airport_id", "");
+                                            updateRequestEditDraft(request.id, "flight_airport_code", "");
+                                            updateRequestEditDraft(request.id, "flight_airport_icao", "");
+                                            updateRequestEditDraft(request.id, "flight_airport_name", "");
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="text-sm font-semibold text-slate-700 md:col-span-2">
+                                      Aircraft Type
+                                      <div className="mt-2 font-normal">
+                                        <AircraftTypeSelector
+                                          selectedLabel={[
+                                            requestEditDrafts[request.id].aircraft_make,
+                                            requestEditDrafts[request.id].aircraft_model,
+                                          ]
+                                            .filter(Boolean)
+                                            .join(" ")}
+                                          selectedTypeDesignator={
+                                            requestEditDrafts[request.id].aircraft_type_designator
+                                          }
+                                          onSelect={(aircraft) => {
+                                            updateRequestEditDraft(request.id, "aircraft_type_id", aircraft.id);
+                                            updateRequestEditDraft(request.id, "aircraft_type_designator", aircraft.type_designator);
+                                            updateRequestEditDraft(request.id, "aircraft_make", aircraft.manufacturer);
+                                            updateRequestEditDraft(request.id, "aircraft_model", aircraft.model);
+                                          }}
+                                          onClear={() => {
+                                            updateRequestEditDraft(request.id, "aircraft_type_id", "");
+                                            updateRequestEditDraft(request.id, "aircraft_type_designator", "");
+                                            updateRequestEditDraft(request.id, "aircraft_make", "");
+                                            updateRequestEditDraft(request.id, "aircraft_model", "");
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <label className="text-sm font-semibold text-slate-700">
+                                      Registration
+                                      <input
+                                        type="text"
+                                        value={requestEditDrafts[request.id].aircraft_registration}
+                                        onChange={(event) =>
+                                          updateRequestEditDraft(
+                                            request.id,
+                                            "aircraft_registration",
+                                            event.target.value.toUpperCase(),
+                                          )
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                      />
+                                    </label>
                                   </div>
 
                                   <div className="mt-4 grid gap-4 md:grid-cols-2">
