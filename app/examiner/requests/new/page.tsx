@@ -74,6 +74,45 @@ export default function ExaminerCreateRequestPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // Bumped on reset so the selector components (which keep their own search
+  // text) remount empty.
+  const [formKey, setFormKey] = useState(0);
+
+  // Start every visit with an empty form. Next.js (cacheComponents) keeps a
+  // page's state when you navigate away and back, which previously left the
+  // last request's details and a stuck "Creating request…" button.
+  function resetForm() {
+    setApplicantId("");
+    setSearch("");
+    setTest(emptyTest);
+    setFlightSchoolId("");
+    setOtherFlightSchool("");
+    setOralTestLocation("");
+    setAirport(null);
+    setAircraft(null);
+    setAircraftRegistration("");
+    setAircraftNotes("");
+    setInstructorName("");
+    setInstructorPhone("");
+    setInstructorEmail("");
+    setInstructorCertificateNumber("");
+    setInstructorAssociatedWithSchool("");
+    setInstructorSource("");
+    setInstructorNotice("");
+    setFirstAvailable(false);
+    setDates(["", "", ""]);
+    setPreferredTime("");
+    setNotes("");
+    setError("");
+    setSubmitting(false);
+    setFormKey((key) => key + 1);
+  }
+
+  // Runs on first load and each time the page is shown again.
+  useEffect(() => {
+    resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,6 +283,7 @@ export default function ExaminerCreateRequestPage() {
     }
 
     const created = Array.isArray(data) ? data[0] : data;
+    resetForm();
     router.push(
       `/examiner/requests?created=${encodeURIComponent(created?.request_number ?? "request")}`,
     );
@@ -274,7 +314,7 @@ export default function ExaminerCreateRequestPage() {
         </button>
       </div>
 
-      <form onSubmit={submit} className="mt-8 space-y-6">
+      <form key={formKey} onSubmit={submit} className="mt-8 space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-950">Applicant</h2>
           <label className="mt-4 block text-sm font-semibold text-slate-800">
