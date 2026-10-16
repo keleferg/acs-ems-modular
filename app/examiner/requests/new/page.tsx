@@ -13,6 +13,9 @@ import AircraftTypeSelector, {
 import AirportSelector, {
   type AirportSelection,
 } from "@/components/practical-test/airport-selector";
+import RecommendingInstructorLookup, {
+  type SavedInstructor,
+} from "@/components/practical-test/recommending-instructor-lookup";
 import { createClient } from "@/lib/supabase/client";
 
 type ApplicantOption = {
@@ -61,6 +64,9 @@ export default function ExaminerCreateRequestPage() {
   const [instructorEmail, setInstructorEmail] = useState("");
   const [instructorCertificateNumber, setInstructorCertificateNumber] = useState("");
   const [instructorAssociatedWithSchool, setInstructorAssociatedWithSchool] = useState("");
+  // Where the instructor fields came from. Typed ("manual") values are never overwritten.
+  const [instructorSource, setInstructorSource] = useState<"" | "auto" | "picked" | "manual">("");
+  const [instructorNotice, setInstructorNotice] = useState("");
   const [firstAvailable, setFirstAvailable] = useState(false);
   const [dates, setDates] = useState(["", "", ""]);
   const [preferredTime, setPreferredTime] = useState("");
@@ -113,6 +119,46 @@ export default function ExaminerCreateRequestPage() {
       ].some((value) => value?.toLowerCase().includes(term)),
     );
   }, [applicants, search]);
+
+  function fillInstructor(
+    instructor: SavedInstructor | null,
+    source: "auto" | "picked",
+  ) {
+    setInstructorName(instructor?.full_name ?? "");
+    setInstructorPhone(instructor?.phone ?? "");
+    setInstructorEmail(instructor?.email ?? "");
+    setInstructorCertificateNumber(instructor?.certificate_number ?? "");
+    if (instructor?.flight_school_id && instructor.flight_school_id === flightSchoolId) {
+      setInstructorAssociatedWithSchool("yes");
+    }
+    setInstructorSource(instructor ? source : "");
+  }
+
+  function handleApplicantInstructorsLoaded(list: SavedInstructor[]) {
+    // Only fill fields that are empty or were filled automatically earlier.
+    if (instructorSource === "manual" || instructorSource === "picked") return;
+
+    if (list.length === 0) {
+      if (instructorSource === "auto") fillInstructor(null, "auto");
+      setInstructorNotice("");
+      return;
+    }
+
+    fillInstructor(list[0], "auto");
+    setInstructorNotice(
+      `Filled in from this applicant's most recent request (${list[0].full_name}). Check that it's still correct.`,
+    );
+  }
+
+  function handlePickInstructor(instructor: SavedInstructor) {
+    fillInstructor(instructor, "picked");
+    setInstructorNotice(`Using saved details for ${instructor.full_name}.`);
+  }
+
+  function markInstructorEdited() {
+    setInstructorSource("manual");
+    setInstructorNotice("");
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -394,14 +440,28 @@ export default function ExaminerCreateRequestPage() {
           <h2 className="text-lg font-bold text-slate-950">Recommending Instructor</h2>
           <p className="mt-1 text-sm text-slate-600">
             Enter the instructor recommending the applicant for this practical test.
+            Instructors entered by applicants or examiners are saved and can be reused here.
           </p>
+          <RecommendingInstructorLookup
+            applicantId={applicantId}
+            onSelect={handlePickInstructor}
+            onApplicantInstructorsLoaded={handleApplicantInstructorsLoaded}
+          />
+          {instructorNotice ? (
+            <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              {instructorNotice}
+            </p>
+          ) : null}
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="sm:col-span-2 text-sm font-semibold text-slate-800">
               Instructor&apos;s full name <span className="text-red-600">*</span>
               <input
                 required
                 value={instructorName}
-                onChange={(event) => setInstructorName(event.target.value)}
+                onChange={(event) => {
+                  setInstructorName(event.target.value);
+                  markInstructorEdited();
+                }}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3"
               />
             </label>
@@ -411,7 +471,10 @@ export default function ExaminerCreateRequestPage() {
                 required
                 type="tel"
                 value={instructorPhone}
-                onChange={(event) => setInstructorPhone(event.target.value)}
+                onChange={(event) => {
+                  setInstructorPhone(event.target.value);
+                  markInstructorEdited();
+                }}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3"
               />
             </label>
@@ -421,7 +484,10 @@ export default function ExaminerCreateRequestPage() {
                 required
                 type="email"
                 value={instructorEmail}
-                onChange={(event) => setInstructorEmail(event.target.value)}
+                onChange={(event) => {
+                  setInstructorEmail(event.target.value);
+                  markInstructorEdited();
+                }}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3"
               />
             </label>
@@ -429,7 +495,10 @@ export default function ExaminerCreateRequestPage() {
               Instructor certificate number
               <input
                 value={instructorCertificateNumber}
-                onChange={(event) => setInstructorCertificateNumber(event.target.value)}
+                onChange={(event) => {
+                  setInstructorCertificateNumber(event.target.value);
+                  markInstructorEdited();
+                }}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3"
               />
             </label>
