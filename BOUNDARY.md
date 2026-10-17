@@ -20,6 +20,7 @@ EMS → EMT (EMT reads, never writes):
 - Appointments: `examiner_get_emt_appointments()`, `examiner_get_practical_test_offerings()`
 - Frozen POAs: `generated_plan_of_actions`, `generated_plan_of_action_questions`, `generated_plan_of_action_flight_tasks`, `generated_plan_of_action_triggers`, `examiner_plan_of_actions`, `examiner_get_type_rating_poa_questions()`
 - Reference: `practical_test_types`, `examiner_designee_profiles`
+- Question library (written-test review during grading): `poa_questions` with its `poa_question_practical_test_types` and `poa_question_acs_applicability` joins
 - A link: EMS may link to `NEXT_PUBLIC_EMT_WEB_URL/index.html?request=<id>`. A link is not code sharing.
 
 EMT → EMS (results handoff):

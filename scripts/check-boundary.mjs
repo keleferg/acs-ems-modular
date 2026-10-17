@@ -41,6 +41,8 @@ const EMT_READABLE_EMS_TABLES = [
   "examiner_plan_of_actions",
   "practical_test_types",
   "examiner_designee_profiles",
+  // Question library, for the written-test review during grading (read-only).
+  "poa_questions",
 ];
 
 // The only database functions EMT may call.
