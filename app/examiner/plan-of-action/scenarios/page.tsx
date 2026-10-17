@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { parseScenarioEnvironment, formatScenarioEnvironment } from "@/lib/poa/scenario-environment";
 
 import {
   ChevronDown,
@@ -140,7 +141,8 @@ type ScenarioEditor = {
   destination: string;
   aircraft: string;
 
-  initialConditions: string;
+  operationalEnvironment: string;
+  meteorologicalEnvironment: string;
   examinerNotes: string;
 
   practicalTestTypeIds: string[];
@@ -158,7 +160,8 @@ const EMPTY_EDITOR: ScenarioEditor = {
   destination: "",
   aircraft: "",
 
-  initialConditions: "",
+  operationalEnvironment: "",
+  meteorologicalEnvironment: "",
   examinerNotes: "",
 
   practicalTestTypeIds: [],
@@ -587,9 +590,7 @@ export default function ScenarioLibraryPage() {
         scenario.aircraft ??
         "",
 
-      initialConditions:
-        scenario.initial_conditions ??
-        "",
+      ...parseScenarioEnvironment(scenario.initial_conditions),
 
       examinerNotes:
         scenario.examiner_notes ??
@@ -773,10 +774,7 @@ export default function ScenarioLibraryPage() {
               null,
 
             initial_conditions:
-              editor
-                .initialConditions
-                .trim() ||
-              null,
+              formatScenarioEnvironment(editor.operationalEnvironment, editor.meteorologicalEnvironment),
 
             examiner_notes:
               editor.examinerNotes
@@ -860,10 +858,7 @@ export default function ScenarioLibraryPage() {
               null,
 
             initial_conditions:
-              editor
-                .initialConditions
-                .trim() ||
-              null,
+              formatScenarioEnvironment(editor.operationalEnvironment, editor.meteorologicalEnvironment),
 
             examiner_notes:
               editor.examinerNotes
@@ -1540,13 +1535,13 @@ export default function ScenarioLibraryPage() {
 
                         <div className="rounded-xl border border-slate-200 bg-white p-5">
 
-                          <h3 className="font-bold text-slate-900">
-                            Initial Conditions
-                          </h3>
-
+                          <h3 className="font-bold text-slate-900">Operational Environment</h3>
                           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                            {scenario.initial_conditions ||
-                              "No initial conditions entered."}
+                            {parseScenarioEnvironment(scenario.initial_conditions).operationalEnvironment || "No operational environment entered."}
+                          </p>
+                          <h3 className="mt-5 font-bold text-slate-900">Meteorological Environment</h3>
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                            {parseScenarioEnvironment(scenario.initial_conditions).meteorologicalEnvironment || "No meteorological environment entered."}
                           </p>
 
                         </div>
@@ -1873,31 +1868,22 @@ export default function ScenarioLibraryPage() {
 
                 <div className="mt-5">
 
-                  <label className="mb-2 block text-sm font-semibold text-slate-800">
-                    Initial Conditions / Setup
-                  </label>
-
-                  <textarea
-                    rows={4}
-                    value={
-                      editor.initialConditions
-                    }
-                    onChange={(event) =>
-                      setEditor(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
-                          initialConditions:
-                            event
-                              .target
-                              .value,
-                        }),
-                      )
-                    }
-                    placeholder="Weather, passengers, fuel, loading, operational conditions, or other starting information…"
-                    className="w-full rounded-lg border border-slate-300 px-4 py-3 leading-6"
-                  />
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <label className="block text-sm font-semibold text-slate-800">
+                      Operational Environment
+                      <textarea rows={4} value={editor.operationalEnvironment}
+                        onChange={(event) => setEditor((current) => ({ ...current, operationalEnvironment: event.target.value }))}
+                        placeholder="Passengers, fuel, loading, airport conditions, terrain, and other operational information…"
+                        className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 font-normal leading-6" />
+                    </label>
+                    <label className="block text-sm font-semibold text-slate-800">
+                      Meteorological Environment
+                      <textarea rows={4} value={editor.meteorologicalEnvironment}
+                        onChange={(event) => setEditor((current) => ({ ...current, meteorologicalEnvironment: event.target.value }))}
+                        placeholder="Ceilings, visibility, winds, temperature, precipitation, forecasts, and weather hazards…"
+                        className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 font-normal leading-6" />
+                    </label>
+                  </div>
 
                 </div>
 
