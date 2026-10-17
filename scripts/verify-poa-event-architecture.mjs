@@ -1,17 +1,25 @@
+import { readdirSync as __readdir } from "node:fs";
+import { resolve as __resolve } from "node:path";
+// Migrations live in the separate dpe-database project (see BOUNDARY.md).
+// Look them up by description, since version numbers can differ from the
+// ones production recorded.
+const __databaseDir = process.env.DPE_DATABASE_DIR ?? __resolve(process.cwd(), "../dpe-database");
+function migrationPath(fileName) {
+  const dir = __resolve(__databaseDir, "supabase/migrations");
+  const description = fileName.replace(/^\d+_/, "");
+  const match = __readdir(dir).find((name) => name === fileName) ??
+    __readdir(dir).find((name) => name.replace(/^\d+_/, "") === description);
+  if (!match) throw new Error(`Migration ${fileName} not found in ${dir}`);
+  return __resolve(dir, match);
+}
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), "utf8");
-const hardening = read(
-  "supabase/migrations/20260916025711_harden_poa_event_generator_architecture.sql",
-);
-const restored = read(
-  "supabase/migrations/20260915155217_add_poa_event_set_architecture.sql",
-);
-const oralSequence = read(
-  "supabase/migrations/20260917210854_structure_poa_oral_event_questions.sql",
-);
+const hardening = readFileSync(migrationPath("20260916025711_harden_poa_event_generator_architecture.sql"), "utf8");
+const restored = readFileSync(migrationPath("20260915155217_add_poa_event_set_architecture.sql"), "utf8");
+const oralSequence = readFileSync(migrationPath("20260917210854_structure_poa_oral_event_questions.sql"), "utf8");
 const generator = read("app/examiner/plan-of-action/generate/page.tsx");
 const scenarios = read("app/examiner/plan-of-action/scenarios/page.tsx");
 const generatedEditor = read(

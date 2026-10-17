@@ -1,0 +1,6 @@
+#!/bin/sh
+# DPE boundary guard: blocks commits that mix EMS and EMT responsibilities.
+node scripts/check-boundary.mjs || {
+  echo "Commit blocked by the DPE boundary check. See BOUNDARY.md." >&2
+  exit 1
+}

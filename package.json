@@ -2,11 +2,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "node scripts/check-boundary.mjs && next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "verify:poa": "node scripts/verify-poa-event-architecture.mjs",
-    "verify:qualification": "node scripts/verify-qualification.mjs && node scripts/verify-qualification-database.mjs"
+    "verify:qualification": "node scripts/verify-qualification.mjs && node scripts/verify-qualification-database.mjs",
+    "check:boundary": "node scripts/check-boundary.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.1",

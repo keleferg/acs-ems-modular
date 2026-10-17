@@ -3312,17 +3312,18 @@ export default function ExaminerRequestsPage() {
                                       </div>
 
                                       <p className="mt-1 text-sm text-blue-800">
-                                        Open this proficiency check in DPE EMT
-                                        for S / U / W grading.
+                                        Grading is done in DPE EMT. This
+                                        request is ready to open there.
                                       </p>
                                     </div>
 
-                                    <Link
-                                      href={`/ems/index.html?request=${encodeURIComponent(request.id)}`}
+                                    {/* EMS -> EMT handoff: a link only. EMS contains no grading code. */}
+                                    <a
+                                      href={`${process.env.NEXT_PUBLIC_EMT_WEB_URL ?? ""}/index.html?request=${encodeURIComponent(request.id)}`}
                                       className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800"
                                     >
-                                      Begin PPC Evaluation
-                                    </Link>
+                                      Open in EMT
+                                    </a>
                                   </div>
                                 </div>
                               ) : null}

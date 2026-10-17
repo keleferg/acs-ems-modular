@@ -1,15 +1,29 @@
+import { readdirSync as __readdir } from "node:fs";
+import { resolve as __resolve } from "node:path";
+// Migrations live in the separate dpe-database project (see BOUNDARY.md).
+// Look them up by description, since version numbers can differ from the
+// ones production recorded.
+const __databaseDir = process.env.DPE_DATABASE_DIR ?? __resolve(process.cwd(), "../dpe-database");
+function migrationPath(fileName) {
+  const dir = __resolve(__databaseDir, "supabase/migrations");
+  const description = fileName.replace(/^\d+_/, "");
+  const match = __readdir(dir).find((name) => name === fileName) ??
+    __readdir(dir).find((name) => name.replace(/^\d+_/, "") === description);
+  if (!match) throw new Error(`Migration ${fileName} not found in ${dir}`);
+  return __resolve(dir, match);
+}
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const root = new URL("..", import.meta.url).pathname;
 const db = new PGlite();
 await db.exec(readFileSync(new URL("./qualification-fixtures/bootstrap.sql", import.meta.url),"utf8"));
-const migration=readFileSync(`${root}/supabase/migrations/20261006175224_instrument_airplane_qualification.sql`,'utf8');
+const migration=readFileSync(migrationPath("20261006175224_instrument_airplane_qualification.sql"),'utf8');
 await db.exec(migration);
 await db.exec(migration); // Idempotency.
-await db.exec(readFileSync(`${root}/supabase/migrations/20261006181127_secure_qualification_explicit_grants.sql`,"utf8"));
-await db.exec(readFileSync(`${root}/supabase/migrations/20261006182645_refine_instrument_qualification_fields.sql`,"utf8"));
-await db.exec(readFileSync(`${root}/supabase/migrations/20261006183210_instrument_graduation_certificate.sql`,"utf8"));
+await db.exec(readFileSync(migrationPath("20261006181127_secure_qualification_explicit_grants.sql"),"utf8"));
+await db.exec(readFileSync(migrationPath("20261006182645_refine_instrument_qualification_fields.sql"),"utf8"));
+await db.exec(readFileSync(migrationPath("20261006183210_instrument_graduation_certificate.sql"),"utf8"));
 assert.equal((await db.query('select count(*)::int n from qualification_requirements where is_active')).rows[0].n,40);
 assert.equal((await db.query("select has_function_privilege('anon','public.examiner_save_qualification_note(uuid,uuid,text)','EXECUTE') allowed")).rows[0].allowed,false);
 assert.equal((await db.query('select count(*)::int n from qualification_rule_sets')).rows[0].n,2);

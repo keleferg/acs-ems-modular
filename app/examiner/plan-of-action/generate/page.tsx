@@ -29,7 +29,9 @@ import {
   normalizeAdditionalMapCodes,
 } from "@/lib/poa/flight-tasks";
 
-import { ADDITIONAL_MAPS } from "@/public/ems/js/config/config.js";
+// FAA additional-rating ACS task maps: a reference-data snapshot owned by EMS
+// (generated from the former public/ems config; verified identical).
+import ADDITIONAL_MAPS from "@/data/acs-additional-rating-maps.json";
 
 function acsPrefix(reference: string) {
   const cleaned = reference.trim().toUpperCase();

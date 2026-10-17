@@ -67,7 +67,45 @@ function getOrigin(request: Request) {
   return new URL(request.url).origin;
 }
 
+/*
+ * EMT -> EMS interface: the EMT web app (a separate site) calls this endpoint
+ * after a PPC is completed so EMS can send the applicant email. Allowed EMT
+ * origins come from EMT_WEB_ORIGINS (comma-separated). See BOUNDARY.md.
+ */
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("origin") ?? "";
+  const allowed = (process.env.EMT_WEB_ORIGINS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (!origin || !allowed.includes(origin)) {
+    return {};
+  }
+
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    Vary: "Origin",
+  };
+}
+
+export function OPTIONS(request: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(request) });
+}
+
 export async function POST(request: Request) {
+  const response = await handlePost(request);
+
+  for (const [key, value] of Object.entries(corsHeaders(request))) {
+    response.headers.set(key, value);
+  }
+
+  return response;
+}
+
+async function handlePost(request: Request): Promise<Response> {
   let body: EmailRequestBody;
 
   try {
