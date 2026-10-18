@@ -12,6 +12,7 @@ import {
   buildRequestDeclinedApplicantEmail,
   buildRequestScheduledApplicantEmail,
   buildRequestSubmittedApplicantEmail,
+  buildRequestSubmittedExaminerEmail,
 } from "@/lib/email/practical-test";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
@@ -55,6 +56,7 @@ type ApplicantPortalDetail = {
 
 const supportedEvents = new Set([
   "request_submitted_applicant",
+  "request_submitted_examiner",
   "request_accepted_applicant",
   "request_declined_applicant",
   "request_scheduled_applicant",
@@ -217,7 +219,11 @@ async function handlePost(request: Request): Promise<Response> {
       scheduled_location,
       appointment_response_status,
       appointment_responded_at,
-      appointment_response_notes
+      appointment_response_notes,
+      practical_test_type_id,
+      oral_test_location,
+      flight_airport_code,
+      flight_airport_name
       `,
     )
     .eq("id", requestId)
@@ -256,6 +262,7 @@ async function handlePost(request: Request): Promise<Response> {
 
   const applicantGeneratedEvent =
     eventType === "request_submitted_applicant" ||
+    eventType === "request_submitted_examiner" ||
     eventType === "appointment_accepted_examiner" ||
     eventType === "appointment_reschedule_requested_examiner";
 
@@ -490,6 +497,16 @@ async function handlePost(request: Request): Promise<Response> {
   }
 
   const portalOrigin = getOrigin(request);
+
+  if (eventType === "request_submitted_examiner") {
+    return sendRequestSubmittedExaminerEmails({
+      supabase,
+      practicalTestRequest,
+      portalOrigin,
+      resendApiKey,
+      fromEmail,
+    });
+  }
 
   let email: EmailContent;
   let recipientEmail: string;
@@ -1252,4 +1269,347 @@ async function handlePost(request: Request): Promise<Response> {
     sent: true,
     messageId: resendData?.id ?? null,
   });
+}
+
+type RequestSubmittedExaminerRecipient = {
+  examinerProfileId: string;
+  examinerName: string | null;
+  email: string;
+};
+
+type SubmittedRequestForExaminerEmail = {
+  id: string;
+  request_number: string;
+  assigned_examiner_profile_id: string | null;
+  applicant_name_snapshot: string;
+  certificate_sought: string;
+  rating_sought: string;
+  requested_dates_text: string | null;
+  status: string;
+  practical_test_type_id: string | null;
+  oral_test_location: string | null;
+  flight_airport_code: string | null;
+  flight_airport_name: string | null;
+};
+
+/*
+ * Examiners who can take an "Any Examiner — First Available" request: the same
+ * rule as applicant_list_available_examiners() (active, examiner role, current
+ * designation) and, when the request has a test type, offering that test.
+ * Needs the service key because applicants can't read other examiners' emails.
+ */
+async function loadOpenRequestExaminerRecipients(
+  practicalTestTypeId: string | null,
+): Promise<RequestSubmittedExaminerRecipient[] | null> {
+  const serviceKey =
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceKey) {
+    console.error(
+      "New-request examiner email: SUPABASE_SECRET_KEY is not set, so open-request examiners can't be looked up.",
+    );
+    return null;
+  }
+
+  const admin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    },
+  );
+
+  const { data: roleRows, error: roleError } = await admin
+    .from("user_roles")
+    .select("profile_id")
+    .eq("role", "examiner");
+
+  if (roleError) {
+    console.error("New-request examiner email: roles lookup failed:", roleError);
+    return null;
+  }
+
+  let examinerIds = [
+    ...new Set((roleRows ?? []).map((row) => row.profile_id as string)),
+  ];
+
+  if (practicalTestTypeId && examinerIds.length > 0) {
+    const { data: offeringRows, error: offeringError } = await admin
+      .from("examiner_practical_test_offerings")
+      .select("examiner_profile_id")
+      .eq("practical_test_type_id", practicalTestTypeId)
+      .eq("is_offered", true)
+      .in("examiner_profile_id", examinerIds);
+
+    if (offeringError) {
+      console.error(
+        "New-request examiner email: offerings lookup failed:",
+        offeringError,
+      );
+      return null;
+    }
+
+    examinerIds = [
+      ...new Set(
+        (offeringRows ?? []).map((row) => row.examiner_profile_id as string),
+      ),
+    ];
+  }
+
+  if (examinerIds.length === 0) {
+    return [];
+  }
+
+  const [{ data: profileRows, error: profileError }, { data: designeeRows, error: designeeError }] =
+    await Promise.all([
+      admin
+        .from("profiles")
+        .select("id, first_name, last_name, email, is_active")
+        .in("id", examinerIds),
+      admin
+        .from("examiner_designee_profiles")
+        .select(
+          "profile_id, designee_name, email, designation_number, designation_expiration_date",
+        )
+        .in("profile_id", examinerIds),
+    ]);
+
+  if (profileError || designeeError) {
+    console.error(
+      "New-request examiner email: examiner lookup failed:",
+      profileError ?? designeeError,
+    );
+    return null;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const recipients: RequestSubmittedExaminerRecipient[] = [];
+
+  for (const designee of designeeRows ?? []) {
+    const profile = (profileRows ?? []).find(
+      (row) => row.id === designee.profile_id,
+    );
+
+    if (!profile?.is_active) continue;
+    if (!designee.designation_number?.trim()) continue;
+    if (
+      !designee.designation_expiration_date ||
+      designee.designation_expiration_date < today
+    ) {
+      continue;
+    }
+
+    const email = (designee.email?.trim() || profile.email?.trim() || "")
+      .toLowerCase();
+
+    if (!email) continue;
+
+    const profileName = [profile.first_name, profile.last_name]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" ");
+
+    recipients.push({
+      examinerProfileId: designee.profile_id,
+      examinerName: designee.designee_name?.trim() || profileName || null,
+      email,
+    });
+  }
+
+  return recipients;
+}
+
+async function sendRequestSubmittedExaminerEmails({
+  supabase,
+  practicalTestRequest,
+  portalOrigin,
+  resendApiKey,
+  fromEmail,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  practicalTestRequest: SubmittedRequestForExaminerEmail;
+  portalOrigin: string;
+  resendApiKey: string;
+  fromEmail: string;
+}): Promise<Response> {
+  if (practicalTestRequest.status !== "under_review") {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "The practical-test request is no longer awaiting review.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const openToAnyExaminer = !practicalTestRequest.assigned_examiner_profile_id;
+  let recipients: RequestSubmittedExaminerRecipient[];
+
+  if (openToAnyExaminer) {
+    const openRecipients = await loadOpenRequestExaminerRecipients(
+      practicalTestRequest.practical_test_type_id,
+    );
+
+    if (openRecipients === null) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Examiners for this open request could not be looked up.",
+        },
+        { status: 500 },
+      );
+    }
+
+    recipients = openRecipients;
+  } else {
+    const { data: detailRows, error: detailError } = await supabase.rpc(
+      "applicant_get_request_portal_details",
+    );
+
+    if (detailError) {
+      console.error(
+        "New-request examiner email: examiner contact lookup failed:",
+        detailError,
+      );
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "The examiner's contact details could not be loaded.",
+        },
+        { status: 500 },
+      );
+    }
+
+    const detail = ((detailRows ?? []) as ApplicantPortalDetail[]).find(
+      (row) => row.practical_test_request_id === practicalTestRequest.id,
+    );
+
+    const email = detail?.examiner_email?.trim().toLowerCase();
+
+    recipients =
+      detail?.examiner_profile_id && email
+        ? [
+            {
+              examinerProfileId: detail.examiner_profile_id,
+              examinerName: detail.examiner_name,
+              email,
+            },
+          ]
+        : [];
+  }
+
+  if (recipients.length === 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "No examiner email address was found for this request.",
+      },
+      { status: 422 },
+    );
+  }
+
+  const flightAirport =
+    [
+      practicalTestRequest.flight_airport_code?.trim(),
+      practicalTestRequest.flight_airport_name?.trim(),
+    ]
+      .filter(Boolean)
+      .join(" — ") || null;
+
+  const examinerPortalUrl = openToAnyExaminer
+    ? `${portalOrigin}/examiner/requests?tab=open`
+    : `${portalOrigin}/examiner/requests?request=${encodeURIComponent(
+        practicalTestRequest.id,
+      )}`;
+
+  const resend = new Resend(resendApiKey);
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const recipient of recipients) {
+    const email = buildRequestSubmittedExaminerEmail({
+      examinerName: recipient.examinerName,
+      applicantName: practicalTestRequest.applicant_name_snapshot,
+      requestNumber: practicalTestRequest.request_number,
+      certificateSought: practicalTestRequest.certificate_sought,
+      ratingSought: practicalTestRequest.rating_sought,
+      requestedDatesText: practicalTestRequest.requested_dates_text,
+      oralTestLocation: practicalTestRequest.oral_test_location,
+      flightAirport,
+      openToAnyExaminer,
+      examinerPortalUrl,
+    });
+
+    const { data: claimData, error: claimError } = await supabase.rpc(
+      "claim_practical_test_email",
+      {
+        p_request_id: practicalTestRequest.id,
+        p_email_type: "request_submitted_examiner",
+        p_recipient_role: "examiner",
+        p_recipient_email: recipient.email,
+        p_subject: email.subject,
+        p_dedupe_key: `request_submitted_examiner:${practicalTestRequest.id}:${recipient.examinerProfileId}`,
+      },
+    );
+
+    const claim = (
+      Array.isArray(claimData) ? claimData[0] : claimData
+    ) as ClaimRow | null;
+
+    if (claimError || !claim) {
+      console.error(
+        "New-request examiner email: claim failed:",
+        claimError ?? "no claim row",
+      );
+      failed += 1;
+      continue;
+    }
+
+    if (!claim.should_send) {
+      skipped += 1;
+      continue;
+    }
+
+    const { data: resendData, error: resendError } = await resend.emails.send({
+      from: fromEmail,
+      to: [recipient.email],
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    });
+
+    await supabase.rpc("complete_practical_test_email", {
+      p_log_id: claim.log_id,
+      p_status: resendError ? "failed" : "sent",
+      p_provider_message_id: resendData?.id ?? null,
+      p_error_message: resendError
+        ? (resendError.message ?? "The email provider rejected the message.")
+        : null,
+    });
+
+    if (resendError) {
+      console.error("New-request examiner email: send failed:", resendError);
+      failed += 1;
+    } else {
+      sent += 1;
+    }
+  }
+
+  return NextResponse.json(
+    {
+      ok: failed === 0,
+      sent: sent > 0,
+      recipients: recipients.length,
+      sentCount: sent,
+      skippedCount: skipped,
+      failedCount: failed,
+    },
+    { status: failed > 0 && sent === 0 ? 502 : 200 },
+  );
 }

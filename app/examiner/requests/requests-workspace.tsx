@@ -1343,6 +1343,10 @@ export default function ExaminerRequestsWorkspace({
     const parameters = new URLSearchParams(window.location.search);
     const requestId = parameters.get("request");
 
+    if (parameters.get("tab") === "open" && !viewExaminer) {
+      setActiveRequestsTab("open");
+    }
+
     if (requestId) {
       setDirectRequestId(requestId);
       setStatusFilter("all");
@@ -1350,7 +1354,7 @@ export default function ExaminerRequestsWorkspace({
     }
 
     void loadRequests();
-  }, [loadRequests]);
+  }, [loadRequests, viewExaminer]);
 
   useEffect(() => {
     if (!directRequestId || loading) {

@@ -1057,6 +1057,40 @@ export default function NewRequestPage() {
         );
       }
 
+      // Let the examiner (or, for "Any Examiner", every examiner who offers
+      // this test) know about the new request. Never blocks submission.
+      try {
+        const examinerEmailResponse = await fetch(
+          "/api/email/practical-test",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              eventType: "request_submitted_examiner",
+              requestId: insertedRequest.id,
+            }),
+          },
+        );
+
+        if (!examinerEmailResponse.ok) {
+          const examinerEmailResult = await examinerEmailResponse
+            .json()
+            .catch(() => null);
+
+          console.warn(
+            "Practical-test request was submitted, but the examiner notification was not sent:",
+            examinerEmailResult,
+          );
+        }
+      } catch (examinerEmailError) {
+        console.warn(
+          "Practical-test request was submitted, but the examiner notification request failed:",
+          examinerEmailError,
+        );
+      }
+
       window.localStorage.removeItem(STORAGE_KEY);
 
       setSubmitMessage(

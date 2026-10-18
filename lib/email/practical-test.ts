@@ -2548,3 +2548,213 @@ export function buildRequestFollowupApplicantEmail(
     text,
   };
 }
+
+export type RequestSubmittedExaminerEmailInput = {
+  examinerName: string | null;
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  requestedDatesText: string | null;
+  oralTestLocation: string | null;
+  flightAirport: string | null;
+  /** true when the applicant chose "Any Examiner — First Available". */
+  openToAnyExaminer: boolean;
+  examinerPortalUrl: string;
+};
+
+/** Sent to the examiner(s) as soon as an applicant submits a request. */
+export function buildRequestSubmittedExaminerEmail(
+  input: RequestSubmittedExaminerEmailInput,
+) {
+  const examinerGreeting = input.examinerName?.trim()
+    ? firstName(input.examinerName)
+    : "Examiner";
+
+  const subject = input.openToAnyExaminer
+    ? `New Open Practical Test Request — ${input.requestNumber}`
+    : `New Practical Test Request — ${input.requestNumber}`;
+
+  const intro = input.openToAnyExaminer
+    ? `${input.applicantName} submitted a practical test request for any available examiner. It's waiting in Open Assignments for the first examiner to pick it up.`
+    : `${input.applicantName} submitted a practical test request with you as the examiner. Please review it and accept or decline.`;
+
+  const buttonLabel = input.openToAnyExaminer
+    ? "View Open Assignments"
+    : "Review Request";
+
+  const rows: Array<[string, string]> = [
+    ["Applicant", input.applicantName],
+    ["Request Number", input.requestNumber],
+    ["Certificate", input.certificateSought],
+    ["Rating", input.ratingSought],
+    ["Requested Dates", input.requestedDatesText?.trim() || "Not provided"],
+  ];
+
+  if (input.oralTestLocation?.trim()) {
+    rows.push(["Oral Location", input.oralTestLocation.trim()]);
+  }
+
+  if (input.flightAirport?.trim()) {
+    rows.push(["Flight Airport", input.flightAirport.trim()]);
+  }
+
+  rows.push([
+    "Examiner",
+    input.openToAnyExaminer ? "Any Examiner — First Available" : "You",
+  ]);
+
+  const rowsHtml = rows
+    .map(([label, value], index) => {
+      const border =
+        index === rows.length - 1 ? "" : "border-bottom:1px solid #e2e8f0;";
+
+      return `
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;${border}font-size:13px;font-weight:700;color:#475569;width:150px;">
+                      ${escapeHtml(label)}
+                    </td>
+                    <td style="padding:12px 16px;${border}font-size:14px;">
+                      ${escapeHtml(value)}
+                    </td>
+                  </tr>`;
+    })
+    .join("");
+
+  const html = `
+<!doctype html>
+<html lang="en">
+  <body style="
+    margin:0;
+    padding:0;
+    background:#f8fafc;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#0f172a;
+  ">
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="background:#f8fafc;padding:32px 16px;"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="
+              max-width:640px;
+              background:#ffffff;
+              border:1px solid #e2e8f0;
+              border-radius:16px;
+              overflow:hidden;
+            "
+          >
+            <tr>
+              <td style="
+                background:#0f172a;
+                padding:24px 28px;
+                color:#ffffff;
+              ">
+                <div style="
+                  font-size:12px;
+                  font-weight:700;
+                  letter-spacing:1.5px;
+                  text-transform:uppercase;
+                  color:#fbbf24;
+                ">
+                  Aviation Training Solutions
+                </div>
+
+                <div style="
+                  margin-top:7px;
+                  font-size:24px;
+                  line-height:1.25;
+                  font-weight:700;
+                ">
+                  New Practical Test Request
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:28px;">
+                <p style="
+                  margin:0 0 18px;
+                  font-size:16px;
+                  line-height:1.6;
+                ">
+                  Aloha ${escapeHtml(examinerGreeting)},
+                </p>
+
+                <p style="
+                  margin:0 0 22px;
+                  font-size:15px;
+                  line-height:1.7;
+                  color:#334155;
+                ">
+                  ${escapeHtml(intro)}
+                </p>
+
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                  style="
+                    border:1px solid #e2e8f0;
+                    border-radius:12px;
+                    overflow:hidden;
+                  "
+                >${rowsHtml}
+                </table>
+
+                <div style="margin-top:26px;">
+                  <a
+                    href="${escapeHtml(input.examinerPortalUrl)}"
+                    style="
+                      display:inline-block;
+                      padding:12px 18px;
+                      background:#b45309;
+                      color:#ffffff;
+                      text-decoration:none;
+                      border-radius:8px;
+                      font-size:14px;
+                      font-weight:700;
+                    "
+                  >
+                    ${escapeHtml(buttonLabel)}
+                  </a>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `.trim();
+
+  const text = [
+    `Aloha ${examinerGreeting},`,
+    "",
+    intro,
+    "",
+    ...rows.map(([label, value]) => `${label}: ${value}`),
+    "",
+    `${buttonLabel}: ${input.examinerPortalUrl}`,
+  ].join("\n");
+
+  return {
+    subject,
+    html,
+    text,
+  };
+}
