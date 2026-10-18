@@ -187,6 +187,84 @@ function needsDmsAttention(request: CalendarRequest, nowMilliseconds: number) {
   );
 }
 
+/*
+ * Appointment colors (first match wins):
+ *   gray   – marked completed
+ *   orange – scheduled or confirmed, and the start time has passed
+ *   red    – scheduled or confirmed, starts within 48 hours, no DMS
+ *            preapproval number (turns back once a number is entered)
+ *   green  – confirmed by the applicant
+ *   blue   – scheduled, awaiting the applicant's confirmation
+ */
+type AppointmentTone =
+  | "completed"
+  | "past"
+  | "dmsMissing"
+  | "confirmed"
+  | "scheduled";
+
+function appointmentTone(
+  request: CalendarRequest,
+  nowMilliseconds: number,
+): AppointmentTone {
+  if (request.status === "completed") return "completed";
+
+  const active =
+    request.status === "scheduled" || request.status === "confirmed";
+  const hoursUntil = getHoursUntilAppointment(request, nowMilliseconds);
+
+  if (active && hoursUntil !== null && hoursUntil < 0) return "past";
+
+  if (
+    active &&
+    hoursUntil !== null &&
+    hoursUntil <= 48 &&
+    !request.dms_preapproval_number?.trim()
+  ) {
+    return "dmsMissing";
+  }
+
+  if (request.status === "confirmed") return "confirmed";
+
+  return "scheduled";
+}
+
+const toneStyles: Record<
+  AppointmentTone,
+  { label: string; chip: string; dot: string; border: string }
+> = {
+  scheduled: {
+    label: "Scheduled, awaiting applicant",
+    chip: "bg-blue-100 text-blue-900",
+    dot: "bg-blue-500",
+    border: "border-l-blue-500",
+  },
+  confirmed: {
+    label: "Confirmed by applicant",
+    chip: "bg-emerald-100 text-emerald-900",
+    dot: "bg-emerald-500",
+    border: "border-l-emerald-500",
+  },
+  dmsMissing: {
+    label: "Within 48 hours, no DMS preapproval",
+    chip: "bg-red-600 text-white",
+    dot: "bg-red-600",
+    border: "border-l-red-600",
+  },
+  past: {
+    label: "Appointment time has passed",
+    chip: "bg-orange-100 text-orange-900",
+    dot: "bg-orange-500",
+    border: "border-l-orange-500",
+  },
+  completed: {
+    label: "Completed",
+    chip: "bg-slate-200 text-slate-600",
+    dot: "bg-slate-400",
+    border: "border-l-slate-400",
+  },
+};
+
 function formatBlockedTime(period: BlockedPeriod) {
   if (period.all_day) {
     return "All day";
@@ -419,7 +497,12 @@ export default function ExaminerCalendarView({
       const rows = (requestResult.data ?? []) as CalendarRequest[];
 
       setRequests(
-        rows.filter((request) => !closedStatuses.has(request.status)),
+        // Completed appointments stay on the calendar (shown gray).
+        rows.filter(
+          (request) =>
+            request.status === "completed" ||
+            !closedStatuses.has(request.status),
+        ),
       );
     }
 
@@ -650,6 +733,27 @@ export default function ExaminerCalendarView({
             </div>
           </div>
 
+          {/* Color key for appointment chips. */}
+          <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200 px-5 py-3 text-xs text-slate-600">
+            {(
+              [
+                "scheduled",
+                "confirmed",
+                "dmsMissing",
+                "past",
+                "completed",
+              ] as AppointmentTone[]
+            ).map((tone) => (
+              <span key={tone} className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className={`h-2.5 w-2.5 rounded-full ${toneStyles[tone].dot}`}
+                />
+                {toneStyles[tone].label}
+              </span>
+            ))}
+          </div>
+
           <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
               <div
@@ -724,7 +828,10 @@ export default function ExaminerCalendarView({
                     {appointments.slice(0, 2).map((appointment) => (
                       <div
                         key={appointment.id}
-                        className="truncate rounded bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-900"
+                        title={toneStyles[appointmentTone(appointment, clock)].label}
+                        className={`truncate rounded px-2 py-1 text-xs font-semibold ${
+                          toneStyles[appointmentTone(appointment, clock)].chip
+                        }`}
                       >
                         {formatAppointmentTime(appointment.scheduled_start_at)}{" "}
                         · {appointment.applicant_name_snapshot}
@@ -807,7 +914,10 @@ export default function ExaminerCalendarView({
                 <Link
                   key={request.id}
                   href={requestHref(request.id)}
-                  className="block rounded-xl border border-slate-200 p-4 transition hover:border-amber-300 hover:bg-amber-50"
+                  title={toneStyles[appointmentTone(request, clock)].label}
+                  className={`block rounded-xl border border-l-4 border-slate-200 p-4 transition hover:border-amber-300 hover:bg-amber-50 ${
+                    toneStyles[appointmentTone(request, clock)].border
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -886,7 +996,14 @@ export default function ExaminerCalendarView({
                   href={requestHref(request.id)}
                   className="block py-4 first:pt-0 last:pb-0"
                 >
-                  <p className="font-semibold text-slate-900">
+                  <p className="flex items-center gap-2 font-semibold text-slate-900">
+                    <span
+                      aria-hidden
+                      title={toneStyles[appointmentTone(request, clock)].label}
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                        toneStyles[appointmentTone(request, clock)].dot
+                      }`}
+                    />
                     {request.applicant_name_snapshot}
                   </p>
 
