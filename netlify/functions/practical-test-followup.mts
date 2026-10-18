@@ -71,7 +71,7 @@ export default async () => {
     `,
     )
     .in("status", ["submitted", "under_review"])
-    .or("source_system.is.null,source_system.neq.sharepoint")
+    .or("source_system.is.null,source_system.neq.legacy_import")
     .lte("followup_anchor_at", cutoff)
     .order("followup_anchor_at", {
       ascending: true,

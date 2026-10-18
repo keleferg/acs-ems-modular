@@ -381,7 +381,7 @@ export default function ApplicantDashboardPage() {
       `,
       )
       .eq("applicant_profile_id", applicantProfile.id)
-      .neq("source_system", "sharepoint")
+      .neq("source_system", "legacy_import")
       .order("submitted_at", {
         ascending: false,
         nullsFirst: false,

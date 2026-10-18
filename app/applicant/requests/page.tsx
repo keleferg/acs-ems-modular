@@ -787,7 +787,7 @@ export default function ApplicantRequestsPage() {
         `,
         )
         .eq("applicant_profile_id", applicantProfile.id)
-        .or("source_system.is.null,source_system.neq.sharepoint")
+        .or("source_system.is.null,source_system.neq.legacy_import")
         .order("created_at", { ascending: false });
 
       if (cancelled) return;

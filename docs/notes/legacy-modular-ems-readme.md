@@ -52,7 +52,3 @@ Rules implemented:
 3. Non-required tasks remain visible, are marked as `Not Performed`, and do not make an area incomplete if left as `NP`.
 4. If a non-required task is graded with a failing grade (`1`), the whole outcome becomes unsatisfactory.
 5. Required tasks remain incomplete until K, R, and S are all graded numerically.
-
-## SharePoint
-
-The SharePoint button is intentionally isolated as a stub in `main.js`. Connect it to a future `services/sharePointService.js` module using your Power Automate HTTP endpoint.

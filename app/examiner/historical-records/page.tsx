@@ -1480,7 +1480,7 @@ export default function ExaminerHistoricalRecordsPage() {
                   request
                     .source_system,
                 ) ===
-                  "sharepoint" ||
+                  "legacy_import" ||
                 Boolean(
                   clean(
                     request
@@ -2462,7 +2462,7 @@ export default function ExaminerHistoricalRecordsPage() {
                           <td className="whitespace-nowrap px-3 py-4">
                             {record.isLegacy ? (
                               <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">
-                                Legacy / SharePoint
+                                Legacy import
                               </span>
                             ) : test ? (
                               <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-700">
