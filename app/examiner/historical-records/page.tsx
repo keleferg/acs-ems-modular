@@ -102,7 +102,9 @@ type GradeRow = {
   id: string;
   practical_test_id: string;
   task_code: string;
-  grade_component: "K" | "R" | "S";
+  // K/R/S for ACS Tasks; T is the single Task grade for PTS Tasks
+  // (gliders, CFII).
+  grade_component: "K" | "R" | "S" | "T";
   grade_value: "NP" | "1" | "2" | "3" | "4";
 };
 
@@ -173,6 +175,7 @@ type TaskGradeSummary = {
   K: string;
   R: string;
   S: string;
+  T: string;
 };
 
 function clean(value: unknown) {
@@ -1840,6 +1843,7 @@ export default function ExaminerHistoricalRecordsPage() {
           K: "—",
           R: "—",
           S: "—",
+          T: "—",
         };
 
       existing[
@@ -2335,6 +2339,22 @@ export default function ExaminerHistoricalRecordsPage() {
                           )
                         : [];
 
+                    // PTS tests (gliders, CFII) have one grade per Task.
+                    const showsTaskGrade =
+                      taskRows.some(
+                        (task) =>
+                          task.T !== "—",
+                      );
+
+                    const showsKrsGrades =
+                      !showsTaskGrade ||
+                      taskRows.some(
+                        (task) =>
+                          task.K !== "—" ||
+                          task.R !== "—" ||
+                          task.S !== "—",
+                      );
+
                     const requestAudits =
                       auditsByRequest.get(
                         request.id,
@@ -2709,11 +2729,6 @@ export default function ExaminerHistoricalRecordsPage() {
 
                                       <div className="mt-6">
                                         <h4 className="font-bold text-slate-900">
-                                          K
-                                          /
-                                          R
-                                          /
-                                          S
                                           Task
                                           Grades
                                         </h4>
@@ -2727,17 +2742,27 @@ export default function ExaminerHistoricalRecordsPage() {
                                                     Task
                                                   </th>
 
-                                                  <th className="px-3 py-3">
-                                                    K
-                                                  </th>
+                                                  {showsKrsGrades ? (
+                                                    <>
+                                                      <th className="px-3 py-3">
+                                                        K
+                                                      </th>
 
-                                                  <th className="px-3 py-3">
-                                                    R
-                                                  </th>
+                                                      <th className="px-3 py-3">
+                                                        R
+                                                      </th>
 
-                                                  <th className="px-3 py-3">
-                                                    S
-                                                  </th>
+                                                      <th className="px-3 py-3">
+                                                        S
+                                                      </th>
+                                                    </>
+                                                  ) : null}
+
+                                                  {showsTaskGrade ? (
+                                                    <th className="px-3 py-3">
+                                                      Grade
+                                                    </th>
+                                                  ) : null}
                                                 </tr>
                                               </thead>
 
@@ -2758,23 +2783,35 @@ export default function ExaminerHistoricalRecordsPage() {
                                                         }
                                                       </td>
 
-                                                      <td className="px-3 py-3">
-                                                        {
-                                                          task.K
-                                                        }
-                                                      </td>
+                                                      {showsKrsGrades ? (
+                                                        <>
+                                                          <td className="px-3 py-3">
+                                                            {
+                                                              task.K
+                                                            }
+                                                          </td>
 
-                                                      <td className="px-3 py-3">
-                                                        {
-                                                          task.R
-                                                        }
-                                                      </td>
+                                                          <td className="px-3 py-3">
+                                                            {
+                                                              task.R
+                                                            }
+                                                          </td>
 
-                                                      <td className="px-3 py-3">
-                                                        {
-                                                          task.S
-                                                        }
-                                                      </td>
+                                                          <td className="px-3 py-3">
+                                                            {
+                                                              task.S
+                                                            }
+                                                          </td>
+                                                        </>
+                                                      ) : null}
+
+                                                      {showsTaskGrade ? (
+                                                        <td className="px-3 py-3">
+                                                          {
+                                                            task.T
+                                                          }
+                                                        </td>
+                                                      ) : null}
                                                     </tr>
                                                   ),
                                                 )}

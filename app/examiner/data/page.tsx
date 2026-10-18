@@ -88,7 +88,9 @@ type PracticalTest = {
 type PracticalTestGrade = {
   practical_test_id: string;
   task_code: string;
-  grade_component: "K" | "R" | "S";
+  // K/R/S for ACS Tasks; T is the single Task grade for PTS Tasks
+  // (gliders, CFII).
+  grade_component: "K" | "R" | "S" | "T";
   grade_value: "NP" | "1" | "2" | "3" | "4";
 };
 
@@ -3098,8 +3100,9 @@ export default function ExaminerDataPage() {
                 </div>
 
                 <div className="text-sm text-slate-500">
-                  stored K / R / S grade
-                  components
+                  stored Task grade
+                  components (K / R / S, or one
+                  grade per PTS Task)
                 </div>
               </div>
             </div>
