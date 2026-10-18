@@ -2939,7 +2939,7 @@ export default function ExaminerRequestsWorkspace({
 
       {viewOnly ? (
         <div className="mt-6 rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 text-sky-900">
-          <span className="font-semibold">Administrator view.</span> You're
+          <span className="font-semibold">Administrator view.</span> You&rsquo;re
           viewing {viewExaminerName || "this examiner"}&apos;s requests. Filters,
           grouping and request details work normally; editing controls are
           turned off.
