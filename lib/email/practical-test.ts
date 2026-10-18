@@ -1673,6 +1673,243 @@ export function buildAppointmentAcceptedExaminerEmail(
   };
 }
 
+/**
+ * Examiner reminder: a scheduled/confirmed appointment starts within 48 hours
+ * and has no DMS preapproval number (sent by the dms-preapproval-reminder
+ * scheduled function).
+ */
+export function buildDmsPreapprovalMissingExaminerEmail(
+  input: AppointmentAcceptedExaminerEmailInput,
+) {
+  const examinerGreeting = input.examinerName?.trim()
+    ? firstName(input.examinerName)
+    : "Examiner";
+
+  const appointmentDate = formatScheduledAppointmentDate(
+    input.scheduledStartAt,
+  );
+
+  const appointmentStartTime = formatScheduledAppointmentTime(
+    input.scheduledStartAt,
+  );
+
+  const appointmentEndTime = formatScheduledAppointmentTime(
+    input.scheduledEndAt,
+  );
+
+  const subject = `DMS Preapproval Needed — ${input.requestNumber} on ${appointmentDate}`;
+
+  const html = `
+<!doctype html>
+<html lang="en">
+  <body style="
+    margin:0;
+    padding:0;
+    background:#f8fafc;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#0f172a;
+  ">
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="background:#f8fafc;padding:32px 16px;"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="
+              max-width:640px;
+              background:#ffffff;
+              border:1px solid #e2e8f0;
+              border-radius:16px;
+              overflow:hidden;
+            "
+          >
+            <tr>
+              <td style="
+                background:#0f172a;
+                padding:24px 28px;
+                color:#ffffff;
+              ">
+                <div style="
+                  font-size:12px;
+                  font-weight:700;
+                  letter-spacing:1.5px;
+                  text-transform:uppercase;
+                  color:#fbbf24;
+                ">
+                  Aviation Training Solutions
+                </div>
+
+                <div style="
+                  margin-top:7px;
+                  font-size:24px;
+                  line-height:1.25;
+                  font-weight:700;
+                ">
+                  DMS Preapproval Needed
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:28px;">
+                <p style="
+                  margin:0 0 18px;
+                  font-size:16px;
+                  line-height:1.6;
+                ">
+                  Aloha ${escapeHtml(examinerGreeting)},
+                </p>
+
+                <p style="
+                  margin:0 0 22px;
+                  font-size:15px;
+                  line-height:1.7;
+                  color:#334155;
+                ">
+                  The practical test for ${escapeHtml(input.applicantName)}
+                  starts within 48 hours and doesn&rsquo;t have a DMS
+                  preapproval number yet. Please enter it on the request
+                  before the test.
+                </p>
+
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                  style="
+                    border:1px solid #e2e8f0;
+                    border-radius:12px;
+                    overflow:hidden;
+                  "
+                >
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;width:150px;">
+                      Applicant
+                    </td>
+                    <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;font-weight:700;">
+                      ${escapeHtml(input.applicantName)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;">
+                      Request Number
+                    </td>
+                    <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;">
+                      ${escapeHtml(input.requestNumber)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;">
+                      Date
+                    </td>
+                    <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;">
+                      ${escapeHtml(appointmentDate)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;">
+                      Time
+                    </td>
+                    <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;">
+                      ${escapeHtml(appointmentStartTime)}
+                      –
+                      ${escapeHtml(appointmentEndTime)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;">
+                      Location
+                    </td>
+                    <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;">
+                      ${escapeHtml(input.scheduledLocation)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;">
+                      Certificate
+                    </td>
+                    <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;">
+                      ${escapeHtml(input.certificateSought)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;font-size:13px;font-weight:700;color:#475569;">
+                      Rating
+                    </td>
+                    <td style="padding:12px 16px;font-size:14px;">
+                      ${escapeHtml(input.ratingSought)}
+                    </td>
+                  </tr>
+                </table>
+
+                <div style="margin-top:26px;">
+                  <a
+                    href="${escapeHtml(input.examinerPortalUrl)}"
+                    style="
+                      display:inline-block;
+                      padding:12px 18px;
+                      background:#d97706;
+                      color:#ffffff;
+                      text-decoration:none;
+                      border-radius:8px;
+                      font-size:14px;
+                      font-weight:700;
+                    "
+                  >
+                    Add DMS Preapproval Number
+                  </a>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `.trim();
+
+  const text = [
+    `Aloha ${examinerGreeting},`,
+    "",
+    `The practical test for ${input.applicantName} starts within 48 hours and doesn't have a DMS preapproval number yet. Please enter it on the request before the test.`,
+    "",
+    `Applicant: ${input.applicantName}`,
+    `Request Number: ${input.requestNumber}`,
+    `Date: ${appointmentDate}`,
+    `Time: ${appointmentStartTime} - ${appointmentEndTime}`,
+    `Location: ${input.scheduledLocation}`,
+    `Certificate: ${input.certificateSought}`,
+    `Rating: ${input.ratingSought}`,
+    "",
+    `Add the DMS preapproval number: ${input.examinerPortalUrl}`,
+  ].join("\n");
+
+  return {
+    subject,
+    html,
+    text,
+  };
+}
+
 export function buildAppointmentRescheduleRequestedExaminerEmail(
   input: AppointmentRescheduleRequestedExaminerEmailInput,
 ) {
