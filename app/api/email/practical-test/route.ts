@@ -23,6 +23,8 @@ type EmailRequestBody = {
   proposedLocation?: string;
   proposedFee?: number | null;
   proposalNotes?: string | null;
+  /** request_scheduled_applicant: leave the fee amount out (sent later). */
+  omitFee?: boolean;
 };
 
 type ClaimRow = {
@@ -958,6 +960,7 @@ async function handlePost(request: Request): Promise<Response> {
         practicalTestRequest.fee_amount === null
           ? null
           : Number(practicalTestRequest.fee_amount),
+      omitFee: body.omitFee === true,
       portalUrl: `${portalOrigin}/applicant/requests`,
     });
 
@@ -967,6 +970,9 @@ async function handlePost(request: Request): Promise<Response> {
       scheduledStartAt,
       scheduledEndAt,
       scheduledLocation,
+      // Only added when omitted, so existing keys are unchanged; re-saving
+      // with the box changed sends a corrected email.
+      ...(body.omitFee === true ? ["fee-omitted"] : []),
     ].join(":");
   } else {
     const assignedExaminerProfileId =

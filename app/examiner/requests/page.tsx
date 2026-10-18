@@ -858,6 +858,11 @@ export default function ExaminerRequestsPage() {
   const [appointmentDurationDrafts, setAppointmentDurationDrafts] = useState<
     Record<string, string>
   >({});
+  // Per request: leave the fee amount out of the "appointment scheduled"
+  // email (the fee is sent later with the fees-finalized email).
+  const [omitFeeInScheduleEmail, setOmitFeeInScheduleEmail] = useState<
+    Record<string, boolean>
+  >({});
   const [appointmentLocationDrafts, setAppointmentLocationDrafts] = useState<
     Record<string, string>
   >({});
@@ -2451,6 +2456,7 @@ export default function ExaminerRequestsPage() {
           body: JSON.stringify({
             eventType: "request_scheduled_applicant",
             requestId: request.id,
+            omitFee: omitFeeInScheduleEmail[request.id] === true,
           }),
         });
 
@@ -4805,6 +4811,27 @@ export default function ExaminerRequestsPage() {
                                         )}
                                       </div>
                                     ) : null}
+
+                                    <label className="mt-3 flex w-fit items-center gap-2 text-sm text-slate-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          omitFeeInScheduleEmail[request.id] ===
+                                          true
+                                        }
+                                        onChange={(event) =>
+                                          setOmitFeeInScheduleEmail(
+                                            (current) => ({
+                                              ...current,
+                                              [request.id]:
+                                                event.target.checked,
+                                            }),
+                                          )
+                                        }
+                                        className="h-4 w-4 rounded border-slate-300 text-amber-700 focus:ring-amber-600"
+                                      />
+                                      Omit fee information on notification email
+                                    </label>
                                   </div>
 
                                   <div>

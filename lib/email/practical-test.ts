@@ -46,6 +46,8 @@ type RequestScheduledApplicantEmailInput = {
   scheduledEndAt: string;
   scheduledLocation: string;
   feeAmount: number | null;
+  /** Examiner chose to send fees later; show a note instead of the amount. */
+  omitFee?: boolean;
   portalUrl: string;
 };
 
@@ -877,7 +879,9 @@ export function buildRequestScheduledApplicantEmail(
     input.scheduledEndAt,
   );
 
-  const fee = formatScheduledAppointmentFee(input.feeAmount);
+  const fee = input.omitFee
+    ? "Fee information will be sent in a separate email once it is finalized."
+    : formatScheduledAppointmentFee(input.feeAmount);
 
   const subject = `Practical Test Appointment Scheduled — ${input.requestNumber}`;
 
