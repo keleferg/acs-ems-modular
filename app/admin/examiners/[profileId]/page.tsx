@@ -6,11 +6,13 @@ import {
   ArrowLeft,
   BadgeDollarSign,
   CalendarClock,
+  CalendarDays,
   CheckCircle2,
   ChevronRight,
   CircleAlert,
   ClipboardCheck,
   FileClock,
+  Inbox,
   Loader2,
   Mail,
   MapPin,
@@ -1463,7 +1465,26 @@ export default function AdminManageExaminerPage() {
         </div>
       </section>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+      {/* View-only access to this examiner's EMS workspace. */}
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Link
+          href={`/admin/examiners/${profileId}/requests`}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-800 shadow-sm transition hover:border-sky-300 hover:bg-sky-50"
+        >
+          <Inbox aria-hidden className="h-5 w-5 text-sky-700" />
+          View Requests
+        </Link>
+
+        <Link
+          href={`/admin/examiners/${profileId}/calendar`}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-800 shadow-sm transition hover:border-sky-300 hover:bg-sky-50"
+        >
+          <CalendarDays aria-hidden className="h-5 w-5 text-sky-700" />
+          View Calendar
+        </Link>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-5">
             <h2 className="text-xl font-bold text-slate-950">
