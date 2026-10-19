@@ -3,7 +3,7 @@ import { useState } from "react";
 import { EVENT_SET_SEQUENCE } from "@/lib/poa/event-set-sequence";
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
 
-const previewIds = ["preparation", "procedures", "start", "takeoff", "cruise", "descent", "approach", "secure"];
+const previewIds = ["preparation", "procedures", "start", "taxi", "takeoff", "cruise", "descent", "approach", "secure"];
 const eventSets = EVENT_SET_SEQUENCE.map((eventSet, index) => ({ ...eventSet, id: previewIds[index] }));
 const initialQuestions = [
   { id: "q1", title: "How would you decide whether the weather is suitable for this route?", eventSetIds: ["preparation"], assignedEventSetId: "preparation", selected: true },

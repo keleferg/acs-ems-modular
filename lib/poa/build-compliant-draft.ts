@@ -1,3 +1,5 @@
+// maxQuestionCount: how many questions the event set should hold
+// (poa_event_sets.minimum_question_count: 60 / 30 / 15).
 type EventSet = { id: string; code: string; name: string; maxQuestionCount: number };
 type Trigger = { id: string; eventSetId: string; category: string; weight: number };
 type Question = { id: string; codes: string[]; placements: { eventSetId: string; afterTrigger: boolean; order: number; triggerIds?: string[]; required?: boolean }[] };
@@ -51,11 +53,32 @@ export function buildCompliantDraft(input: {
       break;
     }
   }
+  // Fill each event set to its question count from the questions mapped to
+  // it, in the mapped sequence order.
+  for (const event of input.events) {
+    const candidates = input.questions
+      .filter(q => !assignments[q.id])
+      .flatMap(q => {
+        const placement = q.placements.find(p => p.eventSetId === event.id);
+        return placement ? [{ q, order: placement.order }] : [];
+      })
+      .sort((a,b) => a.order-b.order || a.q.id.localeCompare(b.q.id));
+    for (const { q } of candidates) {
+      if ((counts.get(event.id) ?? 0) >= event.maxQuestionCount) break;
+      assignments[q.id] = event.id;
+      counts.set(event.id, (counts.get(event.id) ?? 0) + 1);
+      q.codes.forEach(code => covered.add(code));
+    }
+  }
+  // Event sets the question bank can't fill yet.
+  const shortEventSets = input.events
+    .filter(e => (counts.get(e.id) ?? 0) < e.maxQuestionCount)
+    .map(e => ({ id: e.id, name: e.name, count: counts.get(e.id) ?? 0, target: e.maxQuestionCount }));
   const order: Record<string,string[]> = {};
   for (const event of input.events) {
     const selected=input.questions.filter(q => assignments[q.id]===event.id).sort((a,b) => (a.placements.find(p => p.eventSetId===event.id)?.order??100)-(b.placements.find(p => p.eventSetId===event.id)?.order??100));
     const after=(q:Question) => q.placements.find(p => p.eventSetId===event.id)?.afterTrigger;
     order[event.id]=[...selected.filter(q => !after(q)).map(q => `question:${q.id}`),...triggers[event.id].map(id => `trigger:${id}`),...selected.filter(after).map(q => `question:${q.id}`)];
   }
-  return { triggers, assignments, order, questionIds: Object.keys(assignments), provisionalQuestionIds, missingCodes: input.requiredCodes.filter(code => !covered.has(code)) };
+  return { triggers, assignments, order, questionIds: Object.keys(assignments), provisionalQuestionIds, shortEventSets, missingCodes: input.requiredCodes.filter(code => !covered.has(code)) };
 }

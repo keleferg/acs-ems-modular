@@ -18,7 +18,6 @@ import { taskAppliesToClass } from "@/lib/poa/task-class-applicability";
 import { buildCompliantDraft } from "@/lib/poa/build-compliant-draft";
 import { hasCompleteTaskCoverage } from "@/lib/poa/generation-readiness";
 import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-editor";
-import { EVENT_SET_SEQUENCE } from "@/lib/poa/event-set-sequence";
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
 
 import { createClient } from "@/lib/supabase/client";
@@ -1422,20 +1421,27 @@ export default function GeneratePoaPage() {
       if (!selectedScenarioId) return;
 
       const supabase = createClient();
+      // The oral event sets come from the library, in order, with the
+      // number of questions each should hold (minimum_question_count).
       const { data: sequenceRows, error: sequenceError } = await supabase
         .from("poa_event_sets")
-        .select("id, code, name, description, default_phase, is_active")
-        .in("code", EVENT_SET_SEQUENCE.map((eventSet) => eventSet.code))
-        .eq("is_active", true);
+        .select("id, code, name, description, sort_order, minimum_question_count")
+        .eq("is_active", true)
+        .eq("exam_section", "oral")
+        .order("sort_order", { ascending: true });
 
       if (cancelled) return;
       if (sequenceError) { setErrorMessage(`Event sets could not be loaded: ${sequenceError.message}`); return; }
-      const eventSets = EVENT_SET_SEQUENCE.flatMap((definition, index) => {
-        const row = (sequenceRows ?? []).find((eventSet) => eventSet.code === definition.code);
-        return row ? [{ id: row.id, code: row.code, name: definition.name, description: row.description, sortOrder: index + 1, maxQuestionCount: definition.maxQuestionCount }] : [];
-      });
-      if (eventSets.length !== EVENT_SET_SEQUENCE.length) {
-        setErrorMessage("The shared eight-event-set library is incomplete. Restore the missing event sets before generating.");
+      const eventSets = (sequenceRows ?? []).map((row, index) => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        description: row.description,
+        sortOrder: index + 1,
+        maxQuestionCount: Math.max(1, row.minimum_question_count ?? 15),
+      }));
+      if (eventSets.length === 0) {
+        setErrorMessage("No active oral event sets were found. Activate the event sets before generating.");
         return;
       }
 
@@ -1678,7 +1684,10 @@ export default function GeneratePoaPage() {
         setSelectedFlightTaskCodes(flightTaskLibrary.map(task => task.acs_task_code_snapshot));
         setSelectionMethod("automatic");
         setGeneratorTab("timeline");
-        setMessage(`POA draft built. ${draft.provisionalQuestionIds.length ? `${draft.provisionalQuestionIds.length} questions were placed provisionally; review their event sets. ` : ""}Review the Timeline, Flight Tasks, and Compliance tabs before generating.`);
+        const shortfall = draft.shortEventSets.length
+          ? `The question bank can't fill ${draft.shortEventSets.map(e => `${e.name} (${e.count} of ${e.target})`).join(", ")} yet. `
+          : "";
+        setMessage(`POA draft built. ${draft.provisionalQuestionIds.length ? `${draft.provisionalQuestionIds.length} questions were placed provisionally; review their event sets. ` : ""}${shortfall}Review the Timeline, Flight Tasks, and Compliance tabs before generating.`);
         if (draft.missingCodes.length) {
           setErrorMessage(`The draft still needs ${draft.missingCodes.length} Knowledge/Risk groups. Review Compliance for gaps; final generation remains disabled until they are covered.`);
         }
