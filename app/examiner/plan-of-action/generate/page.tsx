@@ -293,6 +293,7 @@ type ScenarioTimelineResult = {
 
 type SavedGeneratedPoa = {
   id: string;
+  version_code: string | null;
   title: string;
   status: string | null;
   created_at: string;
@@ -850,6 +851,7 @@ export default function GeneratePoaPage() {
         .select(
           `
             id,
+            version_code,
             title,
             status,
             created_at
@@ -895,7 +897,7 @@ export default function GeneratePoaPage() {
           minute: "2-digit",
         });
 
-    return `Version ${index + 1}${dateText ? ` — ${dateText}` : ""}`;
+    return `${poa.version_code || `Version ${index + 1}`}${dateText ? ` — ${dateText}` : ""}`;
   }
 
   function selectPoaVersion(value: string) {

@@ -93,6 +93,9 @@ type PracticalTestRow = {
   evaluation_status: string | null;
   evaluation_state: unknown;
 
+  // Generated POA used on this test (POA-<year>-<number>).
+  poa_version_code: string | null;
+
   submitted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -177,6 +180,46 @@ type TaskGradeSummary = {
   S: string;
   T: string;
 };
+
+/**
+ * Questions from the generated POA that were graded on this test
+ * (evaluation_state.poa, written by EMT).
+ */
+function poaQuestionsAsked(evaluationState: unknown) {
+  const poa =
+    evaluationState &&
+    typeof evaluationState === "object"
+      ? (evaluationState as { poa?: unknown }).poa
+      : null;
+
+  const questions =
+    poa &&
+    typeof poa === "object" &&
+    Array.isArray((poa as { questions?: unknown }).questions)
+      ? ((poa as { questions: unknown[] }).questions)
+      : [];
+
+  return questions.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+
+    const question = entry as {
+      order?: unknown;
+      acsReference?: unknown;
+      grade?: unknown;
+      asked?: unknown;
+    };
+
+    if (question.asked !== true) return [];
+
+    return [
+      {
+        order: Number(question.order) || 0,
+        acsReference: String(question.acsReference ?? ""),
+        grade: String(question.grade ?? ""),
+      },
+    ];
+  });
+}
 
 function clean(value: unknown) {
   return String(value ?? "").trim();
@@ -990,6 +1033,7 @@ export default function ExaminerHistoricalRecordsPage() {
               examiner_notes,
               evaluation_status,
               evaluation_state,
+              poa_version_code,
               submitted_at,
               created_at,
               updated_at
@@ -2708,7 +2752,41 @@ export default function ExaminerHistoricalRecordsPage() {
                                             test.result,
                                           )}
                                         />
+
+                                        <DetailField
+                                          label="Plan of Action"
+                                          value={
+                                            test.poa_version_code ||
+                                            "—"
+                                          }
+                                        />
                                       </div>
+
+                                      {poaQuestionsAsked(
+                                        test.evaluation_state,
+                                      ).length ? (
+                                        <div className="mt-5 rounded-xl bg-slate-50 p-4">
+                                          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            POA Questions Asked
+                                          </div>
+
+                                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-700">
+                                            {poaQuestionsAsked(
+                                              test.evaluation_state,
+                                            ).map((question) => (
+                                              <span
+                                                key={`${question.order}-${question.acsReference}`}
+                                                className="rounded-md border border-slate-200 bg-white px-2 py-1"
+                                              >
+                                                {question.order}.{" "}
+                                                {question.acsReference ||
+                                                  "Question"}{" "}
+                                                — {question.grade}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
 
                                       {clean(
                                         test.examiner_notes,

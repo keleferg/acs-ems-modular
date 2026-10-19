@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 type GeneratedPlan = {
   compliance_snapshot: { required?: string[] } | null;
   id: string;
+  version_code: string | null;
   practical_test_type_id: string;
   title: string;
   scenario_name: string | null;
@@ -201,9 +202,11 @@ function acsReference(
 function PoaHeader({
   title,
   reference,
+  versionCode,
 }: {
   title: string;
   reference: string;
+  versionCode?: string | null;
 }) {
   return (
     <div className="poa-header">
@@ -218,6 +221,12 @@ function PoaHeader({
       <div className="reference-line">
         {reference}
       </div>
+
+      {versionCode ? (
+        <div className="reference-line">
+          POA Version: {versionCode}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -348,6 +357,7 @@ function GeneratedPoaPrintContent() {
         .from("generated_plan_of_actions")
         .select(`
           id,
+          version_code,
           practical_test_type_id,
           title,
           scenario_name,
@@ -666,6 +676,7 @@ function GeneratedPoaPrintContent() {
           <PoaHeader
             title={documentTitle}
             reference={reference}
+            versionCode={plan?.version_code}
           />
 
           <h2 className="center-heading small">
@@ -826,6 +837,7 @@ function GeneratedPoaPrintContent() {
           <PoaHeader
             title={documentTitle}
             reference={reference}
+            versionCode={plan?.version_code}
           />
 
           <div className="page-two-content">

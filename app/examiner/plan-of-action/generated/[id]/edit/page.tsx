@@ -112,6 +112,7 @@ type ScenarioLibraryOption = {
 
 type EditPoaVersionOption = {
   id: string;
+  version_code: string | null;
   title: string;
   created_at: string;
   status: string | null;
@@ -1027,6 +1028,7 @@ function GeneratedPoaEditContent() {
         .from("generated_plan_of_actions")
         .select(`
           id,
+          version_code,
           title,
           created_at,
           status
@@ -1083,7 +1085,7 @@ function GeneratedPoaEditContent() {
             },
           );
 
-    return `Version ${index + 1}${
+    return `${poa.version_code || `Version ${index + 1}`}${
       dateText
         ? ` — ${dateText}`
         : ""
