@@ -1377,6 +1377,8 @@ export default function GeneratePoaPage() {
         `,
         )
         .eq("is_active", true)
+        // Draft scenarios (reason for the flight not written yet).
+        .eq("is_draft", false)
         .order("scenario_name", {
           ascending: true,
         });

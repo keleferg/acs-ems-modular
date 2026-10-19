@@ -117,6 +117,9 @@ type ScenarioRecord = {
 
   is_active: boolean;
 
+  // Listed here but not offered by the POA generator until cleared.
+  is_draft: boolean;
+
   created_at: string;
   updated_at: string;
 
@@ -144,6 +147,7 @@ type ScenarioEditor = {
   operationalEnvironment: string;
   meteorologicalEnvironment: string;
   examinerNotes: string;
+  isDraft: boolean;
 
   practicalTestTypeIds: string[];
   eventSequence: EventSequenceItem[];
@@ -163,6 +167,7 @@ const EMPTY_EDITOR: ScenarioEditor = {
   operationalEnvironment: "",
   meteorologicalEnvironment: "",
   examinerNotes: "",
+  isDraft: false,
 
   practicalTestTypeIds: [],
   eventSequence: [],
@@ -261,6 +266,7 @@ export default function ScenarioLibraryPage() {
           initial_conditions,
           examiner_notes,
           is_active,
+          is_draft,
           created_at,
           updated_at,
 
@@ -596,6 +602,9 @@ export default function ScenarioLibraryPage() {
         scenario.examiner_notes ??
         "",
 
+      isDraft:
+        scenario.is_draft === true,
+
       practicalTestTypeIds:
         scenario
           .poa_scenario_practical_test_types
@@ -781,6 +790,9 @@ export default function ScenarioLibraryPage() {
                 .trim() ||
               null,
 
+            is_draft:
+              editor.isDraft,
+
             updated_at:
               new Date()
                 .toISOString(),
@@ -864,6 +876,9 @@ export default function ScenarioLibraryPage() {
               editor.examinerNotes
                 .trim() ||
               null,
+
+            is_draft:
+              editor.isDraft,
 
             created_by:
               user?.id ??
@@ -1392,6 +1407,12 @@ export default function ScenarioLibraryPage() {
 
                           <h2 className="text-lg font-bold text-slate-900">
                             {scenario.scenario_name}
+
+                            {scenario.is_draft ? (
+                              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-bold uppercase tracking-wide text-amber-800">
+                                Draft
+                              </span>
+                            ) : null}
                           </h2>
 
                           {scenario.scenario_brief ? (
@@ -2126,6 +2147,28 @@ export default function ScenarioLibraryPage() {
                   placeholder="Private examiner instructions, sequencing notes, or expected scenario flow…"
                   className="w-full rounded-lg border border-slate-300 px-4 py-3 leading-6"
                 />
+
+                <label className="mt-5 flex items-start gap-3 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={editor.isDraft}
+                    onChange={(event) =>
+                      setEditor((current) => ({
+                        ...current,
+                        isDraft: event.target.checked,
+                      }))
+                    }
+                    className="mt-1 h-4 w-4"
+                  />
+
+                  <span>
+                    <span className="font-semibold text-slate-800">
+                      Draft
+                    </span>{" "}
+                    — keep this scenario out of the POA generator until its
+                    reason for the flight and situation are written.
+                  </span>
+                </label>
 
               </section>
 
