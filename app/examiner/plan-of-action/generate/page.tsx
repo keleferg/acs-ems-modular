@@ -16,6 +16,7 @@ import { validateEditableDraft } from "@/lib/poa/validate-editable-draft";
 import { questionEventTargets } from "@/lib/poa/question-event-targets";
 import { taskAppliesToClass } from "@/lib/poa/task-class-applicability";
 import { buildCompliantDraft } from "@/lib/poa/build-compliant-draft";
+import { orderEventItems, pickRotatedTriggers } from "@/lib/poa/event-sequence";
 import { hasCompleteTaskCoverage } from "@/lib/poa/generation-readiness";
 import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-editor";
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
@@ -249,6 +250,10 @@ type CompatibleTrigger = {
   title: string;
   narrative: string | null;
   weight: number;
+  /** Rotation slot (objective) within the event set. */
+  slot: number;
+  /** Point in the event set's question sequence where the trigger is dropped in. */
+  sequenceOrder: number;
 };
 
 type GeneratorEventSet = {
@@ -258,6 +263,8 @@ type GeneratorEventSet = {
   description: string | null;
   sortOrder: number;
   maxQuestionCount: number;
+  /** Triggers drawn by default (0 = none). */
+  triggerCount: number;
 };
 
 type ScenarioTimelineItem = {
@@ -564,6 +571,9 @@ export default function GeneratePoaPage() {
   const [generatorEventSets, setGeneratorEventSets] = useState<GeneratorEventSet[]>([]);
   const [compatibleTriggers, setCompatibleTriggers] = useState<CompatibleTrigger[]>([]);
   const [selectedTriggerIds, setSelectedTriggerIds] = useState<Record<string, string[]>>({});
+  // Triggers in the examiner's previous POA for this practical test; the next
+  // POA avoids them so the same objectives come with different circumstances.
+  const [previousTriggerIds, setPreviousTriggerIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -1429,7 +1439,7 @@ export default function GeneratePoaPage() {
       // number of questions each should hold (minimum_question_count).
       const { data: sequenceRows, error: sequenceError } = await supabase
         .from("poa_event_sets")
-        .select("id, code, name, description, sort_order, minimum_question_count")
+        .select("id, code, name, description, sort_order, minimum_question_count, trigger_count")
         .eq("is_active", true)
         .eq("exam_section", "oral")
         .order("sort_order", { ascending: true });
@@ -1443,6 +1453,7 @@ export default function GeneratePoaPage() {
         description: row.description,
         sortOrder: index + 1,
         maxQuestionCount: Math.max(1, row.minimum_question_count ?? 15),
+        triggerCount: Math.max(0, row.trigger_count ?? 1),
       }));
       if (eventSets.length === 0) {
         setErrorMessage("No active oral event sets were found. Activate the event sets before generating.");
@@ -1457,6 +1468,8 @@ export default function GeneratePoaPage() {
         .select(`
           event_set_id,
           option_order,
+          trigger_slot,
+          sequence_order,
           is_active,
           poa_triggers!inner (
             id, category, trigger_text, trigger_narrative, is_active, trigger_role
@@ -1481,17 +1494,44 @@ export default function GeneratePoaPage() {
           title: related?.trigger_text ?? "Trigger",
           narrative: related?.trigger_narrative ?? null,
           weight: 100 - row.option_order,
+          slot: row.trigger_slot ?? 1,
+          sequenceOrder: row.sequence_order ?? 500,
         };
       }).filter((choice) => choice.id);
 
+      // The examiner's previous POA for this practical test: its triggers are
+      // avoided so this POA rotates to different ones.
+      let previous = new Set<string>();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && testType?.id) {
+        const { data: lastPoa } = await supabase
+          .from("generated_plan_of_actions")
+          .select("id")
+          .eq("examiner_profile_id", user.id)
+          .eq("practical_test_type_id", testType.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastPoa?.id) {
+          const { data: lastTriggers } = await supabase
+            .from("generated_plan_of_action_triggers")
+            .select("trigger_library_id")
+            .eq("generated_plan_of_action_id", lastPoa.id)
+            .eq("timeline_kind", "trigger_option");
+          previous = new Set((lastTriggers ?? []).map((row) => row.trigger_library_id).filter((id): id is string => Boolean(id)));
+        }
+      }
+      if (cancelled) return;
+
       setGeneratorEventSets(eventSets);
       setCompatibleTriggers(choices);
-      setSelectedTriggerIds(Object.fromEntries(eventSets.map((eventSet) => [eventSet.id, []])));
+      setPreviousTriggerIds(previous);
+      setSelectedTriggerIds(pickRotatedTriggers({ events: eventSets, options: choices, previousTriggerIds: previous }));
     }
 
     void loadTriggerChoices();
     return () => { cancelled = true; };
-  }, [selectedScenarioId]);
+  }, [selectedScenarioId, testType?.id]);
 
   useEffect(() => {
     setScenarioTimeline(null);
@@ -1511,7 +1551,7 @@ export default function GeneratePoaPage() {
         });
         const order = eventItemOrder[item.event_set_id] ?? [];
         options.sort((a, b) => (order.includes(`trigger:${a.trigger_id}`) ? order.indexOf(`trigger:${a.trigger_id}`) : Number.MAX_SAFE_INTEGER) - (order.includes(`trigger:${b.trigger_id}`) ? order.indexOf(`trigger:${b.trigger_id}`) : Number.MAX_SAFE_INTEGER));
-        return [item, ...options, ...(options.length >= 1 ? [] : [{ kind: "gap", label: item.title, title: "Choose at least one trigger", phase: item.phase, event_set_id: item.event_set_id }])];
+        return [item, ...options];
       });
       return { ...current, timeline };
     });
@@ -1539,13 +1579,32 @@ export default function GeneratePoaPage() {
     return { id: question.id, title: question.question, eventSetIds: questionEventTargets(question.id, eventQuestionRules, timelineEditorEventSets.map((eventSet) => eventSet.id)), assignedEventSetId, selected: selectedIds.includes(question.id) };
   });
 
+  // Within an event set: the flight sequence, each trigger dropped in at its
+  // point with the questions it raises right after it. An order the examiner
+  // arranged by hand wins; anything new joins in sequence after it.
   const effectiveEventItemOrder = Object.fromEntries(timelineEditorEventSets.map((eventSet) => {
-    const active = [
-      ...timelineEditorQuestions.filter((question) => question.selected && question.assignedEventSetId === eventSet.id).map((question) => `question:${question.id}`),
-      ...(selectedTriggerIds[eventSet.id] ?? []).map((id) => `trigger:${id}`),
-    ];
-    const manual = (eventItemOrder[eventSet.id] ?? []).filter((key) => active.includes(key));
-    return [eventSet.id, [...manual, ...active.filter((key) => !manual.includes(key))]];
+    const eventTriggers = selectedTriggerIds[eventSet.id] ?? [];
+    const sequenced = orderEventItems({
+      questions: timelineEditorQuestions
+        .filter((question) => question.selected && question.assignedEventSetId === eventSet.id)
+        .map((question) => {
+          const rule = eventQuestionRules.find((candidate) => candidate.question_id === question.id && candidate.event_set_id === eventSet.id && candidate.review_status === "approved");
+          const ruleTriggers = rule && !rule.applies_to_all_triggers ? rule.poa_event_set_question_triggers.map((link) => link.trigger_id) : [];
+          const linkedTriggers = triggerQuestionLinks.filter((link) => link.question_id === question.id).map((link) => link.trigger_id);
+          return {
+            id: question.id,
+            order: rule?.sequence_order ?? 100,
+            followsTriggerIds: [...ruleTriggers, ...linkedTriggers].filter((id) => eventTriggers.includes(id)),
+            afterTrigger: rule?.trigger_timing === "after_trigger",
+          };
+        }),
+      triggers: eventTriggers.map((id) => ({
+        id,
+        position: compatibleTriggers.find((trigger) => trigger.id === id && trigger.eventSetId === eventSet.id)?.sequenceOrder ?? 500,
+      })),
+    });
+    const manual = (eventItemOrder[eventSet.id] ?? []).filter((key) => sequenced.includes(key));
+    return [eventSet.id, [...manual, ...sequenced.filter((key) => !manual.includes(key))]];
   }));
 
   function assignTimelineEntry(kind: "question" | "trigger", id: string, eventSetId: string) {
@@ -1594,7 +1653,11 @@ export default function GeneratePoaPage() {
 
       const draft = automaticallyPopulate ? buildCompliantDraft({
         events: generatorEventSets,
-        triggers: compatibleTriggers,
+        triggers: compatibleTriggers.map(trigger => ({ id: trigger.id, eventSetId: trigger.eventSetId, position: trigger.sequenceOrder })),
+        // Each automatic build rotates: random within each slot, avoiding the
+        // previous POA's triggers.
+        triggerSelections: pickRotatedTriggers({ events: generatorEventSets, options: compatibleTriggers, previousTriggerIds }),
+        requiredOnly: isAdditionalIssuance,
         requiredCodes: requiredComplianceCodes,
         requiredQuestionIds: [],
         links: triggerQuestionLinks,
@@ -1674,7 +1737,7 @@ export default function GeneratePoaPage() {
               const trigger = compatibleTriggers.find((item) => item.eventSetId === eventSet.id && item.id === id);
               return trigger ? [{ kind: "trigger_option", label: `${eventSet.name} — Option ${index + 1}`, phase: eventSet.code.toLowerCase(), title: trigger.title, narrative: trigger.narrative, trigger_id: id, event_set_id: eventSet.id, event_set_code: eventSet.code, category: trigger.category, trigger_option_order: index + 1 }] : [];
             });
-            return [{ kind: "event_set", label: "Event Set", title: eventSet.name, narrative: eventSet.description, phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id, event_set_code: eventSet.code, max_question_count: eventSet.maxQuestionCount }, ...options, ...(options.length >= 1 ? [] : [{ kind: "gap", label: eventSet.name, title: "Choose at least one trigger", phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id }])];
+            return [{ kind: "event_set", label: "Event Set", title: eventSet.name, narrative: eventSet.description, phase: eventSet.code.toLowerCase(), event_set_id: eventSet.id, event_set_code: eventSet.code, max_question_count: eventSet.maxQuestionCount }, ...options];
           }),
         ],
       };
@@ -1742,21 +1805,6 @@ export default function GeneratePoaPage() {
 
     if (!selectedScenario || !scenarioTimeline) {
       setErrorMessage("Select a scenario and build its Event Sequence before generating.");
-      return;
-    }
-
-    try {
-      const incompleteTriggerSets = generatorEventSets.filter(
-        (eventSet) => (selectedTriggerIds[eventSet.id] ?? []).length < 1,
-      );
-      if (incompleteTriggerSets.length > 0) {
-        throw new Error(
-          `Choose at least one trigger for: ${incompleteTriggerSets.map((eventSet) => eventSet.name).join(", ")}.`,
-        );
-      }
-
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Review the trigger selections.");
       return;
     }
 
@@ -1972,6 +2020,26 @@ export default function GeneratePoaPage() {
 
       const generatedFlightTasks = selectedFlightTaskDrafts;
 
+      /*
+       * One running position for the whole oral timeline, so the printed POA
+       * shows each event set in order and, inside it, questions and triggers
+       * interleaved exactly as sequenced (the print groups by event set and
+       * sorts by these positions).
+       */
+      const timelinePositions = new Map<string, number>();
+      let position = 0;
+      for (const item of scenarioTimeline.timeline ?? []) {
+        if (item.kind === "trigger_option") continue;
+        position += 10;
+        timelinePositions.set(`item:${(scenarioTimeline.timeline ?? []).indexOf(item)}`, position);
+        if (item.kind === "event_set" && item.event_set_id) {
+          for (const key of effectiveEventItemOrder[item.event_set_id] ?? []) {
+            position += 10;
+            timelinePositions.set(key.startsWith("trigger:") ? `${item.event_set_id}:${key}` : key, position);
+          }
+        }
+      }
+
       const snapshots = orderedSelected.map(({ question, rule }, index) => ({
         generated_plan_of_action_id: generated.id,
 
@@ -1999,13 +2067,13 @@ export default function GeneratePoaPage() {
 
         sequence_stage: rule?.sequence_stage ?? null,
 
-        trigger_timing: rule && eventItemOrder[rule.event_set_id]
+        trigger_timing: rule && effectiveEventItemOrder[rule.event_set_id]
           ? (effectiveEventItemOrder[rule.event_set_id] ?? []).slice(0, (effectiveEventItemOrder[rule.event_set_id] ?? []).indexOf(`question:${question.id}`)).some((key) => key.startsWith("trigger:")) ? "after_trigger" : "before_trigger"
           : rule?.trigger_timing ?? null,
 
         trigger_option_id: (rule ? selectedTriggerForRule(rule) : null) ?? triggerQuestionLinks.find(link => link.question_id === question.id && selectedCandidateTriggerIds.has(link.trigger_id) && compatibleTriggers.some(trigger => trigger.id === link.trigger_id && trigger.eventSetId === (questionEventAssignments[question.id] ?? rule?.event_set_id)))?.trigger_id ?? null,
 
-        sort_order: (index + 1) * 10,
+        sort_order: timelinePositions.get(`question:${question.id}`) ?? position + (index + 1) * 10,
       }));
 
       const { error: snapshotError } = await supabase
@@ -2058,7 +2126,12 @@ export default function GeneratePoaPage() {
           trigger_narrative_snapshot: item.narrative ?? item.title,
           branch_worthy: Boolean(item.branch_worthy),
           source_trigger_id: item.source_trigger_id ?? null,
-          sort_order: (index + 1) * 10,
+          // Every trigger placed in the sequence is used in this POA.
+          is_selected: item.kind === "trigger_option",
+          sort_order:
+            (item.kind === "trigger_option" && item.event_set_id
+              ? timelinePositions.get(`${item.event_set_id}:trigger:${item.trigger_id}`)
+              : timelinePositions.get(`item:${index}`)) ?? position + (index + 1) * 10,
         }),
       );
 
