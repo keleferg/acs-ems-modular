@@ -108,7 +108,8 @@ type GradeRow = {
   // K/R/S for ACS Tasks; T is the single Task grade for PTS Tasks
   // (gliders, CFII).
   grade_component: "K" | "R" | "S" | "T";
-  grade_value: "NP" | "1" | "2" | "3" | "4";
+  // S / U / I: EMT Generic grading (one Task grade, component T).
+  grade_value: "NP" | "1" | "2" | "3" | "4" | "S" | "U" | "I";
 };
 
 type ReportRow = {
