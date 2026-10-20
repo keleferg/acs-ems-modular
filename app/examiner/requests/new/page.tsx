@@ -59,6 +59,7 @@ export default function ExaminerCreateRequestPage() {
   const [aircraft, setAircraft] = useState<AircraftTypeSelection | null>(null);
   const [aircraftRegistration, setAircraftRegistration] = useState("");
   const [aircraftNotes, setAircraftNotes] = useState("");
+  const [aircraftIsTaa, setAircraftIsTaa] = useState(false);
   const [instructorName, setInstructorName] = useState("");
   const [instructorPhone, setInstructorPhone] = useState("");
   const [instructorEmail, setInstructorEmail] = useState("");
@@ -92,6 +93,7 @@ export default function ExaminerCreateRequestPage() {
     setAircraft(null);
     setAircraftRegistration("");
     setAircraftNotes("");
+    setAircraftIsTaa(false);
     setInstructorName("");
     setInstructorPhone("");
     setInstructorEmail("");
@@ -283,6 +285,19 @@ export default function ExaminerCreateRequestPage() {
     }
 
     const created = Array.isArray(data) ? data[0] : data;
+
+    // Technically advanced airplane: sets the POA's aircraft equipment.
+    if (aircraftIsTaa && created?.id) {
+      const { error: taaError } = await supabase
+        .from("practical_test_requests")
+        .update({ aircraft_is_taa: true })
+        .eq("id", created.id);
+      if (taaError) {
+        setError(`The request was created, but the TAA answer could not be saved: ${taaError.message}`);
+        setSubmitting(false);
+        return;
+      }
+    }
     resetForm();
     router.push(
       `/examiner/requests?created=${encodeURIComponent(created?.request_number ?? "request")}`,
@@ -452,6 +467,18 @@ export default function ExaminerCreateRequestPage() {
               onSelect={setAircraft}
               onClear={() => setAircraft(null)}
             />
+            <label className="mt-3 flex items-start gap-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={aircraftIsTaa}
+                onChange={(event) => setAircraftIsTaa(event.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Technically advanced airplane (TAA)</span>{" "}
+                with a glass cockpit, such as a Garmin G1000.
+              </span>
+            </label>
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">

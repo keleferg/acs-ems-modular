@@ -353,6 +353,31 @@ type LibraryQuestion = {
   poa_question_acs_applicability: AcsApplicability[];
 
   poa_question_practical_test_types: QuestionTestTypeJoin[];
+
+  /** Aircraft equipment the question is written for; null = any. */
+  aircraft_equipment?: AircraftEquipment | null;
+};
+
+/**
+ * The flight instruments in the airplane the test is flown in. Questions and
+ * trigger options can be written for one of them (vacuum system vs AHRS/ADC);
+ * untagged ones apply to both.
+ */
+type AircraftEquipment = "six_pack" | "taa";
+
+const AIRCRAFT_EQUIPMENT_OPTIONS: { value: AircraftEquipment; label: string; detail: string }[] = [
+  { value: "six_pack", label: "Standard six-pack instruments", detail: "Vacuum or electric gyros, pitot-static instruments" },
+  { value: "taa", label: "Technically advanced (glass cockpit, e.g., G1000)", detail: "PFD/MFD with AHRS and air data computer" },
+];
+
+type LinkedRequest = {
+  id: string;
+  request_number: string | null;
+  applicant_name_snapshot: string | null;
+  aircraft_make: string | null;
+  aircraft_model: string | null;
+  aircraft_registration: string | null;
+  aircraft_is_taa: boolean | null;
 };
 
 type TriggerQuestionLink = {
@@ -512,7 +537,7 @@ export default function GeneratePoaPage() {
 
   const [loadingTestTypes, setLoadingTestTypes] = useState(true);
 
-  const [questions, setQuestions] = useState<LibraryQuestion[]>([]);
+  const [libraryQuestions, setQuestions] = useState<LibraryQuestion[]>([]);
 
   const [triggerQuestionLinks, setTriggerQuestionLinks] = useState<
     TriggerQuestionLink[]
@@ -574,6 +599,44 @@ export default function GeneratePoaPage() {
   // Triggers in the examiner's previous POA for this practical test; the next
   // POA avoids them so the same objectives come with different circumstances.
   const [previousTriggerIds, setPreviousTriggerIds] = useState<Set<string>>(new Set());
+
+  // Aircraft equipment for airplane tests: six-pack or TAA (glass cockpit).
+  // Preset from the applicant's request (its "TAA airplane" box) when the POA
+  // is built from a request; otherwise the examiner picks.
+  const [aircraftEquipment, setAircraftEquipment] = useState<AircraftEquipment | "">("");
+  const [linkedRequest, setLinkedRequest] = useState<LinkedRequest | null>(null);
+  const isAirplaneTest = Boolean(
+    testType &&
+      (["ASEL", "AMEL", "ASES", "AMES"].includes((testType.class_code ?? "").trim().toUpperCase()) ||
+        (testType.rating_code ?? "").toUpperCase().includes("AIRPLANE")),
+  );
+  const poaEquipment: AircraftEquipment | null = isAirplaneTest && aircraftEquipment ? aircraftEquipment : null;
+  const equipmentMissing = isAirplaneTest && !aircraftEquipment;
+
+  useEffect(() => {
+    const requestId = new URLSearchParams(window.location.search).get("requestId")?.trim();
+    if (!requestId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await createClient()
+        .from("practical_test_requests")
+        .select("id, request_number, applicant_name_snapshot, aircraft_make, aircraft_model, aircraft_registration, aircraft_is_taa")
+        .eq("id", requestId)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setLinkedRequest(data as LinkedRequest);
+      setAircraftEquipment(data.aircraft_is_taa ? "taa" : "six_pack");
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const questions = useMemo(
+    () => libraryQuestions.filter((question) => !question.aircraft_equipment || question.aircraft_equipment === poaEquipment),
+    [libraryQuestions, poaEquipment],
+  );
+  // Questions written for the other equipment leave the selection.
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => questions.some((question) => question.id === id)));
+  }, [questions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -716,6 +779,7 @@ export default function GeneratePoaPage() {
             question_type,
             difficulty,
             created_at,
+            aircraft_equipment,
             poa_question_acs_applicability (
               id,
               certificate_name,
@@ -1472,6 +1536,7 @@ export default function GeneratePoaPage() {
           sequence_order,
           is_active,
           class_codes,
+          aircraft_equipment,
           poa_triggers!inner (
             id, category, trigger_text, trigger_narrative, is_active, trigger_role
           )
@@ -1488,8 +1553,8 @@ export default function GeneratePoaPage() {
       // triggers to ASES/AMES, flat tire to ASEL/AMEL); no list = every class.
       const poaClass = (testType?.class_code ?? "").trim().toUpperCase();
       const choices = (optionRows ?? []).filter((row) => {
-        const classes = (row as { class_codes?: string[] | null }).class_codes;
-        return !classes || classes.length === 0 || classes.includes(poaClass);
+        const { class_codes: classes, aircraft_equipment: equipment } = row as { class_codes?: string[] | null; aircraft_equipment?: string | null };
+        return (!classes || classes.length === 0 || classes.includes(poaClass)) && (!equipment || equipment === poaEquipment);
       }).map((row) => {
         const related = Array.isArray(row.poa_triggers)
           ? row.poa_triggers[0]
@@ -1538,13 +1603,13 @@ export default function GeneratePoaPage() {
 
     void loadTriggerChoices();
     return () => { cancelled = true; };
-  }, [selectedScenarioId, testType?.id, testType?.class_code]);
+  }, [selectedScenarioId, testType?.id, testType?.class_code, poaEquipment]);
 
   useEffect(() => {
     setScenarioTimeline(null);
     setQuestionEventAssignments({});
     setEventItemOrder({});
-  }, [testType?.id, additionalRatingHeld, selectedScenarioId]);
+  }, [testType?.id, additionalRatingHeld, selectedScenarioId, poaEquipment]);
 
   useEffect(() => {
     setScenarioTimeline((current) => {
@@ -1650,6 +1715,12 @@ export default function GeneratePoaPage() {
     try {
       if (!selectedScenarioId) {
         throw new Error("Select a Scenario Library record before building the timeline.");
+      }
+
+      if (equipmentMissing) {
+        throw new Error(
+          "Select the aircraft equipment (six-pack or glass cockpit) before building the Scenario Timeline.",
+        );
       }
 
       if (isAdditionalIssuance && !additionalRatingHeld) {
@@ -1931,6 +2002,10 @@ export default function GeneratePoaPage() {
           ),
 
           selection_method: selectionMethod,
+
+          aircraft_equipment: poaEquipment,
+
+          practical_test_request_id: linkedRequest?.id ?? null,
 
           status: "ready",
 
@@ -2527,6 +2602,57 @@ export default function GeneratePoaPage() {
         )}
       </section>
 
+      {isAirplaneTest ? (
+        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
+            <div>
+              <p className="text-sm font-bold text-slate-900">Aircraft Equipment</p>
+
+              <p className="mt-1 text-xs text-slate-600">
+                Systems questions and triggers follow the airplane&apos;s flight instruments.
+              </p>
+
+              {linkedRequest ? (
+                <p className="mt-2 text-xs text-slate-700">
+                  From request {linkedRequest.request_number ?? ""}
+                  {linkedRequest.applicant_name_snapshot ? ` (${linkedRequest.applicant_name_snapshot})` : ""}:{" "}
+                  {[linkedRequest.aircraft_make, linkedRequest.aircraft_model, linkedRequest.aircraft_registration].filter(Boolean).join(" ")}
+                  {" "}{linkedRequest.aircraft_is_taa ? "marked TAA" : "not marked TAA"}. Change it here if needed.
+                </p>
+              ) : (
+                <p className="mt-2 text-xs font-semibold text-amber-700">
+                  {aircraftEquipment ? "" : "Select one before building the POA."}
+                </p>
+              )}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Aircraft equipment">
+              {AIRCRAFT_EQUIPMENT_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                    aircraftEquipment === option.value ? "border-slate-900 bg-slate-50" : "border-slate-300 bg-white"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="aircraft-equipment"
+                    value={option.value}
+                    checked={aircraftEquipment === option.value}
+                    onChange={() => setAircraftEquipment(option.value)}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-800">{option.label}</span>
+                    <span className="block text-xs text-slate-500">{option.detail}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {testType && isAdditionalIssuance ? (
         <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
@@ -2711,6 +2837,7 @@ export default function GeneratePoaPage() {
                   !scenarioTimeline ||
                   loadingTimeline ||
                   Boolean(isAdditionalIssuance && !additionalRatingHeld) ||
+                  equipmentMissing ||
                   Boolean(scenarioTimeline.timeline?.some((item) => item.kind === "gap"))
                 }
                 onClick={() => void generatePoa()}

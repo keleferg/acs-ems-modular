@@ -60,6 +60,7 @@ type FormData = {
   aircraftModel: string;
   aircraftRegistration: string;
   aircraftNotes: string;
+  aircraftIsTaa: boolean;
 
   instructorName: string;
   instructorPhone: string;
@@ -125,6 +126,7 @@ const initialFormData: FormData = {
   aircraftModel: "",
   aircraftRegistration: "",
   aircraftNotes: "",
+  aircraftIsTaa: false,
 
   instructorName: "",
   instructorPhone: "",
@@ -976,6 +978,7 @@ export default function NewRequestPage() {
           aircraft_registration:
             formData.aircraftRegistration.trim().toUpperCase() || null,
           aircraft_notes: formData.aircraftNotes.trim() || null,
+          aircraft_is_taa: isPpcRequest ? false : formData.aircraftIsTaa,
 
           instructor_name:
             isPpcRequest && formData.isRetest === "No"
@@ -1646,6 +1649,28 @@ export default function NewRequestPage() {
                   <p className="mt-2 text-sm text-slate-500">
                     Search and select an aircraft from the FAA JO 7360.1K list.
                   </p>
+
+                  <label className="mt-4 flex items-start gap-3 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={formData.aircraftIsTaa}
+                      onChange={(event) =>
+                        setFormData((current) => ({
+                          ...current,
+                          aircraftIsTaa: event.target.checked,
+                        }))
+                      }
+                      className="mt-0.5 h-4 w-4"
+                    />
+                    <span>
+                      <span className="font-semibold text-slate-900">
+                        This is a technically advanced airplane (TAA)
+                      </span>{" "}
+                      with a glass cockpit, such as a Garmin G1000 (primary and
+                      multi-function displays instead of standard six-pack
+                      instruments).
+                    </span>
+                  </label>
                 </div>
 
                 <div>

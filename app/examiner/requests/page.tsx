@@ -79,6 +79,8 @@ type PracticalTestRequest = {
   aircraft_model: string | null;
   aircraft_registration: string | null;
   aircraft_notes: string | null;
+  /** Technically advanced airplane (glass cockpit); sets the POA's aircraft equipment. */
+  aircraft_is_taa?: boolean | null;
 
   instructor_name: string | null;
   instructor_phone: string | null;
@@ -987,6 +989,7 @@ export default function ExaminerRequestsPage() {
         aircraft_model,
         aircraft_registration,
         aircraft_notes,
+        aircraft_is_taa,
 
         instructor_name,
         instructor_phone,
@@ -1576,6 +1579,24 @@ export default function ExaminerRequestsPage() {
         },
       ],
     }));
+  }
+
+  // The applicant's "TAA airplane" answer; the examiner can correct it here.
+  async function updateAircraftTaa(request: PracticalTestRequest, isTaa: boolean) {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("practical_test_requests")
+      .update({ aircraft_is_taa: isTaa })
+      .eq("id", request.id);
+
+    if (error) {
+      setPageError(`The aircraft equipment could not be saved: ${error.message}`);
+      return;
+    }
+
+    setRequests((current) =>
+      current.map((item) => (item.id === request.id ? { ...item, aircraft_is_taa: isTaa } : item)),
+    );
   }
 
   function beginEditingRequest(request: PracticalTestRequest) {
@@ -3328,7 +3349,14 @@ export default function ExaminerRequestsPage() {
                                 </div>
                               ) : null}
 
-
+                              {!isPpcPracticalTest(request) && request.practical_test_type_id ? (
+                                <Link
+                                  href={`/examiner/plan-of-action/generate?testTypeId=${encodeURIComponent(request.practical_test_type_id)}&requestId=${encodeURIComponent(request.id)}`}
+                                  className="mb-3 mr-2 inline-flex rounded-lg border border-slate-800 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                                >
+                                  Build POA
+                                </Link>
+                              ) : null}
 
                               <button
                                 type="button"
@@ -4410,6 +4438,22 @@ export default function ExaminerRequestsPage() {
                                   label="Aircraft notes"
                                   value={displayValue(request.aircraft_notes)}
                                 />
+
+                                {!isPpcPracticalTest(request) ? (
+                                  <DetailItem
+                                    label="Technically advanced (glass cockpit)"
+                                    value={
+                                      <label className="inline-flex items-center gap-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={Boolean(request.aircraft_is_taa)}
+                                          onChange={(event) => void updateAircraftTaa(request, event.target.checked)}
+                                        />
+                                        <span>{request.aircraft_is_taa ? "Yes, TAA" : "No, six-pack instruments"}</span>
+                                      </label>
+                                    }
+                                  />
+                                ) : null}
                               </DetailSection>
 
                               <DetailSection title="Instructor Information">
