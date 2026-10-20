@@ -1536,6 +1536,7 @@ export default function GeneratePoaPage() {
           sequence_order,
           is_active,
           class_codes,
+          certificate_codes,
           aircraft_equipment,
           poa_triggers!inner (
             id, category, trigger_text, trigger_narrative, is_active, trigger_role
@@ -1550,11 +1551,17 @@ export default function GeneratePoaPage() {
       if (cancelled || optionError) return;
 
       // A trigger option may be limited to some aircraft classes (seaplane
-      // triggers to ASES/AMES, flat tire to ASEL/AMEL); no list = every class.
+      // triggers to ASES/AMES, flat tire to ASEL/AMEL), to some certificates
+      // (instrument triggers to INSTRUMENT) and to the aircraft equipment;
+      // no list = any.
       const poaClass = (testType?.class_code ?? "").trim().toUpperCase();
+      const poaCertificate = (testType?.certificate_code ?? "").trim().toUpperCase();
       const choices = (optionRows ?? []).filter((row) => {
-        const { class_codes: classes, aircraft_equipment: equipment } = row as { class_codes?: string[] | null; aircraft_equipment?: string | null };
-        return (!classes || classes.length === 0 || classes.includes(poaClass)) && (!equipment || equipment === poaEquipment);
+        const { class_codes: classes, certificate_codes: certificates, aircraft_equipment: equipment } =
+          row as { class_codes?: string[] | null; certificate_codes?: string[] | null; aircraft_equipment?: string | null };
+        return (!classes || classes.length === 0 || classes.includes(poaClass)) &&
+          (!certificates || certificates.length === 0 || certificates.includes(poaCertificate)) &&
+          (!equipment || equipment === poaEquipment);
       }).map((row) => {
         const related = Array.isArray(row.poa_triggers)
           ? row.poa_triggers[0]
@@ -1603,7 +1610,7 @@ export default function GeneratePoaPage() {
 
     void loadTriggerChoices();
     return () => { cancelled = true; };
-  }, [selectedScenarioId, testType?.id, testType?.class_code, poaEquipment]);
+  }, [selectedScenarioId, testType?.id, testType?.class_code, testType?.certificate_code, poaEquipment]);
 
   useEffect(() => {
     setScenarioTimeline(null);
