@@ -1471,6 +1471,7 @@ export default function GeneratePoaPage() {
           trigger_slot,
           sequence_order,
           is_active,
+          class_codes,
           poa_triggers!inner (
             id, category, trigger_text, trigger_narrative, is_active, trigger_role
           )
@@ -1483,7 +1484,13 @@ export default function GeneratePoaPage() {
 
       if (cancelled || optionError) return;
 
-      const choices = (optionRows ?? []).map((row) => {
+      // A trigger option may be limited to some aircraft classes (seaplane
+      // triggers to ASES/AMES, flat tire to ASEL/AMEL); no list = every class.
+      const poaClass = (testType?.class_code ?? "").trim().toUpperCase();
+      const choices = (optionRows ?? []).filter((row) => {
+        const classes = (row as { class_codes?: string[] | null }).class_codes;
+        return !classes || classes.length === 0 || classes.includes(poaClass);
+      }).map((row) => {
         const related = Array.isArray(row.poa_triggers)
           ? row.poa_triggers[0]
           : row.poa_triggers;
@@ -1531,7 +1538,7 @@ export default function GeneratePoaPage() {
 
     void loadTriggerChoices();
     return () => { cancelled = true; };
-  }, [selectedScenarioId, testType?.id]);
+  }, [selectedScenarioId, testType?.id, testType?.class_code]);
 
   useEffect(() => {
     setScenarioTimeline(null);
