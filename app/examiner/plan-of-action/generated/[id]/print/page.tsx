@@ -38,11 +38,13 @@ type GeneratedQuestion = {
   question_type_snapshot: string | null;
   trigger_option_id: string | null;
   sort_order: number | null;
+  template_depth?: number | null;
 };
 
 type GeneratedPoaTrigger = {
   event_set_id: string | null;
   timeline_kind: string | null;
+  template_depth?: number | null;
   id: string;
   trigger_library_id: string | null;
   placement_section: "oral" | "flight";
@@ -302,7 +304,8 @@ function GeneratedPoaPrintContent() {
           trigger_text_snapshot,
           trigger_narrative_snapshot,
           is_selected,
-          sort_order
+          sort_order,
+          template_depth
         `)
         .eq("generated_plan_of_action_id", id)
         .order("sort_order", { ascending: true });
@@ -402,7 +405,8 @@ function GeneratedPoaPrintContent() {
             question_type_snapshot,
             trigger_option_id,
             event_set_id,
-            sort_order
+            sort_order,
+            template_depth
           `)
           .eq(
             "generated_plan_of_action_id",
@@ -991,12 +995,31 @@ function GeneratedPoaPrintContent() {
           {/* POA-CHRONOLOGICAL-ORAL-START */}
           <div className="chronological-poa">
             {chronologicalOralTimeline.map((entry, index) => {
+              if (entry.kind === "trigger" && entry.trigger.timeline_kind === "scene") {
+                // Template scene line: the examiner sets the scene.
+                return (
+                  <p
+                    key={`oral-scene-${entry.trigger.id}-${index}`}
+                    style={{
+                      margin: "12px 0 6px",
+                      marginLeft: `${(entry.trigger.template_depth ?? 0) * 18}px`,
+                      fontStyle: "italic",
+                      color: "#334155",
+                      breakInside: "avoid",
+                    }}
+                  >
+                    {entry.trigger.trigger_text_snapshot}
+                  </p>
+                );
+              }
+
               if (entry.kind === "trigger") {
                 return (
                   <article
                     key={`oral-trigger-${entry.trigger.id}-${index}`}
                     style={{
                       margin: "16px 0",
+                      marginLeft: `${(entry.trigger.template_depth ?? 0) * 18}px`,
                       padding: "14px 16px",
                       borderLeft: entry.trigger.timeline_kind === "event_set" ? "5px solid #6366f1" : entry.trigger.timeline_kind === "scenario" ? "5px solid #f59e0b" : "5px solid #dc2626",
                       background: entry.trigger.timeline_kind === "event_set" ? "#eef2ff" : entry.trigger.timeline_kind === "scenario" ? "#fffbeb" : "#fee2e2",
@@ -1017,7 +1040,7 @@ function GeneratedPoaPrintContent() {
                     </div>
 
                     <div>
-                      {entry.trigger.timeline_kind !== "event_set" ? entry.trigger.trigger_narrative_snapshot : null}
+                      {entry.trigger.timeline_kind !== "event_set" && entry.trigger.trigger_narrative_snapshot !== entry.trigger.trigger_text_snapshot ? entry.trigger.trigger_narrative_snapshot : null}
                     </div>
                   </article>
                 );
@@ -1035,7 +1058,10 @@ function GeneratedPoaPrintContent() {
                 <article
                   key={question.id}
                   className="question-block"
-                  style={conditionalTrigger ? { background: "#fee2e2", borderLeft: "5px solid #dc2626", padding: "14px 16px", borderRadius: "8px" } : undefined}
+                  style={{
+                    ...(conditionalTrigger ? { background: "#fee2e2", borderLeft: "5px solid #dc2626", padding: "14px 16px", borderRadius: "8px" } : {}),
+                    ...(question.template_depth ? { marginLeft: `${question.template_depth * 18}px` } : {}),
+                  }}
                 >
                   <div
                     style={{

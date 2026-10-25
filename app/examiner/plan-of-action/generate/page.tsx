@@ -17,6 +17,7 @@ import { questionEventTargets } from "@/lib/poa/question-event-targets";
 import { taskAppliesToClass } from "@/lib/poa/task-class-applicability";
 import { buildCompliantDraft } from "@/lib/poa/build-compliant-draft";
 import { orderEventItems, pickRotatedTriggers } from "@/lib/poa/event-sequence";
+import { buildTemplateSequence, fillTemplateText, pickTemplateVariants, slotVariants, type TemplateItem, type TemplateVariants } from "@/lib/poa/template-build";
 import { hasCompleteTaskCoverage } from "@/lib/poa/generation-readiness";
 import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-editor";
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
@@ -241,6 +242,29 @@ type GeneratorScenarioOption = {
   aircraft: string | null;
   initial_conditions: string | null;
   examiner_notes: string | null;
+};
+
+type PoaTemplateQuestion = {
+  id: string;
+  question: string;
+  answer: string | null;
+  reference: string | null;
+  acs_reference: string;
+  task_name: string | null;
+  topic: string | null;
+  question_type: string | null;
+  poa_question_acs_applicability: Array<{ acs_reference: string }>;
+};
+
+type PoaTemplateRow = TemplateItem & { poa_questions: PoaTemplateQuestion | null };
+
+type LoadedPoaTemplate = {
+  id: string;
+  name: string;
+  version: number;
+  items: PoaTemplateRow[];
+  eventSetNames: Record<string, string>;
+  previousVariants: TemplateVariants | null;
 };
 
 type CompatibleTrigger = {
@@ -605,6 +629,8 @@ export default function GeneratePoaPage() {
   // is built from a request; otherwise the examiner picks.
   const [aircraftEquipment, setAircraftEquipment] = useState<AircraftEquipment | "">("");
   const [linkedRequest, setLinkedRequest] = useState<LinkedRequest | null>(null);
+  // Examiner-written POA template for this certificate and class (Kele, Oct 2026).
+  const [poaTemplate, setPoaTemplate] = useState<LoadedPoaTemplate | null>(null);
   const isAirplaneTest = Boolean(
     testType &&
       (["ASEL", "AMEL", "ASES", "AMES"].includes((testType.class_code ?? "").trim().toUpperCase()) ||
@@ -1636,6 +1662,82 @@ export default function GeneratePoaPage() {
     });
   }, [selectedTriggerIds, compatibleTriggers, eventItemOrder]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPoaTemplate() {
+      setPoaTemplate(null);
+      if (!testType?.id || !testType.certificate_code) return;
+      const supabase = createClient();
+      let templateQuery = supabase
+        .from("poa_templates")
+        .select("id, name, version, class_code")
+        .eq("status", "approved")
+        .eq("certificate_code", testType.certificate_code)
+        .order("version", { ascending: false })
+        .limit(1);
+      templateQuery = testType.class_code
+        ? templateQuery.eq("class_code", testType.class_code)
+        : templateQuery.is("class_code", null);
+      const { data: templates, error: templateError } = await templateQuery;
+      const template = templates?.[0];
+      if (cancelled || templateError || !template) return;
+
+      const [itemResult, eventSetResult, userResult] = await Promise.all([
+        supabase
+          .from("poa_template_items")
+          .select(`
+            id, event_set_id, parent_item_id, sort_order, depth, item_kind, script_text, question_id,
+            is_optional, condition_note, aircraft_equipment, class_codes, rotation_slot, rotation_variant,
+            poa_questions ( id, question, answer, reference, acs_reference, task_name, topic, question_type,
+              poa_question_acs_applicability ( acs_reference ) )
+          `)
+          .eq("template_id", template.id)
+          .order("sort_order", { ascending: true }),
+        supabase.from("poa_event_sets").select("id, name"),
+        supabase.auth.getUser(),
+      ]);
+      if (cancelled || itemResult.error) return;
+
+      let previousVariants: TemplateVariants | null = null;
+      const userId = userResult.data.user?.id;
+      if (userId) {
+        const { data: lastPoa } = await supabase
+          .from("generated_plan_of_actions")
+          .select("template_variants")
+          .eq("examiner_profile_id", userId)
+          .eq("practical_test_type_id", testType.id)
+          .not("template_variants", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        previousVariants = (lastPoa?.template_variants as TemplateVariants | null) ?? null;
+      }
+      if (cancelled) return;
+
+      const items = ((itemResult.data ?? []) as unknown as PoaTemplateRow[]).map((item) => ({
+        ...item,
+        task_parents: [
+          ...new Set(
+            (item.poa_questions?.poa_question_acs_applicability ?? [])
+              .flatMap((row) => splitAcsReferences(row.acs_reference))
+              .map(taskParentFromReference)
+              .filter((code): code is string => Boolean(code)),
+          ),
+        ],
+      }));
+      setPoaTemplate({
+        id: template.id,
+        name: template.name,
+        version: template.version,
+        items,
+        eventSetNames: Object.fromEntries((eventSetResult.data ?? []).map((row) => [row.id, row.name])),
+        previousVariants,
+      });
+    }
+    void loadPoaTemplate();
+    return () => { cancelled = true; };
+  }, [testType?.id, testType?.certificate_code, testType?.class_code]);
+
   const selectedScenario = useMemo(
     () =>
       scenarioOptions.find((scenario) => scenario.id === selectedScenarioId) ??
@@ -2262,6 +2364,198 @@ export default function GeneratePoaPage() {
     }
   }
 
+  async function generateFromTemplate() {
+    if (!testType || !poaTemplate) return;
+    setMessage("");
+    setErrorMessage("");
+    setGeneratedPoaId("");
+
+    if (!title.trim()) {
+      setErrorMessage("Enter a Plan of Action title.");
+      return;
+    }
+    if (!selectedScenario) {
+      setErrorMessage("Select a scenario. It opens the POA with the reason for the flight.");
+      return;
+    }
+    if (equipmentMissing) {
+      setErrorMessage("Select the aircraft equipment (six-pack or glass cockpit) before generating.");
+      return;
+    }
+    if (isAdditionalIssuance && !additionalRatingHeld) {
+      setErrorMessage("Select the rating already held before generating.");
+      return;
+    }
+
+    const requiredTaskParents = isAdditionalIssuance
+      ? new Set(
+          requiredComplianceCodes
+            .map(taskParentFromReference)
+            .filter((code): code is string => Boolean(code)),
+        )
+      : null;
+    const variants = pickTemplateVariants(poaTemplate.items, poaTemplate.previousVariants);
+    const sequence = buildTemplateSequence(poaTemplate.items, {
+      variants,
+      equipment: poaEquipment,
+      classCode: testType.class_code,
+      requiredTaskParents,
+    }) as PoaTemplateRow[];
+    const fills = {
+      destination: selectedScenario.destination,
+      departure: selectedScenario.departure,
+      aircraft: selectedScenario.aircraft,
+    };
+
+    const coveredCodes = new Set(
+      sequence.flatMap((item) =>
+        (item.poa_questions?.poa_question_acs_applicability ?? [])
+          .flatMap((row) => splitAcsReferences(row.acs_reference))
+          .map(complianceParentCode)
+          .filter((code): code is string => Boolean(code)),
+      ),
+    );
+    const flightTasks = (selectedFlightTaskDrafts.length
+      ? selectedFlightTaskDrafts
+      : flightTaskLibrary.filter((task) => task.is_required)
+    ).map((task, index) => ({ ...task, sort_order: (index + 1) * 10 }));
+
+    setGenerating(true);
+    const supabase = createClient();
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("You must be signed in as an examiner.");
+
+      const { data: generated, error: generatedError } = await supabase
+        .from("generated_plan_of_actions")
+        .insert({
+          examiner_profile_id: user.id,
+          practical_test_type_id: testType.id,
+          title: title.trim(),
+          scenario_name: selectedScenario.scenario_name,
+          scenario_id: selectedScenario.id,
+          compliance_snapshot: {
+            required: requiredComplianceCodes,
+            covered: requiredComplianceCodes.filter((code) => coveredCodes.has(code)),
+            missing: requiredComplianceCodes.filter((code) => !coveredCodes.has(code)),
+          },
+          cross_country_required: crossCountryTaskParentsForPrefixes(complianceAcsPrefixes).length > 0,
+          selection_method: "template",
+          template_id: poaTemplate.id,
+          template_variants: variants,
+          aircraft_equipment: poaEquipment,
+          practical_test_request_id: linkedRequest?.id ?? null,
+          status: "ready",
+          notes: `Built from the ${poaTemplate.name} POA template (v${poaTemplate.version}) for ${testType.display_name}.`,
+        })
+        .select("id")
+        .single();
+      if (generatedError || !generated) {
+        throw new Error(generatedError?.message || "The generated POA record could not be created.");
+      }
+
+      const removeGenerated = async () => {
+        await supabase.from("generated_plan_of_actions").delete().eq("id", generated.id);
+      };
+
+      const questionRows: Record<string, unknown>[] = [];
+      const timelineRows: Record<string, unknown>[] = [];
+      let position = 0;
+      let currentEventSet: string | null = null;
+      for (const item of sequence) {
+        position += 10;
+        const text = fillTemplateText(item.script_text, fills);
+        if (item.item_kind === "seed") {
+          timelineRows.push({
+            timeline_kind: "scenario",
+            placement_section: "oral",
+            phase: "preflight",
+            trigger_text_snapshot: selectedScenario.scenario_name,
+            trigger_narrative_snapshot: selectedScenario.scenario_brief ?? selectedScenario.scenario_name,
+            sort_order: position,
+            template_item_id: item.id,
+          });
+          continue;
+        }
+        if (item.event_set_id !== currentEventSet) {
+          currentEventSet = item.event_set_id;
+          timelineRows.push({
+            timeline_kind: "event_set",
+            placement_section: "oral",
+            event_set_id: item.event_set_id,
+            trigger_text_snapshot: poaTemplate.eventSetNames[item.event_set_id] ?? "Event Set",
+            sort_order: position,
+          });
+          position += 10;
+        }
+        const question = item.poa_questions;
+        if (question) {
+          const references = (question.poa_question_acs_applicability ?? []).flatMap((row) => splitAcsReferences(row.acs_reference));
+          questionRows.push({
+            generated_plan_of_action_id: generated.id,
+            question_library_id: question.id,
+            acs_reference_snapshot: question.acs_reference,
+            question_snapshot: item.item_kind === "trigger" ? `TRIGGER: ${text}` : text,
+            answer_snapshot: question.answer,
+            reference_snapshot: question.reference,
+            topic_snapshot: question.topic,
+            task_name_snapshot: question.task_name,
+            question_type_snapshot: question.question_type,
+            acs_references_snapshot: references,
+            event_set_id: item.event_set_id,
+            sort_order: position,
+            template_item_id: item.id,
+            template_depth: item.depth,
+          });
+        } else {
+          timelineRows.push({
+            timeline_kind: item.item_kind === "trigger" ? "trigger" : "scene",
+            placement_section: "oral",
+            event_set_id: item.event_set_id,
+            trigger_text_snapshot: text,
+            trigger_narrative_snapshot: text,
+            sort_order: position,
+            template_item_id: item.id,
+            template_depth: item.depth,
+          });
+        }
+      }
+
+      const { error: questionError } = await supabase.from("generated_plan_of_action_questions").insert(questionRows);
+      if (questionError) {
+        await removeGenerated();
+        throw new Error(`Question snapshots could not be saved: ${questionError.message}`);
+      }
+      const { error: flightTaskError } = await supabase.rpc("examiner_replace_generated_poa_flight_tasks", {
+        p_generated_plan_of_action_id: generated.id,
+        p_tasks: flightTasks,
+      });
+      if (flightTaskError) {
+        await removeGenerated();
+        throw new Error(`Flight task snapshots could not be saved: ${flightTaskError.message}`);
+      }
+      const { error: timelineError } = await supabase.rpc("examiner_replace_generated_poa_triggers", {
+        p_generated_plan_of_action_id: generated.id,
+        p_triggers: timelineRows,
+      });
+      if (timelineError) {
+        await removeGenerated();
+        throw new Error(`Scenario timeline snapshots could not be saved: ${timelineError.message}`);
+      }
+
+      setGeneratedPoaId(generated.id);
+      const triggerCount = timelineRows.filter((row) => row.timeline_kind === "trigger").length + questionRows.filter((row) => String(row.question_snapshot).startsWith("TRIGGER: ")).length;
+      setMessage(
+        `${title.trim()} generated from the ${poaTemplate.name} template with ${questionRows.length} questions, ${triggerCount} triggers and ${flightTasks.length} flight tasks.`,
+      );
+      setPoaTemplate((current) => (current ? { ...current, previousVariants: variants } : current));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "The Plan of Action could not be generated.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -2687,6 +2981,64 @@ export default function GeneratePoaPage() {
                 </option>
               ))}
             </select>
+          </div>
+        </section>
+      ) : null}
+
+      {testType && poaTemplate ? (
+        <section className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900">
+                Build from your template: {poaTemplate.name} (v{poaTemplate.version})
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                Your script in flight order, with follow-ups kept with their questions.{" "}
+                {Object.keys(slotVariants(poaTemplate.items)).length} trigger spots rotate; each uses a
+                different version from your last POA for this test.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-slate-700">
+                  Title
+                  <input
+                    id="template-poa-title"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Scenario (reason for the flight)
+                  <select
+                    id="template-poa-scenario"
+                    value={selectedScenarioId}
+                    onChange={(event) => setSelectedScenarioId(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Select a scenario</option>
+                    {scenarioOptions.map((scenario) => (
+                      <option key={scenario.id} value={scenario.id}>
+                        {scenario.scenario_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={
+                generating ||
+                !selectedScenarioId ||
+                equipmentMissing ||
+                Boolean(isAdditionalIssuance && !additionalRatingHeld)
+              }
+              onClick={() => void generateFromTemplate()}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {generating ? "Generating…" : "Generate POA from template"}
+            </button>
           </div>
         </section>
       ) : null}
