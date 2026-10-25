@@ -935,12 +935,15 @@ function GeneratedPoaEditContent() {
         new Set<string>();
 
       for (const question of questions) {
-        const refs = String(
-          question.acs_reference_snapshot || "",
-        )
-          .split(/[,;\n]+/)
-          .map((value) => value.trim())
-          .filter(Boolean);
+        // Element codes may be in the text snapshot, the array snapshot, or both.
+        const refs = [
+          ...String(
+            question.acs_reference_snapshot || "",
+          )
+            .split(/[,;\n]+/)
+            .map((value) => value.trim()),
+          ...(question.acs_references_snapshot ?? []),
+        ].filter(Boolean);
 
         for (const reference of refs) {
           const parent =

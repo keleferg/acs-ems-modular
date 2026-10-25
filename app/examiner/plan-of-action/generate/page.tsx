@@ -253,7 +253,7 @@ type PoaTemplateQuestion = {
   task_name: string | null;
   topic: string | null;
   question_type: string | null;
-  poa_question_acs_applicability: Array<{ acs_reference: string }>;
+  poa_question_acs_applicability: Array<{ acs_reference: string; certificate_name?: string | null }>;
 };
 
 type PoaTemplateRow = TemplateItem & { poa_questions: PoaTemplateQuestion | null };
@@ -1689,7 +1689,7 @@ export default function GeneratePoaPage() {
             id, event_set_id, parent_item_id, sort_order, depth, item_kind, script_text, question_id,
             is_optional, condition_note, aircraft_equipment, class_codes, rotation_slot, rotation_variant,
             poa_questions ( id, question, answer, reference, acs_reference, task_name, topic, question_type,
-              poa_question_acs_applicability ( acs_reference ) )
+              poa_question_acs_applicability ( certificate_name, acs_reference ) )
           `)
           .eq("template_id", template.id)
           .order("sort_order", { ascending: true }),
@@ -1714,7 +1714,19 @@ export default function GeneratePoaPage() {
       }
       if (cancelled) return;
 
-      const items = ((itemResult.data ?? []) as unknown as PoaTemplateRow[]).map((item) => ({
+      // Keep only the ACS codes for this test's certificate (a question can carry Private and Commercial codes).
+      const certificateName = testType.certificate_name;
+      const items = ((itemResult.data ?? []) as unknown as PoaTemplateRow[]).map((raw) => ({
+        ...raw,
+        poa_questions: raw.poa_questions
+          ? {
+              ...raw.poa_questions,
+              poa_question_acs_applicability: (raw.poa_questions.poa_question_acs_applicability ?? []).filter(
+                (row) => !row.certificate_name || row.certificate_name === certificateName,
+              ),
+            }
+          : null,
+      })).map((item) => ({
         ...item,
         task_parents: [
           ...new Set(
@@ -2494,7 +2506,8 @@ export default function GeneratePoaPage() {
           questionRows.push({
             generated_plan_of_action_id: generated.id,
             question_library_id: question.id,
-            acs_reference_snapshot: question.acs_reference,
+            // Element codes, like the rule-based builder stores, so the compliance view can count K and R.
+            acs_reference_snapshot: references.join("; ") || question.acs_reference,
             question_snapshot: item.item_kind === "trigger" ? `TRIGGER: ${text}` : text,
             answer_snapshot: question.answer,
             reference_snapshot: question.reference,
@@ -3052,9 +3065,25 @@ export default function GeneratePoaPage() {
               <p className="font-semibold">{message}</p>
 
               {generatedPoaId ? (
-                <p className="mt-1 text-xs">
-                  Generated POA ID: {generatedPoaId}
-                </p>
+                <>
+                  <p className="mt-1 text-xs">
+                    Generated POA ID: {generatedPoaId}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <a
+                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/edit`}
+                      className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+                    >
+                      Open and edit this POA
+                    </a>
+                    <a
+                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/print`}
+                      className="inline-flex items-center rounded-lg border border-emerald-700 px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
+                    >
+                      Print
+                    </a>
+                  </div>
+                </>
               ) : null}
             </div>
           </div>
