@@ -3349,10 +3349,35 @@ export default function ExaminerRequestsPage() {
                                 </div>
                               ) : null}
 
-                              {!isPpcPracticalTest(request) && request.practical_test_type_id ? (
+                              {/* Kele, Oct 31 2026: Validate Qualifications opens a printable report; Build POA
+                                  shows only once the test is Scheduled or Confirmed, and turns green when the
+                                  examiner has accepted the qualification package. */}
+                              {qualificationWizardsByRequest[request.id] ? (
+                                <Link
+                                  href={`/examiner/requests/${encodeURIComponent(request.id)}/qualifications`}
+                                  target="_blank"
+                                  rel="noopener"
+                                  className="mb-3 mr-2 inline-flex rounded-lg border border-amber-600 bg-white px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-50"
+                                >
+                                  Validate Qualifications
+                                </Link>
+                              ) : null}
+
+                              {!isPpcPracticalTest(request) &&
+                              request.practical_test_type_id &&
+                              ["scheduled", "confirmed"].includes(request.status) ? (
                                 <Link
                                   href={`/examiner/plan-of-action/generate?testTypeId=${encodeURIComponent(request.practical_test_type_id)}&requestId=${encodeURIComponent(request.id)}`}
-                                  className="mb-3 mr-2 inline-flex rounded-lg border border-slate-800 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                                  title={
+                                    qualificationWizardsByRequest[request.id]?.status === "accepted"
+                                      ? "Qualification review complete"
+                                      : "Qualification review not complete yet"
+                                  }
+                                  className={
+                                    qualificationWizardsByRequest[request.id]?.status === "accepted"
+                                      ? "mb-3 mr-2 inline-flex rounded-lg border border-emerald-700 bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                                      : "mb-3 mr-2 inline-flex rounded-lg border border-slate-800 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                                  }
                                 >
                                   Build POA
                                 </Link>
