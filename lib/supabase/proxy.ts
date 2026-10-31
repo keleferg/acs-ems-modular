@@ -56,7 +56,10 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/auth") &&
     // "Use my phone" qualification uploads: the phone isn't signed in; the QR token is checked by the API.
     !request.nextUrl.pathname.startsWith("/phone-upload") &&
-    !request.nextUrl.pathname.startsWith("/api/qualification/phone-upload")
+    !request.nextUrl.pathname.startsWith("/api/qualification/phone-upload") &&
+    // Instructor certification: the instructor has no account; the emailed token is checked by the API.
+    !request.nextUrl.pathname.startsWith("/instructor-review") &&
+    !request.nextUrl.pathname.startsWith("/api/qualification/instructor-review")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();

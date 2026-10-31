@@ -253,6 +253,7 @@ export default function QualificationReviewPanel({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [skipReason, setSkipReason] = useState("");
 
   const presentation = getStatusPresentation(wizard);
 
@@ -405,6 +406,57 @@ export default function QualificationReviewPanel({
     }
 
     setLoading(false);
+  }
+
+  // Instructor certification (Kele, Oct 31 2026): resend the emailed link, or skip the step with a reason.
+  async function resendInstructorEmail() {
+    if (!wizard || saving) return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/qualification/instructor-invite", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ wizardId: wizard.id }),
+      });
+      const result = (await response.json()) as { ok: boolean; sentTo?: string; error?: string };
+      if (!result.ok) throw new Error(result.error ?? "The instructor could not be emailed.");
+      setMessage(`A new review link was emailed to ${result.sentTo}.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The instructor could not be emailed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function skipInstructor() {
+    if (!wizard || saving) return;
+    if (!skipReason.trim()) {
+      setError("Enter the reason for skipping the instructor certification.");
+      return;
+    }
+    if (!window.confirm("Skip the instructor certification and move this package to your review? The applicant will see that it was skipped.")) {
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setMessage("");
+    const { data, error: skipError } = await createClient().rpc("examiner_waive_instructor_certification", {
+      p_wizard_id: wizard.id,
+      p_reason: skipReason.trim(),
+    });
+    if (skipError) {
+      setError(skipError.message);
+      setSaving(false);
+      return;
+    }
+    const updatedWizard = Array.isArray(data) ? data[0] : data;
+    if (updatedWizard) onWizardChanged(updatedWizard as QualificationWizardSummary);
+    setSkipReason("");
+    setMessage("Instructor certification skipped. The package is ready for your review.");
+    setSaving(false);
+    await loadDetails(true);
   }
 
   async function disposition(
@@ -651,6 +703,48 @@ export default function QualificationReviewPanel({
                       No instructor review has been submitted yet.
                     </p>
                   )}
+
+                  {instructorReview?.review_notes ? (
+                    <p className="mt-4 whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                      <strong>{instructorReview.status === "waived" ? "Skipped — reason: " : "Instructor notes: "}</strong>
+                      {instructorReview.review_notes}
+                    </p>
+                  ) : null}
+
+                  {wizard?.status === "awaiting_instructor" ? (
+                    <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => void resendInstructorEmail()}
+                          className="rounded-lg border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 transition hover:bg-sky-50 disabled:opacity-50"
+                        >
+                          Resend instructor email
+                        </button>
+                        <span className="text-xs text-slate-500">Sends a new 14-day review link to {instructorReview?.instructor_email || wizard.instructor_email || "the instructor"}.</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-3">
+                        <label className="min-w-[16rem] flex-1 text-xs font-semibold text-slate-700">
+                          Reason for skipping the instructor certification
+                          <input
+                            value={skipReason}
+                            onChange={(event) => setSkipReason(event.target.value)}
+                            placeholder="e.g. Instructor unavailable; I verified the records myself"
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => void skipInstructor()}
+                          className="rounded-lg border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-800 transition hover:bg-violet-100 disabled:opacity-50"
+                        >
+                          Skip instructor certification
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </section>
 
                 {flags.length > 0 ? (

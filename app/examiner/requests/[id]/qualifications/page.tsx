@@ -107,6 +107,7 @@ function classify(
 
   if (answerType === "instructor_certification") {
     if (instructorStatus === "certified") return { status: "pass", note: "Instructor certified" };
+    if (instructorStatus === "waived") return { status: "pass", note: "Skipped by the examiner" };
     if (instructorStatus === "declined") return { status: "issue", note: "Instructor declined to certify" };
     if (instructorStatus === "changes_required") return { status: "issue", note: "Instructor asked for changes" };
     if (instructorStatus === "expired") return { status: "issue", note: "Instructor certification request expired" };

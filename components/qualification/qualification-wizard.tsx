@@ -52,6 +52,10 @@ type QualificationWizard = {
   // Recommending instructor from the practical-test request (offered on endorsement cards).
   instructor_name?: string | null;
   instructor_certificate_number?: string | null;
+  // Instructor certification (Kele, Oct 31 2026).
+  instructor_change_notes?: string | null;
+  instructor_waived_at?: string | null;
+  instructor_waived_reason?: string | null;
 };
 
 type QualificationRuleSet = {
@@ -1120,13 +1124,30 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
         );
       }
 
+      // Email the recommending instructor a private link to certify the package (lists without an
+      // instructor step answer "not waiting for the instructor", which is fine).
+      let submittedMessage = "Qualification package submitted successfully.";
+      try {
+        const invite = await fetch("/api/qualification/instructor-invite", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ wizardId: wizard.id }),
+        });
+        const inviteResult = (await invite.json()) as { ok: boolean; sentTo?: string; error?: string };
+        if (inviteResult.ok) {
+          submittedMessage = `Qualification package submitted. Your instructor was emailed at ${inviteResult.sentTo} to review and certify it.`;
+        } else if (inviteResult.error && !/not waiting/i.test(inviteResult.error)) {
+          submittedMessage = `Qualification package submitted, but your instructor could not be emailed (${inviteResult.error}). Please let your examiner know.`;
+        }
+      } catch {
+        submittedMessage = "Qualification package submitted, but your instructor could not be emailed. Please let your examiner know.";
+      }
+
       await loadQualification(
         selectedRequest.id,
       );
 
-      setMessage(
-        "Qualification package submitted successfully.",
-      );
+      setMessage(submittedMessage);
     } catch (error) {
       setPageError(
         error instanceof Error
@@ -1664,6 +1685,21 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                       </p>
                     </div>
                   </div>
+                </section>
+              ) : null}
+
+              {wizard.status === "instructor_changes_required" && wizard.instructor_change_notes ? (
+                <section className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+                  <h2 className="font-bold">Your instructor asked for changes</h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm">{wizard.instructor_change_notes}</p>
+                  <p className="mt-3 text-xs text-amber-900">Make the changes below, then submit again. Your instructor will be emailed to review it again.</p>
+                </section>
+              ) : null}
+
+              {wizard.instructor_waived_at ? (
+                <section className="mt-6 rounded-2xl border border-violet-200 bg-violet-50 p-5 text-violet-950">
+                  <h2 className="font-bold">Instructor certification skipped by your examiner</h2>
+                  {wizard.instructor_waived_reason ? <p className="mt-2 text-sm">{wizard.instructor_waived_reason}</p> : null}
                 </section>
               ) : null}
 

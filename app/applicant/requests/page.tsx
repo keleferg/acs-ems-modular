@@ -136,6 +136,7 @@ type ApplicantQualificationWizard = {
   examiner_reviewed_at: string | null;
   accepted_at: string | null;
   current_revision_number: number;
+  instructor_waived_at?: string | null;
 };
 
 type RequestStatusAudit = {
@@ -477,8 +478,9 @@ function qualificationPresentation(wizard: ApplicantQualificationWizard) {
       return {
         label: "Examiner Review",
         title: "Pretest Qualification",
-        description:
-          "Your instructor review is complete and the qualification package is awaiting examiner review.",
+        description: wizard.instructor_waived_at
+          ? "Your examiner skipped the instructor certification. The qualification package is awaiting examiner review."
+          : "Your instructor review is complete and the qualification package is awaiting examiner review.",
         classes: "border-violet-200 bg-violet-50 text-violet-950",
         badge: "border-violet-200 bg-white text-violet-800",
         buttonLabel: "View Qualification",
@@ -895,7 +897,8 @@ export default function ApplicantRequestsPage() {
               instructor_certified_at,
               examiner_reviewed_at,
               accepted_at,
-              current_revision_number
+              current_revision_number,
+              instructor_waived_at
               `,
               )
               .in("practical_test_request_id", requestIds);

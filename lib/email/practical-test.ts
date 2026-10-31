@@ -2409,3 +2409,136 @@ export function buildQualificationReminderApplicantEmail(
 
   return { subject, html, text };
 }
+
+// Pretest qualification: instructor certification (Kele, Oct 31 2026).
+type InstructorReviewRequestEmailInput = {
+  instructorName: string;
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  scheduledStartAt: string | null;
+  reviewUrl: string;
+  expiresAt: string;
+};
+
+function qualificationEmailShell(heading: string, body: string) {
+  return `
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f8fafc;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="background:#0f172a;padding:24px 28px;color:#ffffff;">
+                <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fbbf24;">Aviation Training Solutions</div>
+                <div style="margin-top:7px;font-size:24px;line-height:1.25;font-weight:700;">${escapeHtml(heading)}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">${body}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`.trim();
+}
+
+function qualificationEmailRow(label: string, value: string, last = false) {
+  return `
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;${last ? "" : "border-bottom:1px solid #e2e8f0;"}font-size:13px;font-weight:700;color:#475569;width:160px;">${escapeHtml(label)}</td>
+                    <td style="padding:12px 16px;${last ? "" : "border-bottom:1px solid #e2e8f0;"}font-size:14px;">${escapeHtml(value)}</td>
+                  </tr>`;
+}
+
+export function buildInstructorReviewRequestEmail(input: InstructorReviewRequestEmailInput) {
+  const instructorFirstName = input.instructorName.trim() ? firstName(input.instructorName) : "Instructor";
+  const testDate = input.scheduledStartAt ? formatScheduledAppointmentDate(input.scheduledStartAt) : "To be scheduled";
+  const expires = formatScheduledAppointmentDate(input.expiresAt);
+  const subject = `Instructor Certification Needed — ${input.applicantName} (${input.requestNumber})`;
+
+  const html = qualificationEmailShell(
+    "Pretest Qualification Ready for Your Review",
+    `
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(instructorFirstName)},</p>
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">
+                  <strong>${escapeHtml(input.applicantName)}</strong> listed you as their recommending instructor and has submitted
+                  their pretest qualification package. Please review their entries and documents, then certify the package
+                  or send it back with the changes they need to make.
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                  ${qualificationEmailRow("Applicant", input.applicantName)}
+                  ${qualificationEmailRow("Request Number", input.requestNumber)}
+                  ${qualificationEmailRow("Certificate", input.certificateSought)}
+                  ${qualificationEmailRow("Rating", input.ratingSought)}
+                  ${qualificationEmailRow("Practical Test", testDate, true)}
+                </table>
+                <div style="margin-top:26px;">
+                  <a href="${escapeHtml(input.reviewUrl)}" style="display:inline-block;padding:12px 18px;background:#d97706;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                    Review and Certify
+                  </a>
+                </div>
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+                  No account is needed. This link is only for this package and works until ${escapeHtml(expires)}. Please don't forward it.
+                </p>`,
+  );
+
+  const text = [
+    `Aloha ${instructorFirstName},`,
+    "",
+    `${input.applicantName} listed you as their recommending instructor and has submitted their pretest qualification package. Please review their entries and documents, then certify the package or send it back with the changes they need to make.`,
+    "",
+    `Applicant: ${input.applicantName}`,
+    `Request Number: ${input.requestNumber}`,
+    `Certificate: ${input.certificateSought}`,
+    `Rating: ${input.ratingSought}`,
+    `Practical Test: ${testDate}`,
+    "",
+    `Review and certify: ${input.reviewUrl}`,
+    "",
+    `No account is needed. This link is only for this package and works until ${expires}. Please don't forward it.`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+type InstructorDecisionExaminerEmailInput = {
+  applicantName: string;
+  requestNumber: string;
+  instructorName: string;
+  certified: boolean;
+  notes: string | null;
+  examinerPortalUrl: string;
+};
+
+export function buildInstructorDecisionExaminerEmail(input: InstructorDecisionExaminerEmailInput) {
+  const subject = input.certified
+    ? `Instructor Certified — ${input.applicantName} (${input.requestNumber})`
+    : `Instructor Requested Changes — ${input.applicantName} (${input.requestNumber})`;
+  const summary = input.certified
+    ? `${input.instructorName} certified the pretest qualification package. It is ready for your review.`
+    : `${input.instructorName} sent the pretest qualification package back to the applicant for changes.`;
+  const html = qualificationEmailShell(
+    input.certified ? "Ready for Examiner Review" : "Changes Requested by Instructor",
+    `
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(summary)}</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                  ${qualificationEmailRow("Applicant", input.applicantName)}
+                  ${qualificationEmailRow("Request Number", input.requestNumber)}
+                  ${qualificationEmailRow("Instructor", input.instructorName, !input.notes)}
+                  ${input.notes ? qualificationEmailRow("Notes", input.notes, true) : ""}
+                </table>
+                <div style="margin-top:26px;">
+                  <a href="${escapeHtml(input.examinerPortalUrl)}" style="display:inline-block;padding:12px 18px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                    Open Requests
+                  </a>
+                </div>`,
+  );
+  const text = [summary, "", `Applicant: ${input.applicantName}`, `Request Number: ${input.requestNumber}`, `Instructor: ${input.instructorName}`, ...(input.notes ? [`Notes: ${input.notes}`] : []), "", `Open requests: ${input.examinerPortalUrl}`].join("\n");
+  return { subject, html, text };
+}
