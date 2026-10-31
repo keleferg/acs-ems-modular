@@ -4,14 +4,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { localEvidence, type Evidence } from "@/lib/qualification/local-evidence";
+import { CLOSED_EVIDENCE_RETENTION_DAYS } from "@/lib/qualification/instrument";
 
 const BUCKET = "qualification-evidence";
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 const TYPES = ACCEPT.split(",");
 const MAX_SIZE = 15 * 1024 * 1024;
-export function EvidencePanel({ revisionId, requirementId, editable = false, preview = false, required = false, instruction, onCount }: {
+export function EvidencePanel({ revisionId, requirementId, editable = false, preview = false, required = false, instruction, retentionDays, onCount }: {
   revisionId: string; requirementId: string; editable?: boolean; preview?: boolean; required?: boolean;
   instruction?: string;
+  // Days after the practical test is marked completed that the uploads are deleted.
+  retentionDays?: number;
   onCount?: (requirementId: string, count: number) => void;
 }) {
   const [items, setItems] = useState<Evidence[]>([]);
@@ -104,7 +107,9 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
       else {
         const result = await createClient().from("qualification_evidence").delete().eq("id", item.id).select("id");
         if (result.error || !result.data?.length) throw new Error(result.error?.message ?? "This attachment is locked or no longer editable.");
-        // Keep stored objects: other requirements or immutable revisions can share them.
+        // Delete the stored file too when nothing else uses it. Storage only allows this for an
+        // unreferenced file in the applicant's own editable revision, so a shared file is kept.
+        await createClient().storage.from(BUCKET).remove([item.object_path]).catch(() => undefined);
       }
       await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not remove upload."); }
@@ -112,7 +117,7 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
   }
   return <section className="mt-5 rounded-xl border border-slate-200 bg-white p-4" aria-label="Supporting evidence">
     <div className="flex flex-wrap justify-between gap-2"><h4 className="text-sm font-bold text-slate-900">Supporting pictures / documents {required ? <span className="text-red-700">· Required</span> : null}</h4><span className="text-xs text-slate-600">{items.length} attached · Review pending</span></div>
-    {editable ? <><p className="mt-2 text-xs text-slate-500">{instruction ?? "Attach the endorsement or logbook entries for this requirement."} Multiple JPG, PNG, WebP pictures or PDFs; up to 15 MB each.</p><label className="mt-3 block text-sm text-slate-700">Caption / entry date / page (optional)<input value={caption} disabled={busy} onChange={(event) => setCaption(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label><div className="mt-3 flex flex-wrap gap-2">
+    {editable ? <><p className="mt-2 text-xs text-slate-500">{instruction ?? "Attach the endorsement or logbook entries for this requirement."} Multiple JPG, PNG, WebP pictures or PDFs; up to 15 MB each. Use Existing Upload to reuse a picture you already added on another card.</p><label className="mt-3 block text-sm text-slate-700">Caption / entry date / page (optional)<input value={caption} disabled={busy} onChange={(event) => setCaption(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label><div className="mt-3 flex flex-wrap gap-2">
       <input ref={fileInput} type="file" multiple accept={ACCEPT} hidden onChange={(event) => void upload(event.target.files)} />
       <input ref={cameraInput} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={(event) => void upload(event.target.files)} />
       <button type="button" disabled={busy} onClick={() => cameraInput.current?.click()} className="rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 disabled:opacity-50">Take Photo</button>
@@ -126,6 +131,6 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
       {item.caption ? <p className="mt-1 text-xs text-slate-500">{item.caption}</p> : null}
       {editable ? <button type="button" disabled={busy} onClick={() => void remove(item)} className="mt-2 text-xs font-semibold text-red-700 disabled:opacity-50">Remove attachment</button> : null}
     </div>)}</div>
-    <p className="mt-2 text-xs text-slate-500">{preview ? "Saved only in this browser for local testing." : "Private uploads visible to authorized reviewers."} An attachment does not verify the requirement.</p>
+    <p className="mt-2 text-xs text-slate-500">{preview ? "Saved only in this browser for local testing." : "Private uploads visible to authorized reviewers."} An attachment does not verify the requirement.{retentionDays ? ` Uploads are deleted ${retentionDays} days after your practical test is marked complete, or ${CLOSED_EVIDENCE_RETENTION_DAYS} days after the request is cancelled or declined.` : ""}</p>
   </section>;
 }

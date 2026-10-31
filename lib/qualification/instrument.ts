@@ -80,11 +80,39 @@ export function instrumentResult(code: string, values: Values, appointment: stri
   return review();
 }
 
-export function supportsQualificationEvidence(requirement: { requirement_code: string; requires_document: boolean; rule_config: Record<string, unknown> }, values: Record<string, unknown> = {}): boolean {
+// Every applicant requirement card takes pictures or PDFs (Kele, Oct 30), and each one needs at least one.
+// No upload: computed checks, the applicant and instructor certifications (signatures),
+// the Part 61 pathway (nothing to photograph), and any requirement whose rule_config says evidence "none".
+export const EVIDENCE_RETENTION_DAYS = 3;
+// Requests cancelled or declined: pictures are deleted this many days later.
+export const CLOSED_EVIDENCE_RETENTION_DAYS = 10;
+const NO_EVIDENCE_CODES = new Set(["IR_APPLICANT_CERTIFICATION", "IR_INSTRUCTOR_CERTIFICATION", "APPLICANT_CERTIFICATION", "INSTRUCTOR_CERTIFICATION"]);
+const NO_EVIDENCE_TYPES = new Set(["computed", "instructor_certification", "typed_signature"]);
+export function supportsQualificationEvidence(requirement: { requirement_code: string; requires_document?: boolean; rule_config: Record<string, unknown> }, values: Record<string, unknown> = {}): boolean {
+  if (requirement.rule_config.evidence === "none") return false;
+  if (NO_EVIDENCE_TYPES.has(String(requirement.rule_config.answer_type ?? ""))) return false;
+  if (NO_EVIDENCE_CODES.has(requirement.requirement_code)) return false;
   if (requirement.requirement_code === "IR_PATHWAY") return values.training_basis === "Part 141 Graduate";
-  if (["IR_ENGLISH", "IR_APPLICANT_CERTIFICATION", "IR_INSTRUCTOR_CERTIFICATION"].includes(requirement.requirement_code)) return false;
-  if (requirement.requirement_code === "IR_MEDICAL" && ["BasicMed", "Other / Examiner Review"].includes(String(values.qualification_type))) return false;
-  return Boolean(requirement.requires_document || requirement.rule_config.instrument_rule);
+  return true;
+}
+
+// What to photograph for each card.
+export function evidenceInstruction(requirement: { requirement_code: string; section_code?: string; rule_config: Record<string, unknown> }): string {
+  const code = requirement.requirement_code;
+  const custom = requirement.rule_config.evidence_instruction;
+  if (typeof custom === "string" && custom.trim()) return custom;
+  if (code === "IR_PATHWAY") return "Required: upload a copy of your Part 141 graduation certificate.";
+  if (code === "IR_ID" || code === "IDENTITY_ID_NAME") return "Required: take a picture of the front of your government-issued photo ID.";
+  if (code === "IR_CERTIFICATE" || code === "IDENTITY_PILOT_CERTIFICATE_NAME" || code === "IR_CERTIFICATE_PREREQUISITE") return "Required: take pictures of the front and back of your pilot certificate (or student pilot certificate).";
+  if (code === "ELIGIBILITY_AGE") return "Required: a picture of your ID showing your date of birth. You can use your existing ID upload.";
+  if (code.endsWith("ENGLISH")) return "Required: a picture of your pilot certificate showing \"English Proficient\". You can use your existing certificate upload.";
+  if (code.includes("KNOWLEDGE_TEST")) return "Required: a picture or PDF of your Airman Knowledge Test Report.";
+  if (code.includes("APPLICATION")) return "Required: a picture or PDF of your IACRA application summary.";
+  if (code.includes("MEDICAL")) return "Required: pictures of the front and back of your medical certificate. For BasicMed, your Comprehensive Medical Examination Checklist and course completion certificate.";
+  if (code.includes("DEVICE")) return "Required: the logbook pages showing the device time, with the instructor's signature.";
+  if (requirement.section_code === "endorsements" || code.includes("ENDORSEMENT")) return "Required: a picture of the endorsement in your logbook.";
+  if (requirement.section_code === "experience" || requirement.section_code === "cross_country") return "Required: pictures of the logbook pages that show these entries.";
+  return "Required: a picture or PDF of the document or logbook pages for this requirement.";
 }
 
 export function qualificationToday(now = new Date()): string {

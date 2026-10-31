@@ -1,6 +1,6 @@
 "use client";
 
-import { supportsQualificationEvidence } from "@/lib/qualification/instrument";
+import { supportsQualificationEvidence, EVIDENCE_RETENTION_DAYS } from "@/lib/qualification/instrument";
 
 import { EvidencePanel } from "@/components/qualification/evidence-panel";
 
@@ -770,7 +770,7 @@ export default function QualificationReviewPanel({
                           ) : null}
                         </div>
 
-                        {revision && supportsQualificationEvidence(requirement, answer?.answer_value ?? {}) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} /> : null}
+                        {revision && supportsQualificationEvidence(requirement, answer?.answer_value ?? {}) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} retentionDays={EVIDENCE_RETENTION_DAYS} /> : null}
 
                         {answer && wizard && !["accepted", "closed"].includes(wizard.status) ? <div className="mt-4"><label className="block text-sm font-semibold text-slate-800" htmlFor={`examiner-note-${requirement.id}`}>Examiner comment for this requirement</label><textarea id={`examiner-note-${requirement.id}`} value={requirementNotes[requirement.id] ?? answer.examiner_notes ?? ""} onChange={(event) => setRequirementNotes((current) => ({ ...current, [requirement.id]: event.target.value }))} rows={2} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /><button type="button" disabled={Boolean(savingNoteId)} onClick={() => void saveRequirementNote(answer)} className="mt-2 rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 disabled:opacity-50">{savingNoteId === requirement.id ? "Saving…" : "Save Comment"}</button></div> : null}
                         {answer?.automated_result_message ? (

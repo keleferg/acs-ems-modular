@@ -17,7 +17,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { graduationDateFlag, supportsQualificationEvidence, instrumentRequirements, instrumentResult, fieldsComplete, INSTRUMENT_RULE_SET_ID, PREVIEW_KEY, type QualificationField } from "@/lib/qualification/instrument";
+import { graduationDateFlag, supportsQualificationEvidence, evidenceInstruction, EVIDENCE_RETENTION_DAYS, instrumentRequirements, instrumentResult, fieldsComplete, INSTRUMENT_RULE_SET_ID, PREVIEW_KEY, type QualificationField } from "@/lib/qualification/instrument";
 import { localEvidence } from "@/lib/qualification/local-evidence";
 import { EvidencePanel } from "./evidence-panel";
 import { EntryFields } from "./entry-fields";
@@ -829,7 +829,8 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
     }
     return true;
   }).map((row) => row.rule_config.conditional === "device_hours" ? { ...row, required: true } : row), [requirements, drafts]);
-  const needsEvidence = (requirement: QualificationRequirement) => Boolean(requirement.rule_config.instrument_rule && (requirement.requires_document || requirement.requirement_code === "IR_PATHWAY") && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values));
+  // Every card with an upload panel needs at least one picture or PDF before submitting.
+  const needsEvidence = (requirement: QualificationRequirement) => supportsQualificationEvidence(requirement, drafts[requirement.id]?.values);
   const completeWithEvidence = (requirement: QualificationRequirement) => isAnswerComplete(requirement, drafts[requirement.id]) && (!needsEvidence(requirement) || (evidenceCounts[requirement.id] ?? 0) > 0);
   const groupedRequirements = useMemo(() => {
     const groups = new Map<
@@ -1739,9 +1740,9 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                         {answer?.automated_result === "manual_review" && answer.automated_result_message ? <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{answer.automated_result_message}</p> : null}
                                         {answer?.instructor_notes || answer?.examiner_notes ? <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">{answer.instructor_notes ? <p><strong>Instructor:</strong> {answer.instructor_notes}</p> : null}{answer.examiner_notes ? <p><strong>Examiner:</strong> {answer.examiner_notes}</p> : null}</div> : null}
                                         {requirement.requirement_code === "IR_INSTRUMENT_TOTAL" ? <p className="mt-3 text-sm font-semibold text-sky-900">Entered instrument total: {["actual_hours", "simulated_hours", "device_hours"].reduce((sum, key) => sum + Number(drafts[requirement.id]?.values[key] || 0), 0).toFixed(1)} hours · Device credit requires review.</p> : null}
-                                        {requirement.requirement_code === "IR_ENDORSEMENT_PREREQUISITES" ? <p className="mt-3 text-sm text-slate-700">Knowledge-test deficiency codes: {String(answers.find((row) => row.requirement_id === requirements.find((item) => item.requirement_code === "IR_KNOWLEDGE_TEST")?.id)?.answer_value.deficiency_codes ?? "Save the knowledge-test report first.")}</p> : null}
+                                        {requirement.requirement_code === "IR_ENDORSEMENT_PREREQUISITES" && requirements.some((row) => row.requirement_code === "IR_KNOWLEDGE_TEST") ? <p className="mt-3 text-sm text-slate-700">Knowledge-test deficiency codes: {String(answers.find((row) => row.requirement_id === requirements.find((item) => item.requirement_code === "IR_KNOWLEDGE_TEST")?.id)?.answer_value.deficiency_codes ?? "Save the knowledge-test report first.")}</p> : null}
                                         {requirement.requirement_code === "IR_PATHWAY" && graduationDateFlag(drafts[requirement.id]?.values ?? {}) ? <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{graduationDateFlag(drafts[requirement.id]?.values ?? {})}</p> : null}
-                                        {revision && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} editable={isEditable} preview={preview} required={needsEvidence(requirement)} instruction={requirement.requirement_code === "IR_PATHWAY" ? "Required: Upload a copy of your Part 141 Graduation Certificate." : undefined} onCount={handleEvidenceCount} /> : null}
+                                        {revision && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} editable={isEditable} preview={preview} required={needsEvidence(requirement)} instruction={evidenceInstruction(requirement)} retentionDays={EVIDENCE_RETENTION_DAYS} onCount={handleEvidenceCount} /> : null}
                                         <div className="mt-5">
                                           <label
                                             htmlFor={`notes-${requirement.id}`}
