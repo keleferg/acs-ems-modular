@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const BUCKET = "qualification-evidence";
 const MAX_BYTES = 15 * 1024 * 1024;
-const READABLE_TYPES = new Set(["date", "number", "text", "select"]);
+const READABLE_TYPES = new Set(["date", "number", "text", "textarea", "select"]);
 
 type FieldInput = { key: string; label?: string; type?: string; options?: string[] };
 
