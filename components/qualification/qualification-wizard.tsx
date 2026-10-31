@@ -245,7 +245,9 @@ function isAnswerComplete(
         : field.type === "checkbox"
         ? draft.values[field.key] === true
         : field.type === "instructor"
-        ? hasMeaningfulValue(draft.values.instructor_name) && hasMeaningfulValue(draft.values.instructor_certificate_number)
+        ? // The recommending instructor comes from the request, which may not include a certificate number.
+          hasMeaningfulValue(draft.values.instructor_name) &&
+          (draft.values.instructor_source === "recommending" || hasMeaningfulValue(draft.values.instructor_certificate_number))
         : field.type === "legs"
           ? legsComplete(draft.values[field.key])
           : hasMeaningfulValue(draft.values[field.key]) && matchesPattern(field, draft.values[field.key]),
@@ -1253,6 +1255,12 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                 <input id={`${inputId}-cert`} value={certificate} disabled={disabled} onChange={(event) => updateDraftValue(requirement.id, "instructor_certificate_number", event.target.value)} className={input} />
               </div>
             </>
+          ) : source === "recommending" && !recommendingCertificate ? (
+            // The request didn't include the recommending instructor's certificate number (Kele, Oct 31 2026).
+            <div style={{ width: "11rem" }} className="max-w-full">
+              <label htmlFor={`${inputId}-cert`} className="mb-2 block text-sm font-semibold text-slate-800">Instructor cert. no. (optional)</label>
+              <input id={`${inputId}-cert`} value={certificate} disabled={disabled} onChange={(event) => updateDraftValue(requirement.id, "instructor_certificate_number", event.target.value)} className={input} />
+            </div>
           ) : null}
         </div>
       );

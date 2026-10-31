@@ -22,7 +22,7 @@ export function fieldsComplete(fields: QualificationField[], values: Values): bo
   return fields.every((field) => {
     if (field.optional) return true;
     const value = values[field.key];
-    if (field.type === "instructor") return typeof values.instructor_name === "string" && values.instructor_name.trim() !== "" && typeof values.instructor_certificate_number === "string" && values.instructor_certificate_number.trim() !== "";
+    if (field.type === "instructor") return typeof values.instructor_name === "string" && values.instructor_name.trim() !== "" && (values.instructor_source === "recommending" || (typeof values.instructor_certificate_number === "string" && values.instructor_certificate_number.trim() !== ""));
     if (field.type === "checkbox") return value === true;
     if (field.type === "yes_no") return typeof value === "boolean";
     if (field.type === "entries") {
