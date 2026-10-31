@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { LegalNameFields } from "@/components/legal-name-fields";
+import { legalNameColumns, legalNameFromRecord, type LegalName } from "@/lib/legal-name";
 
 type FlightSchool = {
   id: string;
@@ -9,7 +11,7 @@ type FlightSchool = {
 };
 
 type ProfileForm = {
-  fullLegalName: string;
+  legalName: LegalName;
   ftnNumber: string;
   pilotCertificateNumber: string;
   flightSchoolId: string;
@@ -19,7 +21,7 @@ type ProfileForm = {
 };
 
 const initialForm: ProfileForm = {
-  fullLegalName: "",
+  legalName: { first: "", middle: "", last: "", suffix: "" },
   ftnNumber: "",
   pilotCertificateNumber: "",
   flightSchoolId: "",
@@ -80,6 +82,10 @@ export default function ApplicantProfilePage() {
           .from("applicant_profiles")
           .select(`
             full_legal_name,
+            legal_first_name,
+            legal_middle_name,
+            legal_last_name,
+            legal_suffix,
             ftn_number,
             pilot_certificate_number,
             flight_school_id,
@@ -129,10 +135,7 @@ export default function ApplicantProfilePage() {
       setFlightSchools((schoolsResult.data ?? []) as FlightSchool[]);
 
       setForm({
-        fullLegalName:
-          applicant?.full_legal_name ??
-          profileName ??
-          "",
+        legalName: legalNameFromRecord(applicant, profileName),
         ftnNumber: applicant?.ftn_number ?? "",
         pilotCertificateNumber:
           applicant?.pilot_certificate_number ?? "",
@@ -177,7 +180,9 @@ export default function ApplicantProfilePage() {
     setSuccessMessage("");
 
     if (
-      !form.fullLegalName.trim() ||
+      !form.legalName.first.trim() ||
+      !form.legalName.middle.trim() ||
+      !form.legalName.last.trim() ||
       !form.ftnNumber.trim() ||
       !form.pilotCertificateNumber.trim() ||
       !form.phone.trim()
@@ -210,19 +215,8 @@ export default function ApplicantProfilePage() {
         );
       }
 
-      const nameParts = form.fullLegalName
-        .trim()
-        .split(/\s+/);
-
-      const lastName =
-        nameParts.length > 1
-          ? nameParts[nameParts.length - 1]
-          : "";
-
-      const firstName =
-        nameParts.length > 1
-          ? nameParts.slice(0, -1).join(" ")
-          : nameParts[0];
+      const firstName = form.legalName.first.trim();
+      const lastName = form.legalName.last.trim();
 
       const now = new Date().toISOString();
 
@@ -254,7 +248,7 @@ export default function ApplicantProfilePage() {
       const { error: applicantError } = await supabase
         .from("applicant_profiles")
         .update({
-          full_legal_name: form.fullLegalName.trim(),
+          ...legalNameColumns(form.legalName),
           ftn_number: form.ftnNumber.trim().toUpperCase(),
           pilot_certificate_number:
             form.pilotCertificateNumber
@@ -323,25 +317,7 @@ export default function ApplicantProfilePage() {
         onSubmit={saveProfile}
         className="mt-8 space-y-6 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"
       >
-        <div>
-          <label
-            htmlFor="fullLegalName"
-            className="mb-2 block text-sm font-semibold text-slate-800"
-          >
-            Full legal name
-            <span className="ml-1 text-red-600">*</span>
-          </label>
-
-          <input
-            id="fullLegalName"
-            value={form.fullLegalName}
-            onChange={(event) =>
-              updateField("fullLegalName", event.target.value)
-            }
-            required
-            className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
-          />
-        </div>
+        <LegalNameFields value={form.legalName} onChange={(next) => updateField("legalName", next)} />
 
         <div className="grid gap-6 sm:grid-cols-2">
           <div>
