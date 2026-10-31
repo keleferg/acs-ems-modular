@@ -265,6 +265,8 @@ type LoadedPoaTemplate = {
   items: PoaTemplateRow[];
   eventSetNames: Record<string, string>;
   previousVariants: TemplateVariants | null;
+  /** Scenarios written for this template's story; empty means any scenario for the test. */
+  scenarioIds: string[];
 };
 
 type CompatibleTrigger = {
@@ -1714,6 +1716,12 @@ export default function GeneratePoaPage() {
       }
       if (cancelled) return;
 
+      const { data: templateScenarios } = await supabase
+        .from("poa_template_scenarios")
+        .select("scenario_id")
+        .eq("template_id", template.id);
+      if (cancelled) return;
+
       // Keep only the ACS codes for this test's certificate (a question can carry Private and Commercial codes).
       const certificateName = testType.certificate_name;
       const items = ((itemResult.data ?? []) as unknown as PoaTemplateRow[]).map((raw) => ({
@@ -1744,11 +1752,18 @@ export default function GeneratePoaPage() {
         items,
         eventSetNames: Object.fromEntries((eventSetResult.data ?? []).map((row) => [row.id, row.name])),
         previousVariants,
+        scenarioIds: (templateScenarios ?? []).map((row) => String(row.scenario_id)),
       });
     }
     void loadPoaTemplate();
     return () => { cancelled = true; };
   }, [testType?.id, testType?.certificate_code, testType?.class_code]);
+
+  // The template panel offers only the scenarios written for the template's story, when it has any.
+  const templateScenarioOptions = useMemo(() => {
+    const ids = poaTemplate?.scenarioIds ?? [];
+    return ids.length ? scenarioOptions.filter((scenario) => ids.includes(scenario.id)) : scenarioOptions;
+  }, [poaTemplate, scenarioOptions]);
 
   const selectedScenario = useMemo(
     () =>
@@ -3029,7 +3044,7 @@ export default function GeneratePoaPage() {
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
                     <option value="">Select a scenario</option>
-                    {scenarioOptions.map((scenario) => (
+                    {templateScenarioOptions.map((scenario) => (
                       <option key={scenario.id} value={scenario.id}>
                         {scenario.scenario_name}
                       </option>
