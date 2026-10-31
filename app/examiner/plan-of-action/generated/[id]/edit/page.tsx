@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
 import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
 import {
   deriveAllFlightTasksFromAcsCatalog,
@@ -97,7 +98,58 @@ type GeneratedPoaTrigger = {
   source_trigger_id?: string | null;
   is_selected?: boolean;
   sort_order: number;
+  template_item_id?: string | null;
+  template_depth?: number;
+  // Stable key for the timeline editor (the row id once saved).
+  client_key?: string;
 };
+
+type TimelineEventSet = {
+  id: string;
+  name: string;
+  description: string | null;
+  minimumQuestionCount: number;
+  offered?: boolean;
+};
+
+type TimelineLibraryTrigger = {
+  id: string;
+  eventSetId: string;
+  category: string;
+  title: string;
+  narrative: string;
+};
+
+let timelineKeyCounter = 0;
+
+function newTimelineKey(prefix: string) {
+  timelineKeyCounter += 1;
+  return `${prefix}-${Date.now().toString(36)}-${timelineKeyCounter}`;
+}
+
+function questionTimelineKey(question: SnapshotQuestion) {
+  return question.client_key || question.id || "";
+}
+
+function triggerTimelineKey(trigger: GeneratedPoaTrigger) {
+  return trigger.client_key || trigger.id || "";
+}
+
+// Rows of the oral timeline that the timeline editor places inside an event set.
+function isTimelineTrigger(trigger: GeneratedPoaTrigger) {
+  return (
+    trigger.placement_section !== "flight" &&
+    trigger.timeline_kind !== "scenario" &&
+    trigger.timeline_kind !== "event_set"
+  );
+}
+
+function timelineTriggerLabel(kind: string | undefined) {
+  if (kind === "scene") return "Scene";
+  if (kind === "trigger_option") return "Trigger option";
+  if (!kind || kind === "trigger") return "Trigger";
+  return kind.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 type ScenarioLibraryOption = {
   id: string;
@@ -142,7 +194,97 @@ type SnapshotQuestion = {
   question_type_snapshot: string;
   trigger_option_id: string | null;
   sort_order: number;
+  event_set_id?: string | null;
+  template_item_id?: string | null;
+  template_depth?: number;
+  // Stable key for the timeline editor (the row id once saved).
+  client_key?: string;
 };
+
+function mapSnapshotRow(question: Record<string, unknown>): SnapshotQuestion {
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  const single = text(question.acs_reference_snapshot);
+  return {
+    id: text(question.id) || null,
+    client_key: text(question.id) || undefined,
+    question_library_id: text(question.question_library_id) || null,
+    acs_reference_snapshot: single,
+    acs_references_snapshot: Array.isArray(question.acs_references_snapshot)
+      ? question.acs_references_snapshot.filter((value): value is string => typeof value === "string")
+      : single
+        ? [single]
+        : [],
+    question_snapshot: text(question.question_snapshot),
+    answer_snapshot: text(question.answer_snapshot),
+    reference_snapshot: text(question.reference_snapshot),
+    topic_snapshot: text(question.topic_snapshot),
+    task_name_snapshot: text(question.task_name_snapshot),
+    question_type_snapshot: text(question.question_type_snapshot) || "knowledge",
+    trigger_option_id: text(question.trigger_option_id) || null,
+    sort_order: Number(question.sort_order) || 0,
+    event_set_id: text(question.event_set_id) || null,
+    template_item_id: text(question.template_item_id) || null,
+    template_depth: Number(question.template_depth) || 0,
+  };
+}
+
+const SNAPSHOT_COLUMNS = `
+  id,
+  question_library_id,
+  acs_reference_snapshot,
+  acs_references_snapshot,
+  question_snapshot,
+  answer_snapshot,
+  reference_snapshot,
+  topic_snapshot,
+  task_name_snapshot,
+  question_type_snapshot,
+  trigger_option_id,
+  sort_order,
+  event_set_id,
+  template_item_id,
+  template_depth
+`;
+
+function mapTriggerRow(row: Record<string, unknown>): GeneratedPoaTrigger {
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  return {
+    id: text(row.id) || undefined,
+    client_key: text(row.id) || undefined,
+    trigger_library_id: text(row.trigger_library_id) || null,
+    event_set_id: text(row.event_set_id) || null,
+    placement_section: row.placement_section === "flight" ? "flight" : "oral",
+    timeline_kind: text(row.timeline_kind) || "trigger",
+    phase: text(row.phase) || null,
+    category_snapshot: text(row.category_snapshot),
+    trigger_text_snapshot: text(row.trigger_text_snapshot),
+    trigger_narrative_snapshot: text(row.trigger_narrative_snapshot),
+    branch_worthy: Boolean(row.branch_worthy),
+    source_trigger_id: text(row.source_trigger_id) || null,
+    is_selected: Boolean(row.is_selected),
+    sort_order: Number(row.sort_order) || 0,
+    template_item_id: text(row.template_item_id) || null,
+    template_depth: Number(row.template_depth) || 0,
+  };
+}
+
+const TRIGGER_COLUMNS = `
+  id,
+  trigger_library_id,
+  event_set_id,
+  placement_section,
+  timeline_kind,
+  phase,
+  category_snapshot,
+  trigger_text_snapshot,
+  trigger_narrative_snapshot,
+  branch_worthy,
+  source_trigger_id,
+  is_selected,
+  sort_order,
+  template_item_id,
+  template_depth
+`;
 
 type LibraryQuestion = {
   id: string;
@@ -153,6 +295,8 @@ type LibraryQuestion = {
   topic: string | null;
   task_name: string | null;
   question_type: string;
+  // Element-level ACS codes for this test's certificate (from poa_question_acs_applicability).
+  acs_references?: string[];
 };
 
 type FlightTaskSnapshot =
@@ -168,6 +312,8 @@ type PracticalTestType = {
   rating_name: string;
   category_name: string | null;
   class_name: string | null;
+  certificate_code?: string | null;
+  class_code?: string | null;
 };
 
 function snapshotFromLibrary(
@@ -175,12 +321,17 @@ function snapshotFromLibrary(
 ): SnapshotQuestion {
   return {
     id: null,
+    client_key: newTimelineKey("new-question"),
     question_library_id: question.id,
     acs_reference_snapshot:
-      question.acs_reference || "",
-    acs_references_snapshot: question.acs_reference
-      ? [question.acs_reference]
-      : [],
+      question.acs_references?.length
+        ? question.acs_references.join("; ")
+        : question.acs_reference || "",
+    acs_references_snapshot: question.acs_references?.length
+      ? question.acs_references
+      : question.acs_reference
+        ? [question.acs_reference]
+        : [],
     question_snapshot:
       question.question || "",
     answer_snapshot:
@@ -226,7 +377,7 @@ function GeneratedPoaEditContent() {
 
   const [editorTab, setEditorTab] = useState<
 
-    "questions" | "compliance" | "flight" | "triggers"
+    "timeline" | "questions" | "compliance" | "flight" | "triggers"
 
   >("questions");
 
@@ -342,6 +493,19 @@ function GeneratedPoaEditContent() {
   const [libraryQuestions, setLibraryQuestions] =
     useState<LibraryQuestion[]>([]);
 
+  // Scenario timeline editor: event sets, library mappings and the order inside each event set.
+  const [timelineEventSets, setTimelineEventSets] =
+    useState<TimelineEventSet[]>([]);
+
+  const [questionEventSetRules, setQuestionEventSetRules] =
+    useState<Record<string, string[]>>({});
+
+  const [timelineLibraryTriggers, setTimelineLibraryTriggers] =
+    useState<TimelineLibraryTrigger[]>([]);
+
+  const [timelineOrder, setTimelineOrder] =
+    useState<Record<string, string[]>>({});
+
   const [searchText, setSearchText] =
     useState("");
 
@@ -430,20 +594,7 @@ function GeneratedPoaEditContent() {
           .from(
             "generated_plan_of_action_questions",
           )
-          .select(`
-            id,
-            question_library_id,
-            acs_reference_snapshot,
-            acs_references_snapshot,
-            question_snapshot,
-            answer_snapshot,
-            reference_snapshot,
-            topic_snapshot,
-            task_name_snapshot,
-            question_type_snapshot,
-            trigger_option_id,
-            sort_order
-          `)
+          .select(SNAPSHOT_COLUMNS)
           .eq(
             "generated_plan_of_action_id",
             id,
@@ -461,7 +612,9 @@ function GeneratedPoaEditContent() {
             issuance_name,
             rating_name,
             category_name,
-            class_name
+            class_name,
+            certificate_code,
+            class_code
           `)
           .eq(
             "id",
@@ -550,7 +703,8 @@ function GeneratedPoaEditContent() {
               reference,
               topic,
               task_name,
-              question_type
+              question_type,
+              poa_question_acs_applicability ( certificate_name, acs_reference )
             `)
             .eq(
               "examiner_profile_id",
@@ -566,9 +720,27 @@ function GeneratedPoaEditContent() {
             });
 
           if (!questionError) {
-            libraryData =
-              (questionData ??
-                []) as LibraryQuestion[];
+            // Keep only the element codes for this test's certificate, as the builder does.
+            const certificateName =
+              testTypeResult.data?.certificate_name ?? null;
+            libraryData = (
+              (questionData ?? []) as Array<
+                LibraryQuestion & {
+                  poa_question_acs_applicability?: Array<{ certificate_name: string | null; acs_reference: string | null }> | null;
+                }
+              >
+            ).map(({ poa_question_acs_applicability: applicability, ...question }) => ({
+              ...question,
+              acs_references: [
+                ...new Set(
+                  (applicability ?? [])
+                    .filter((row) => !row.certificate_name || !certificateName || row.certificate_name === certificateName)
+                    .flatMap((row) => String(row.acs_reference ?? "").split(/[,;\n]+/))
+                    .map((value) => value.trim())
+                    .filter(Boolean),
+                ),
+              ],
+            }));
           }
         }
       }
@@ -576,41 +748,8 @@ function GeneratedPoaEditContent() {
       if (!cancelled) {
         const loadedSnapshots =
           (snapshotsResult.data ?? []).map(
-            (question) => ({
-              id: question.id,
-              question_library_id:
-                question.question_library_id ??
-                null,
-              acs_reference_snapshot:
-                question.acs_reference_snapshot ||
-                "",
-              acs_references_snapshot:
-                Array.isArray(question.acs_references_snapshot)
-                  ? question.acs_references_snapshot.filter(
-                      (value): value is string => typeof value === "string",
-                    )
-                  : question.acs_reference_snapshot
-                    ? [question.acs_reference_snapshot]
-                    : [],
-              question_snapshot:
-                question.question_snapshot || "",
-              answer_snapshot:
-                question.answer_snapshot || "",
-              reference_snapshot:
-                question.reference_snapshot || "",
-              topic_snapshot:
-                question.topic_snapshot || "",
-              task_name_snapshot:
-                question.task_name_snapshot || "",
-              question_type_snapshot:
-                question.question_type_snapshot ||
-                "knowledge",
-              trigger_option_id:
-                question.trigger_option_id ?? null,
-              sort_order:
-                question.sort_order || 0,
-            }),
-          ) as SnapshotQuestion[];
+            (question) => mapSnapshotRow(question as Record<string, unknown>),
+          );
 
         const loadedFlightTasks =
           (flightTaskResult.data ?? []).map(
@@ -659,6 +798,11 @@ function GeneratedPoaEditContent() {
         );
 
         setLibraryQuestions(libraryData);
+
+        // POAs built on event sets open on the timeline.
+        if (loadedSnapshots.some((question) => question.event_set_id)) {
+          setEditorTab("timeline");
+        }
 
         setLoading(false);
       }
@@ -760,29 +904,31 @@ function GeneratedPoaEditContent() {
       return;
     }
 
-    setQuestions((current) => {
-      if (
-        fromIndex >= current.length ||
-        toIndex >= current.length
-      ) {
-        return current;
-      }
+    if (
+      fromIndex >= questions.length ||
+      toIndex >= questions.length
+    ) {
+      return;
+    }
 
-      const copy = [...current];
+    const copy = [...questions];
+    const [question] = copy.splice(fromIndex, 1);
+    copy.splice(toIndex, 0, question);
+    setQuestions(copy);
 
-      const [question] = copy.splice(
-        fromIndex,
-        1,
+    // Keep the timeline in step: inside each event set the questions take the new
+    // list order, and scenes and triggers keep their places.
+    const nextOrder: Record<string, string[]> = {};
+    for (const [eventSetId, keys] of Object.entries(effectiveTimelineOrder)) {
+      const questionKeys = copy
+        .filter((item) => item.event_set_id === eventSetId)
+        .map((item) => `question:${questionTimelineKey(item)}`);
+      let next = 0;
+      nextOrder[eventSetId] = keys.map((key) =>
+        key.startsWith("question:") ? questionKeys[next++] ?? key : key,
       );
-
-      copy.splice(
-        toIndex,
-        0,
-        question,
-      );
-
-      return copy;
-    });
+    }
+    setTimelineOrder(nextOrder);
   }
 
   function dropQuestion(
@@ -844,6 +990,7 @@ function GeneratedPoaEditContent() {
       ...current,
       {
         id: null,
+        client_key: newTimelineKey("new-question"),
         question_library_id: null,
         acs_reference_snapshot: "",
         acs_references_snapshot: [],
@@ -1307,21 +1454,7 @@ function GeneratedPoaEditContent() {
           }),
         supabase
           .from("generated_plan_of_action_triggers")
-          .select(`
-            id,
-            trigger_library_id,
-            event_set_id,
-            placement_section,
-            timeline_kind,
-            phase,
-            category_snapshot,
-            trigger_text_snapshot,
-            trigger_narrative_snapshot,
-            branch_worthy,
-            source_trigger_id,
-            is_selected,
-            sort_order
-          `)
+          .select(TRIGGER_COLUMNS)
           .eq(
             "generated_plan_of_action_id",
             plan.id,
@@ -1363,39 +1496,9 @@ function GeneratedPoaEditContent() {
 
       if (!frozenResult.error) {
         setPoaTriggers(
-          (frozenResult.data ?? [])
-            .map(
-              (row) => ({
-                id: row.id,
-                trigger_library_id:
-                  row.trigger_library_id ??
-                  null,
-                event_set_id:
-                  row.event_set_id ?? null,
-                placement_section:
-                  row.placement_section ===
-                  "flight"
-                    ? "flight"
-                    : "oral",
-                timeline_kind:
-                  row.timeline_kind || "trigger",
-                phase: row.phase ?? null,
-                category_snapshot:
-                  row.category_snapshot || "",
-                trigger_text_snapshot:
-                  row.trigger_text_snapshot ||
-                  "",
-                trigger_narrative_snapshot:
-                  row.trigger_narrative_snapshot ||
-                  "",
-                branch_worthy: Boolean(row.branch_worthy),
-                source_trigger_id:
-                  row.source_trigger_id ?? null,
-                is_selected: Boolean(row.is_selected),
-                sort_order:
-                  row.sort_order || 0,
-              }),
-            ) as GeneratedPoaTrigger[],
+          (frozenResult.data ?? []).map((row) =>
+            mapTriggerRow(row as Record<string, unknown>),
+          ),
         );
       }
     }
@@ -1406,6 +1509,446 @@ function GeneratedPoaEditContent() {
       cancelled = true;
     };
   }, [plan?.id]);
+
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTimelineLibrary() {
+      if (!plan?.id || !testType) {
+        return;
+      }
+
+      const supabase = createClient();
+
+      const { data: eventSetRows, error: eventSetError } = await supabase
+        .from("poa_event_sets")
+        .select("id, name, description, sort_order, minimum_question_count, exam_section, is_active")
+        .order("sort_order", { ascending: true });
+
+      if (cancelled) return;
+
+      if (eventSetError) {
+        setErrorMessage(`Event sets could not be loaded: ${eventSetError.message}`);
+        return;
+      }
+
+      setTimelineEventSets(
+        (eventSetRows ?? []).map((row) => ({
+          id: String(row.id),
+          name: String(row.name ?? "Event Set"),
+          description: (row.description as string | null) ?? null,
+          minimumQuestionCount: Math.max(1, Number(row.minimum_question_count ?? 15)),
+          // Only active oral event sets are offered when nothing in this POA uses them yet.
+          offered: row.is_active !== false && row.exam_section === "oral",
+        })),
+      );
+
+      const eventSetIds = (eventSetRows ?? []).map((row) => String(row.id));
+
+      if (eventSetIds.length === 0) return;
+
+      const [ruleResult, optionResult] = await Promise.all([
+        supabase
+          .from("poa_event_set_question_rules")
+          .select("event_set_id, question_id, review_status")
+          .in("event_set_id", eventSetIds),
+        supabase
+          .from("poa_event_set_trigger_options")
+          .select(`
+            event_set_id,
+            option_order,
+            is_active,
+            class_codes,
+            certificate_codes,
+            poa_triggers!inner (
+              id, category, trigger_text, trigger_narrative, is_active, trigger_role
+            )
+          `)
+          .in("event_set_id", eventSetIds)
+          .eq("is_active", true)
+          .eq("poa_triggers.is_active", true)
+          .eq("poa_triggers.trigger_role", "operational")
+          .order("option_order", { ascending: true }),
+      ]);
+
+      if (cancelled) return;
+
+      if (!ruleResult.error) {
+        const rules: Record<string, string[]> = {};
+
+        for (const row of ruleResult.data ?? []) {
+          if (row.review_status && row.review_status !== "approved") continue;
+          const questionId = String(row.question_id ?? "");
+          const eventSetId = String(row.event_set_id ?? "");
+          if (!questionId || !eventSetId) continue;
+          rules[questionId] = [...new Set([...(rules[questionId] ?? []), eventSetId])];
+        }
+
+        setQuestionEventSetRules(rules);
+      }
+
+      if (!optionResult.error) {
+        const poaClass = (testType.class_code ?? "").trim().toUpperCase();
+        const poaCertificate = (testType.certificate_code ?? "").trim().toUpperCase();
+
+        setTimelineLibraryTriggers(
+          (optionResult.data ?? [])
+            .filter((row) => {
+              const { class_codes: classes, certificate_codes: certificates } =
+                row as { class_codes?: string[] | null; certificate_codes?: string[] | null };
+              return (
+                (!classes || classes.length === 0 || !poaClass || classes.includes(poaClass)) &&
+                (!certificates || certificates.length === 0 || !poaCertificate || certificates.includes(poaCertificate))
+              );
+            })
+            .map((row) => {
+              const related = Array.isArray(row.poa_triggers) ? row.poa_triggers[0] : row.poa_triggers;
+              return {
+                id: String(related?.id ?? ""),
+                eventSetId: String(row.event_set_id),
+                category: String(related?.category ?? "event"),
+                title: String(related?.trigger_text ?? "Trigger"),
+                narrative: String(related?.trigger_narrative ?? related?.trigger_text ?? ""),
+              };
+            })
+            .filter((trigger) => trigger.id),
+        );
+      }
+    }
+
+    void loadTimelineLibrary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan?.id, testType]);
+
+  // Event sets in the order this POA uses them, then the other active oral event sets.
+  const editorEventSets = useMemo(() => {
+    const known = new Map(timelineEventSets.map((eventSet) => [eventSet.id, eventSet]));
+    const used: string[] = [];
+    const oralRows = [
+      ...questions.map((question) => ({ eventSetId: question.event_set_id ?? null, sortOrder: question.sort_order || Number.MAX_SAFE_INTEGER, header: false })),
+      ...poaTriggers
+        .filter((trigger) => trigger.placement_section !== "flight")
+        .map((trigger) => ({ eventSetId: trigger.event_set_id ?? null, sortOrder: trigger.sort_order || Number.MAX_SAFE_INTEGER, header: trigger.timeline_kind === "event_set" })),
+    ].sort((a, b) => a.sortOrder - b.sortOrder || Number(b.header) - Number(a.header));
+
+    for (const row of oralRows) {
+      if (row.eventSetId && !used.includes(row.eventSetId)) used.push(row.eventSetId);
+    }
+
+    const headerNames = new Map(
+      poaTriggers
+        .filter((trigger) => trigger.timeline_kind === "event_set" && trigger.event_set_id)
+        .map((trigger) => [trigger.event_set_id as string, trigger.trigger_text_snapshot]),
+    );
+
+    const offered = timelineEventSets.filter(
+      (eventSet) => eventSet.offered && !used.includes(eventSet.id),
+    );
+
+    return [
+      ...used.map(
+        (eventSetId) =>
+          known.get(eventSetId) ?? {
+            id: eventSetId,
+            name: headerNames.get(eventSetId) || "Event Set",
+            description: null,
+            minimumQuestionCount: 15,
+          },
+      ),
+      ...offered,
+    ];
+  }, [timelineEventSets, questions, poaTriggers]);
+
+  const allEditorEventSetIds = useMemo(
+    () => editorEventSets.map((eventSet) => eventSet.id),
+    [editorEventSets],
+  );
+
+  // The order inside each event set: the editor's order where the examiner changed it, otherwise the saved order.
+  const effectiveTimelineOrder = useMemo(() => {
+    const members: Record<string, Array<{ key: string; sortOrder: number; trigger: boolean }>> = {};
+
+    for (const question of questions) {
+      if (!question.event_set_id) continue;
+      (members[question.event_set_id] ??= []).push({
+        key: `question:${questionTimelineKey(question)}`,
+        sortOrder: question.sort_order || Number.MAX_SAFE_INTEGER,
+        trigger: false,
+      });
+    }
+
+    for (const trigger of poaTriggers) {
+      if (!trigger.event_set_id || !isTimelineTrigger(trigger)) continue;
+      (members[trigger.event_set_id] ??= []).push({
+        key: `trigger:${triggerTimelineKey(trigger)}`,
+        sortOrder: trigger.sort_order || Number.MAX_SAFE_INTEGER,
+        trigger: true,
+      });
+    }
+
+    const order: Record<string, string[]> = {};
+
+    for (const [eventSetId, entries] of Object.entries(members)) {
+      const keys = new Set(entries.map((entry) => entry.key));
+      const chosen = (timelineOrder[eventSetId] ?? []).filter((key) => keys.has(key));
+      const rest = entries
+        .filter((entry) => !chosen.includes(entry.key))
+        .sort((a, b) => a.sortOrder - b.sortOrder || Number(b.trigger) - Number(a.trigger))
+        .map((entry) => entry.key);
+      order[eventSetId] = [...chosen, ...rest];
+    }
+
+    return order;
+  }, [questions, poaTriggers, timelineOrder]);
+
+  const timelineQuestionEntries = useMemo(() => {
+    const placedLibraryIds = new Set(
+      questions.map((question) => question.question_library_id).filter(Boolean),
+    );
+
+    return [
+      ...questions.map((question) => ({
+        id: questionTimelineKey(question),
+        title: question.question_snapshot.replace(/^TRIGGER:\s*/, "") || "Untitled question",
+        label: question.question_snapshot.startsWith("TRIGGER: ") ? "Trigger question" : undefined,
+        depth: question.template_depth ?? 0,
+        eventSetIds: allEditorEventSetIds,
+        assignedEventSetId: question.event_set_id ?? undefined,
+        selected: true,
+        // Questions already in an event set are moved by dragging them; unplaced ones stay listed so they can be placed.
+        hideInLibrary: Boolean(question.event_set_id),
+      })),
+      ...libraryQuestions
+        .filter((question) => !placedLibraryIds.has(question.id))
+        .map((question) => ({
+          id: `lib:${question.id}`,
+          title: question.question,
+          eventSetIds: questionEventSetRules[question.id]?.length
+            ? questionEventSetRules[question.id]
+            : allEditorEventSetIds,
+          selected: false,
+        })),
+    ];
+  }, [questions, libraryQuestions, questionEventSetRules, allEditorEventSetIds]);
+
+  const timelineTriggerEntries = useMemo(() => {
+    const placedTriggerIds = new Set(
+      poaTriggers.map((trigger) => trigger.trigger_library_id).filter(Boolean),
+    );
+
+    const libraryById = new Map<string, { trigger: TimelineLibraryTrigger; eventSetIds: string[] }>();
+
+    for (const trigger of timelineLibraryTriggers) {
+      if (placedTriggerIds.has(trigger.id)) continue;
+      const entry = libraryById.get(trigger.id) ?? { trigger, eventSetIds: [] };
+      if (!entry.eventSetIds.includes(trigger.eventSetId)) entry.eventSetIds.push(trigger.eventSetId);
+      libraryById.set(trigger.id, entry);
+    }
+
+    return [
+      ...poaTriggers.filter(isTimelineTrigger).map((trigger) => ({
+        id: triggerTimelineKey(trigger),
+        title: trigger.trigger_text_snapshot || "Untitled",
+        label: timelineTriggerLabel(trigger.timeline_kind),
+        depth: trigger.template_depth ?? 0,
+        eventSetIds: allEditorEventSetIds,
+        assignedEventSetId: trigger.event_set_id ?? undefined,
+        selected: true,
+        hideInLibrary: Boolean(trigger.event_set_id),
+      })),
+      ...[...libraryById.values()].map(({ trigger, eventSetIds }) => ({
+        id: `libt:${trigger.id}`,
+        title: trigger.title,
+        eventSetIds,
+        selected: false,
+      })),
+    ];
+  }, [poaTriggers, timelineLibraryTriggers, allEditorEventSetIds]);
+
+  // Puts the questions list (Questions tab) in the same order as the timeline.
+  function orderQuestionsLikeTimeline(
+    list: SnapshotQuestion[],
+    order: Record<string, string[]>,
+  ) {
+    const position = new Map<string, number>();
+    let index = 0;
+
+    for (const eventSet of editorEventSets) {
+      for (const key of order[eventSet.id] ?? []) {
+        position.set(key, index);
+        index += 1;
+      }
+    }
+
+    return list
+      .map((question, listIndex) => ({ question, listIndex }))
+      .sort((a, b) => {
+        const ap = position.get(`question:${questionTimelineKey(a.question)}`) ?? Number.MAX_SAFE_INTEGER;
+        const bp = position.get(`question:${questionTimelineKey(b.question)}`) ?? Number.MAX_SAFE_INTEGER;
+        return ap - bp || a.listIndex - b.listIndex;
+      })
+      .map(({ question }) => question);
+  }
+
+  function changeTimelineOrder(eventSetId: string, keys: string[]) {
+    const nextOrder = { ...effectiveTimelineOrder, [eventSetId]: keys };
+    setTimelineOrder(nextOrder);
+    setQuestions((current) => orderQuestionsLikeTimeline(current, nextOrder));
+    setMessage("Timeline changed. Click Save Changes to save it.");
+  }
+
+  function assignTimelineItem(
+    kind: "question" | "trigger",
+    key: string,
+    eventSetId: string,
+  ) {
+    if (kind === "question") {
+      if (key.startsWith("lib:")) {
+        const libraryQuestion = libraryQuestions.find((question) => `lib:${question.id}` === key);
+        if (!libraryQuestion) return false;
+        setQuestions((current) => [
+          ...current,
+          {
+            ...snapshotFromLibrary(libraryQuestion),
+            client_key: key,
+            event_set_id: eventSetId,
+            template_depth: 0,
+            sort_order: Number.MAX_SAFE_INTEGER,
+          },
+        ]);
+      } else {
+        setQuestions((current) =>
+          current.map((question) =>
+            questionTimelineKey(question) === key
+              ? { ...question, event_set_id: eventSetId }
+              : question,
+          ),
+        );
+      }
+    } else if (key.startsWith("libt:")) {
+      const libraryTrigger = timelineLibraryTriggers.find((trigger) => `libt:${trigger.id}` === key);
+      if (!libraryTrigger) return false;
+      setPoaTriggers((current) => [
+        ...current,
+        {
+          client_key: key,
+          trigger_library_id: libraryTrigger.id,
+          event_set_id: eventSetId,
+          placement_section: "oral",
+          timeline_kind: "trigger",
+          phase: null,
+          category_snapshot: libraryTrigger.category,
+          trigger_text_snapshot: libraryTrigger.title,
+          trigger_narrative_snapshot: libraryTrigger.narrative || libraryTrigger.title,
+          branch_worthy: false,
+          source_trigger_id: null,
+          is_selected: false,
+          sort_order: Number.MAX_SAFE_INTEGER,
+          template_item_id: null,
+          template_depth: 0,
+        },
+      ]);
+    } else {
+      setPoaTriggers((current) =>
+        current.map((trigger) =>
+          triggerTimelineKey(trigger) === key
+            ? { ...trigger, event_set_id: eventSetId }
+            : trigger,
+        ),
+      );
+    }
+
+    setMessage("Timeline changed. Click Save Changes to save it.");
+    return true;
+  }
+
+  function removeTimelineItem(
+    kind: "question" | "trigger",
+    key: string,
+  ) {
+    if (kind === "question") {
+      setQuestions((current) => current.filter((question) => questionTimelineKey(question) !== key));
+    } else {
+      setPoaTriggers((current) => current.filter((trigger) => triggerTimelineKey(trigger) !== key));
+    }
+
+    setMessage("Removed from this POA. Click Save Changes to save it. The library record is not deleted.");
+  }
+
+  // Sort orders for the whole oral timeline, so print and EMT follow the timeline.
+  // Event-set members are written in the timeline order at their event set's place;
+  // the scenario and anything outside an event set keep their place.
+  function buildTimelinePositions() {
+    type Row =
+      | { kind: "question"; key: string; sortOrder: number; eventSetId: string | null }
+      | { kind: "trigger"; key: string; sortOrder: number; eventSetId: string | null; header: boolean };
+
+    const rows: Row[] = [
+      ...questions.map((question, index) => ({
+        kind: "question" as const,
+        key: questionTimelineKey(question),
+        sortOrder: question.id ? question.sort_order : Number.MAX_SAFE_INTEGER - questions.length + index,
+        eventSetId: question.event_set_id ?? null,
+      })),
+      ...poaTriggers
+        .filter((trigger) => trigger.placement_section !== "flight")
+        .map((trigger) => ({
+          kind: "trigger" as const,
+          key: triggerTimelineKey(trigger),
+          sortOrder: trigger.id ? trigger.sort_order : Number.MAX_SAFE_INTEGER,
+          eventSetId: trigger.timeline_kind === "scenario" ? null : trigger.event_set_id ?? null,
+          header: trigger.timeline_kind === "event_set",
+        })),
+    ].sort(
+      (a, b) =>
+        a.sortOrder - b.sortOrder ||
+        Number(b.kind === "trigger" && b.header) - Number(a.kind === "trigger" && a.header) ||
+        Number(b.kind === "trigger") - Number(a.kind === "trigger"),
+    );
+
+    const headerKeys = new Map<string, string>();
+    for (const row of rows) {
+      if (row.kind === "trigger" && row.header && row.eventSetId && !headerKeys.has(row.eventSetId)) {
+        headerKeys.set(row.eventSetId, row.key);
+      }
+    }
+
+    const sequence: string[] = [];
+    const newHeaders: string[] = [];
+    const done = new Set<string>();
+
+    function emitEventSet(eventSetId: string) {
+      if (done.has(eventSetId)) return;
+      done.add(eventSetId);
+      const header = headerKeys.get(eventSetId);
+      if (header) {
+        sequence.push(`trigger:${header}`);
+      } else {
+        sequence.push(`header:${eventSetId}`);
+        newHeaders.push(eventSetId);
+      }
+      sequence.push(...(effectiveTimelineOrder[eventSetId] ?? []));
+    }
+
+    for (const row of rows) {
+      if (row.eventSetId) {
+        emitEventSet(row.eventSetId);
+      } else {
+        sequence.push(`${row.kind}:${row.key}`);
+      }
+    }
+
+    const positions = new Map<string, number>();
+    sequence.forEach((key, index) => {
+      if (!positions.has(key)) positions.set(key, (index + 1) * 10);
+    });
+
+    return { positions, newHeaders };
+  }
 
   const triggerCategories =
     useMemo(
@@ -1529,6 +2072,7 @@ function GeneratedPoaEditContent() {
     }
 
     const next: GeneratedPoaTrigger = {
+      client_key: newTimelineKey("new-trigger"),
       trigger_library_id:
         selectedTriggerLibraryItem.id,
       event_set_id: null,
@@ -1873,6 +2417,23 @@ function GeneratedPoaEditContent() {
         );
       }
 
+      // POAs built on event sets save in timeline order; older POAs keep the list order.
+      const usesEventSets =
+        questions.some((question) => question.event_set_id) ||
+        poaTriggers.some((trigger) => trigger.event_set_id);
+
+      const timeline = usesEventSets ? buildTimelinePositions() : null;
+
+      const questionSortOrder = (question: SnapshotQuestion, index: number) =>
+        timeline?.positions.get(`question:${questionTimelineKey(question)}`) ?? (index + 1) * 10;
+
+      const triggerSortOrder = (trigger: GeneratedPoaTrigger) =>
+        trigger.placement_section === "flight" || !timeline
+          ? trigger.sort_order
+          : timeline.positions.get(`trigger:${triggerTimelineKey(trigger)}`) ?? trigger.sort_order;
+
+      const eventSetNames = new Map(editorEventSets.map((eventSet) => [eventSet.id, eventSet.name]));
+
       const currentExistingIds =
         new Set(
           questions
@@ -1964,8 +2525,10 @@ function GeneratedPoaEditContent() {
                       "knowledge",
                     trigger_option_id:
                       question.trigger_option_id,
+                    event_set_id:
+                      question.event_set_id ?? null,
                     sort_order:
-                      (index + 1) * 10,
+                      questionSortOrder(question, index),
                   })
                   .eq(
                     "generated_plan_of_action_id",
@@ -2033,8 +2596,14 @@ function GeneratedPoaEditContent() {
                 "knowledge",
               trigger_option_id:
                 question.trigger_option_id,
+              event_set_id:
+                question.event_set_id ?? null,
+              template_item_id:
+                question.template_item_id ?? null,
+              template_depth:
+                question.template_depth ?? 0,
               sort_order:
-                (index + 1) * 10,
+                questionSortOrder(question, index),
             }),
           );
 
@@ -2100,8 +2669,8 @@ function GeneratedPoaEditContent() {
         {
           p_generated_plan_of_action_id:
             plan.id,
-          p_triggers:
-            poaTriggers.map(
+          p_triggers: [
+            ...poaTriggers.map(
               (trigger) => ({
                 trigger_library_id:
                   trigger.trigger_library_id,
@@ -2125,9 +2694,31 @@ function GeneratedPoaEditContent() {
                   trigger.source_trigger_id ?? null,
                 is_selected: Boolean(trigger.is_selected),
                 sort_order:
-                  trigger.sort_order,
+                  triggerSortOrder(trigger),
+                template_item_id:
+                  trigger.template_item_id ?? null,
+                template_depth:
+                  trigger.template_depth ?? 0,
               }),
             ),
+            // Event set headers for event sets that had none yet.
+            ...(timeline?.newHeaders ?? []).map((eventSetId) => ({
+              trigger_library_id: null,
+              event_set_id: eventSetId,
+              placement_section: "oral",
+              timeline_kind: "event_set",
+              phase: null,
+              category_snapshot: null,
+              trigger_text_snapshot: eventSetNames.get(eventSetId) ?? "Event Set",
+              trigger_narrative_snapshot: eventSetNames.get(eventSetId) ?? "Event Set",
+              branch_worthy: false,
+              source_trigger_id: null,
+              is_selected: false,
+              sort_order: timeline?.positions.get(`header:${eventSetId}`) ?? 10,
+              template_item_id: null,
+              template_depth: 0,
+            })),
+          ],
         },
       );
 
@@ -2138,74 +2729,41 @@ function GeneratedPoaEditContent() {
       }
 
 
-      const {
-        data: refreshed,
-        error: refreshError,
-      } = await supabase
-        .from(
-          "generated_plan_of_action_questions",
-        )
-        .select(`
-          id,
-          question_library_id,
-          acs_reference_snapshot,
-          question_snapshot,
-          answer_snapshot,
-          reference_snapshot,
-          topic_snapshot,
-          task_name_snapshot,
-          question_type_snapshot,
-          trigger_option_id,
-          sort_order
-        `)
-        .eq(
-          "generated_plan_of_action_id",
-          plan.id,
-        )
-        .order("sort_order", {
-          ascending: true,
-        });
+      const [
+        { data: refreshed, error: refreshError },
+        { data: refreshedTriggers, error: refreshTriggerError },
+      ] = await Promise.all([
+        supabase
+          .from("generated_plan_of_action_questions")
+          .select(SNAPSHOT_COLUMNS)
+          .eq("generated_plan_of_action_id", plan.id)
+          .order("sort_order", { ascending: true }),
+        supabase
+          .from("generated_plan_of_action_triggers")
+          .select(TRIGGER_COLUMNS)
+          .eq("generated_plan_of_action_id", plan.id)
+          .order("placement_section", { ascending: true })
+          .order("sort_order", { ascending: true }),
+      ]);
 
-      if (refreshError) {
+      if (refreshError || refreshTriggerError) {
         throw new Error(
-          `POA saved, but the refreshed copy could not be loaded: ${refreshError.message}`,
+          `POA saved, but the refreshed copy could not be loaded: ${(refreshError ?? refreshTriggerError)?.message}`,
         );
       }
 
       const refreshedQuestions =
-        (refreshed ?? []).map(
-          (question) => ({
-            id: question.id,
-            question_library_id:
-              question.question_library_id ??
-              null,
-            acs_reference_snapshot:
-              question.acs_reference_snapshot ||
-              "",
-            question_snapshot:
-              question.question_snapshot ||
-              "",
-            answer_snapshot:
-              question.answer_snapshot ||
-              "",
-            reference_snapshot:
-              question.reference_snapshot ||
-              "",
-            topic_snapshot:
-              question.topic_snapshot ||
-              "",
-            task_name_snapshot:
-              question.task_name_snapshot ||
-              "",
-            question_type_snapshot:
-              question.question_type_snapshot ||
-              "knowledge",
-            trigger_option_id:
-              question.trigger_option_id ?? null,
-            sort_order:
-              question.sort_order || 0,
-          }),
-        ) as SnapshotQuestion[];
+        (refreshed ?? []).map((question) =>
+          mapSnapshotRow(question as Record<string, unknown>),
+        );
+
+      setPoaTriggers(
+        (refreshedTriggers ?? []).map((row) =>
+          mapTriggerRow(row as Record<string, unknown>),
+        ),
+      );
+
+      setTimelineOrder({});
 
       setQuestions(
         refreshedQuestions,
@@ -2904,6 +3462,18 @@ function GeneratedPoaEditContent() {
             <div className="mt-8 flex gap-1 border-b border-slate-300">
         <button
           type="button"
+          onClick={() => setEditorTab("timeline")}
+          className={`border-b-2 px-6 py-3 text-sm font-bold ${
+            editorTab === "timeline"
+              ? "border-sky-700 text-sky-800"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          Scenario Timeline
+        </button>
+
+        <button
+          type="button"
           onClick={() => setEditorTab("questions")}
           className={`border-b-2 px-6 py-3 text-sm font-bold ${
             editorTab === "questions"
@@ -2950,6 +3520,57 @@ function GeneratedPoaEditContent() {
         </button>
 
       </div>
+
+{editorTab === "timeline" ? (
+        <section className="mt-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">
+                Scenario Timeline
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Same editor as when you build a POA. Drag items between event sets, reorder them,
+                remove them, or add questions and triggers from the library. Click Save Changes to
+                save; print and the EMT follow this order.
+              </p>
+            </div>
+          </div>
+
+          {editorEventSets.length === 0 ? (
+            <p className="mt-6 rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+              Loading event sets…
+            </p>
+          ) : (
+            <TimelineEventEditor
+              scenario={{
+                title:
+                  plan.scenario_name ||
+                  poaTriggers.find((trigger) => trigger.timeline_kind === "scenario")?.trigger_text_snapshot ||
+                  "Scenario",
+                narrative:
+                  poaTriggers.find((trigger) => trigger.timeline_kind === "scenario")?.trigger_narrative_snapshot ||
+                  selectedScenario?.scenario_brief ||
+                  null,
+              }}
+              eventSets={editorEventSets.map((eventSet) => ({
+                id: eventSet.id,
+                name: eventSet.name,
+                description: eventSet.description,
+                maxQuestionCount: Math.max(
+                  eventSet.minimumQuestionCount,
+                  questions.filter((question) => question.event_set_id === eventSet.id).length,
+                ),
+              }))}
+              questions={timelineQuestionEntries}
+              triggers={timelineTriggerEntries}
+              itemOrder={effectiveTimelineOrder}
+              onOrderChange={changeTimelineOrder}
+              onAssign={(kind, key, eventSetId) => assignTimelineItem(kind, key, eventSetId)}
+              onRemove={(kind, key) => removeTimelineItem(kind, key)}
+            />
+          )}
+        </section>
+      ) : null}
 
 <section className={editorTab === "questions" ? "mt-8" : "hidden"}>
         <div className="flex flex-wrap items-end justify-between gap-4">

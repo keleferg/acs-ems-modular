@@ -3,7 +3,8 @@
 import { useState, type DragEvent } from "react";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 
-type Entry = { id: string; title: string; eventSetIds: string[]; assignedEventSetId?: string; selected?: boolean };
+// label: shown instead of "Question"/"Trigger" (e.g. "Scene"); depth: indent level; hideInLibrary: placed items that should not be listed in the library panel.
+type Entry = { id: string; title: string; eventSetIds: string[]; assignedEventSetId?: string; selected?: boolean; label?: string; depth?: number; hideInLibrary?: boolean };
 type EventSet = { id: string; name: string; description?: string | null; maxQuestionCount: number };
 type Props = {
   scenario: { title: string; narrative?: string | null };
@@ -57,7 +58,7 @@ export function TimelineEventEditor({ scenario, eventSets, questions, triggers, 
     event.dataTransfer.setData("application/x-poa-item", JSON.stringify({ kind: entryKind, id }));
     event.dataTransfer.effectAllowed = "move";
   }
-  const library = (kind === "question" ? questions : triggers).filter((entry) => entry.title.toLowerCase().includes(search.toLowerCase()));
+  const library = (kind === "question" ? questions : triggers).filter((entry) => !entry.hideInLibrary && entry.title.toLowerCase().includes(search.toLowerCase()));
   return (
     <div className="mt-6 space-y-5">
       <article className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
@@ -86,9 +87,9 @@ export function TimelineEventEditor({ scenario, eventSets, questions, triggers, 
                   {entriesFor(eventSet.id).map((entry, itemIndex, entries) => <li key={entry.key} draggable onDragStart={(event) => startDrag(event, entry.kind, entry.id)} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-poa-item")) event.preventDefault(); }} onDrop={(event) => {
                     event.preventDefault(); event.stopPropagation(); setDragOver(null);
                     try { const data = JSON.parse(event.dataTransfer.getData("application/x-poa-item")); if ((data.kind === "question" || data.kind === "trigger") && typeof data.id === "string") assign(data.kind, data.id, eventSet.id, entry.key); } catch { setNotice("Drag a question or trigger from the library."); }
-                  }} className={`flex items-start gap-2 rounded-lg border p-3 ${entry.kind === "question" ? "border-sky-200 bg-sky-50" : "border-amber-200 bg-amber-50"}`}>
+                  }} style={entry.depth ? { marginLeft: `${Math.min(entry.depth, 6) * 1.25}rem` } : undefined} className={`flex items-start gap-2 rounded-lg border p-3 ${entry.kind === "question" ? "border-sky-200 bg-sky-50" : "border-amber-200 bg-amber-50"}`}>
                     <GripVertical aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                    <div className="min-w-0 flex-1"><p className="text-xs font-bold uppercase text-slate-500">{itemIndex + 1}. {entry.kind === "question" ? "Question" : "Trigger"}</p><p className="mt-1 text-sm text-slate-800">{entry.title}</p>
+                    <div className="min-w-0 flex-1"><p className="text-xs font-bold uppercase text-slate-500">{itemIndex + 1}. {entry.label ?? (entry.kind === "question" ? "Question" : "Trigger")}</p><p className="mt-1 text-sm text-slate-800">{entry.title}</p>
                       <div className="mt-2 flex flex-wrap gap-3">
                         <button type="button" disabled={itemIndex === 0} aria-label={`Move ${entry.title} up`} onClick={() => updateOrder(eventSet.id, insertTimelineItem(entries.map((item) => item.key), entry.key, entries[itemIndex - 1]?.key))} className="text-xs font-semibold text-indigo-700 disabled:opacity-30">Move up</button>
                         <button type="button" disabled={itemIndex === entries.length - 1} aria-label={`Move ${entry.title} down`} onClick={() => updateOrder(eventSet.id, insertTimelineItem(entries.map((item) => item.key), entry.key, entries[itemIndex + 2]?.key))} className="text-xs font-semibold text-indigo-700 disabled:opacity-30">Move down</button>
