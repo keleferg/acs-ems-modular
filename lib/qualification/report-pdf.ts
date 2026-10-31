@@ -24,7 +24,7 @@ function clean(value: string) {
 
 const STATUS_LABEL: Record<Status, string> = { pass: "Pass", check: "Check", issue: "Issue", na: "N/A" };
 
-export async function downloadQualificationReportPdf(report: Report) {
+export async function downloadQualificationReportPdf(report: Report & { storedAt?: string | null }) {
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -189,7 +189,7 @@ export async function downloadQualificationReportPdf(report: Report) {
   ensure(LINE * 3);
   y -= 6;
   for (const line of wrap(
-    `Pass: meets the automatic checks (and has its picture). Check: the system can't verify it, so it was checked against the pictures or records. Issue: a known problem, shown at right. Generated ${formatDate(new Date().toISOString(), true)} HST.`,
+    `Pass: meets the automatic checks (and has its picture). Check: the system can't verify it, so it was checked against the pictures or records. Issue: a known problem, shown at right. ${report.storedAt ? `Stored when the test was completed, ${formatDate(report.storedAt, true)} HST. ` : ""}Generated ${formatDate(new Date().toISOString(), true)} HST.`,
     PAGE_W - 2 * M,
     font,
     7,

@@ -141,7 +141,52 @@ function classify(
 }
 
 
-export async function loadQualificationReport(supabase: ReturnType<typeof createClient>, requestId: string): Promise<Report> {
+/** Everything the report is built from, as stored in qualification_report_snapshots.source. */
+export type ReportSource = {
+  request: Report["request"];
+  wizard: Report["wizard"] & { rule_set_id?: string; id?: string };
+  ruleSetName: string | null;
+  requirements: Requirement[];
+  answers: Answer[];
+  pictures: Record<string, number>;
+  instructorReview: Report["instructorReview"];
+  snapshotAt?: string;
+};
+
+export function buildReport(source: ReportSource): Report & { storedAt: string | null } {
+  const requirements = source.requirements ?? [];
+  const answers = new Map((source.answers ?? []).map((answer) => [answer.requirement_id, answer]));
+  const byCode = new Map(requirements.map((requirement) => [requirement.requirement_code, requirement]));
+  const instructorStatus = source.instructorReview?.status ?? null;
+  // Pictures are deleted a few days after the test, so a missing picture is only an issue before that.
+  const picturesPurged =
+    source.wizard.status === "closed" ||
+    ["completed", "declined", "cancelled", "cancelled_by_applicant", "cancelled_by_examiner", "no_show", "unable_to_accommodate"].includes(String(source.request.status));
+
+  const rows = requirements
+    .slice()
+    .sort((a, b) => SECTION_ORDER.indexOf(a.section_code) - SECTION_ORDER.indexOf(b.section_code) || a.sort_order - b.sort_order)
+    .map((requirement) => {
+      const answer = answers.get(requirement.id);
+      const count = Number(source.pictures?.[requirement.id] ?? 0);
+      const { status, note } = classify(requirement, answer, count, answers, byCode, instructorStatus, picturesPurged);
+      return { requirement, status, entered: enteredSummary(requirement, answer), pictures: count, note };
+    });
+
+  return {
+    request: source.request,
+    wizard: source.wizard,
+    instructorReview: source.instructorReview ?? null,
+    ruleSetName: source.ruleSetName ?? "",
+    rows,
+    storedAt: source.snapshotAt ?? null,
+  };
+}
+
+type Client = ReturnType<typeof createClient>;
+
+/** The package as it is now. */
+export async function loadLiveReportSource(supabase: Client, requestId: string): Promise<ReportSource> {
   const { data: request, error: requestError } = await supabase
     .from("practical_test_requests")
     .select("status, request_number, applicant_name_snapshot, certificate_sought, rating_sought, scheduled_start_at, scheduled_location")
@@ -155,7 +200,7 @@ export async function loadQualificationReport(supabase: ReturnType<typeof create
     .eq("practical_test_request_id", requestId)
     .maybeSingle();
   if (wizardError) throw new Error(wizardError.message);
-  if (!wizard) throw new Error("This request has no pretest qualification yet.");
+  if (!wizard) throw new Error("This request has no pretest qualification.");
 
   const { data: revision } = await supabase
     .from("qualification_wizard_revisions")
@@ -182,30 +227,30 @@ export async function loadQualificationReport(supabase: ReturnType<typeof create
   ]);
   if (requirementResult.error) throw new Error(requirementResult.error.message);
 
-  const requirements = (requirementResult.data ?? []) as Requirement[];
-  const answers = new Map(((answerResult.data ?? []) as Answer[]).map((answer) => [answer.requirement_id, answer]));
-  const pictures = new Map<string, number>();
-  for (const row of evidenceResult.data ?? []) pictures.set(String(row.requirement_id), (pictures.get(String(row.requirement_id)) ?? 0) + 1);
-  const byCode = new Map(requirements.map((requirement) => [requirement.requirement_code, requirement]));
-  const instructorStatus = (instructorResult.data?.status as string | undefined) ?? null;
-  // Pictures are deleted a few days after the test, so a missing picture is only an issue before that.
-  const picturesPurged = wizard.status === "closed" || ["completed", "declined", "cancelled", "cancelled_by_applicant", "cancelled_by_examiner", "no_show", "unable_to_accommodate"].includes(String(request.status));
-
-  const rows = requirements
-    .slice()
-    .sort((a, b) => SECTION_ORDER.indexOf(a.section_code) - SECTION_ORDER.indexOf(b.section_code) || a.sort_order - b.sort_order)
-    .map((requirement) => {
-      const answer = answers.get(requirement.id);
-      const count = pictures.get(requirement.id) ?? 0;
-      const { status, note } = classify(requirement, answer, count, answers, byCode, instructorStatus, picturesPurged);
-      return { requirement, status, entered: enteredSummary(requirement, answer), pictures: count, note };
-    });
+  const pictures: Record<string, number> = {};
+  for (const row of evidenceResult.data ?? []) pictures[String(row.requirement_id)] = (pictures[String(row.requirement_id)] ?? 0) + 1;
 
   return {
     request,
     wizard,
-    instructorReview: (instructorResult.data as Report["instructorReview"]) ?? null,
     ruleSetName: ruleSet.data?.display_name ?? "",
-    rows,
+    requirements: (requirementResult.data ?? []) as Requirement[],
+    answers: (answerResult.data ?? []) as Answer[],
+    pictures,
+    instructorReview: (instructorResult.data as Report["instructorReview"]) ?? null,
   };
+}
+
+/**
+ * The report for a request: the copy stored when the test was completed (Kele, Oct 31 2026), or the
+ * package as it is now when there is no stored copy.
+ */
+export async function loadQualificationReport(supabase: Client, requestId: string) {
+  const { data: stored } = await supabase
+    .from("qualification_report_snapshots")
+    .select("source")
+    .eq("practical_test_request_id", requestId)
+    .maybeSingle();
+  if (stored?.source) return buildReport(stored.source as ReportSource);
+  return buildReport(await loadLiveReportSource(supabase, requestId));
 }

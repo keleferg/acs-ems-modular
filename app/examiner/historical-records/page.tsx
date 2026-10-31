@@ -22,6 +22,8 @@ import {
 } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { downloadQualificationReportPdf } from "@/lib/qualification/report-pdf";
+import { loadQualificationReport } from "@/lib/qualification/report";
 
 type RequestRow = {
   id: string;
@@ -775,6 +777,47 @@ export default function ExaminerHistoricalRecordsPage() {
 
   const [airports, setAirports] =
     useState<AirportRow[]>([]);
+
+  // Qualification Report (Kele, Oct 31 2026): requests that have a qualification package.
+  const [qualificationRequestIds, setQualificationRequestIds] =
+    useState<Set<string>>(new Set());
+  const [downloadingQualificationId, setDownloadingQualificationId] =
+    useState<string | null>(null);
+  const [qualificationReportError, setQualificationReportError] =
+    useState<{ requestId: string; message: string } | null>(null);
+
+  useEffect(() => {
+    const ids = requests.map((row) => row.id);
+    if (!ids.length) return;
+    let active = true;
+    const supabase = createClient();
+    void (async () => {
+      const found = new Set<string>();
+      for (let index = 0; index < ids.length; index += 200) {
+        const { data } = await supabase
+          .from("qualification_wizards")
+          .select("practical_test_request_id")
+          .in("practical_test_request_id", ids.slice(index, index + 200));
+        for (const row of data ?? []) found.add(String(row.practical_test_request_id));
+      }
+      if (active) setQualificationRequestIds(found);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [requests]);
+
+  async function downloadQualificationReport(requestId: string) {
+    setDownloadingQualificationId(requestId);
+    setQualificationReportError(null);
+    try {
+      await downloadQualificationReportPdf(await loadQualificationReport(createClient(), requestId));
+    } catch (cause) {
+      setQualificationReportError({ requestId, message: cause instanceof Error ? cause.message : "The qualification report could not be made." });
+    } finally {
+      setDownloadingQualificationId(null);
+    }
+  }
 
   const [search, setSearch] =
     useState("");
@@ -2754,14 +2797,34 @@ export default function ExaminerHistoricalRecordsPage() {
                                           )}
                                         />
 
-                                        <DetailField
-                                          label="Plan of Action"
-                                          value={
-                                            test.poa_version_code ||
-                                            "—"
-                                          }
-                                        />
+                                        <div className="flex flex-wrap items-end gap-4 sm:col-span-2">
+                                          <DetailField
+                                            label="Plan of Action"
+                                            value={
+                                              test.poa_version_code ||
+                                              "—"
+                                            }
+                                          />
+
+                                          {qualificationRequestIds.has(request.id) ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => void downloadQualificationReport(request.id)}
+                                              disabled={downloadingQualificationId === request.id}
+                                              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
+                                            >
+                                              <FileText aria-hidden className="h-4 w-4" />
+                                              {downloadingQualificationId === request.id ? "Preparing…" : "Qualification Report"}
+                                            </button>
+                                          ) : null}
+                                        </div>
                                       </div>
+
+                                      {qualificationReportError?.requestId === request.id ? (
+                                        <p role="alert" className="mt-3 text-sm text-red-700">
+                                          {qualificationReportError.message}
+                                        </p>
+                                      ) : null}
 
                                       {poaQuestionsAsked(
                                         test.evaluation_state,
@@ -2813,89 +2876,47 @@ export default function ExaminerHistoricalRecordsPage() {
                                         </h4>
 
                                         {taskRows.length ? (
-                                          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-                                            <table className="min-w-full divide-y divide-slate-200">
-                                              <thead className="bg-slate-50">
-                                                <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                  <th className="px-3 py-3">
-                                                    Task
-                                                  </th>
-
-                                                  {showsKrsGrades ? (
-                                                    <>
-                                                      <th className="px-3 py-3">
-                                                        K
-                                                      </th>
-
-                                                      <th className="px-3 py-3">
-                                                        R
-                                                      </th>
-
-                                                      <th className="px-3 py-3">
-                                                        S
-                                                      </th>
-                                                    </>
-                                                  ) : null}
-
-                                                  {showsTaskGrade ? (
-                                                    <th className="px-3 py-3">
-                                                      Grade
-                                                    </th>
-                                                  ) : null}
-                                                </tr>
-                                              </thead>
-
-                                              <tbody className="divide-y divide-slate-100">
-                                                {taskRows.map(
-                                                  (
-                                                    task,
-                                                  ) => (
-                                                    <tr
-                                                      key={
-                                                        task.taskCode
-                                                      }
-                                                      className="text-sm"
-                                                    >
-                                                      <td className="px-3 py-3 font-bold text-slate-900">
-                                                        {
-                                                          task.taskCode
-                                                        }
-                                                      </td>
-
-                                                      {showsKrsGrades ? (
-                                                        <>
-                                                          <td className="px-3 py-3">
-                                                            {
-                                                              task.K
-                                                            }
-                                                          </td>
-
-                                                          <td className="px-3 py-3">
-                                                            {
-                                                              task.R
-                                                            }
-                                                          </td>
-
-                                                          <td className="px-3 py-3">
-                                                            {
-                                                              task.S
-                                                            }
-                                                          </td>
-                                                        </>
-                                                      ) : null}
-
-                                                      {showsTaskGrade ? (
-                                                        <td className="px-3 py-3">
-                                                          {
-                                                            task.T
-                                                          }
-                                                        </td>
-                                                      ) : null}
-                                                    </tr>
-                                                  ),
-                                                )}
-                                              </tbody>
-                                            </table>
+                                          // Two columns side by side (Kele, Oct 31 2026); one column on narrow screens.
+                                          <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                                            {[
+                                              taskRows.slice(0, Math.ceil(taskRows.length / 2)),
+                                              taskRows.slice(Math.ceil(taskRows.length / 2)),
+                                            ]
+                                              .filter((half) => half.length)
+                                              .map((half, halfIndex) => (
+                                                <div key={halfIndex} className="overflow-x-auto rounded-xl border border-slate-200">
+                                                  <table className="min-w-full divide-y divide-slate-200">
+                                                    <thead className="bg-slate-50">
+                                                      <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        <th className="px-3 py-2">Task</th>
+                                                        {showsKrsGrades ? (
+                                                          <>
+                                                            <th className="w-14 px-3 py-2 text-center">K</th>
+                                                            <th className="w-14 px-3 py-2 text-center">R</th>
+                                                            <th className="w-14 px-3 py-2 text-center">S</th>
+                                                          </>
+                                                        ) : null}
+                                                        {showsTaskGrade ? <th className="w-16 px-3 py-2 text-center">Grade</th> : null}
+                                                      </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                      {half.map((task) => (
+                                                        <tr key={task.taskCode} className="text-sm">
+                                                          <td className="px-3 py-2 font-bold text-slate-900">{task.taskCode}</td>
+                                                          {showsKrsGrades ? (
+                                                            <>
+                                                              <td className="px-3 py-2 text-center">{task.K}</td>
+                                                              <td className="px-3 py-2 text-center">{task.R}</td>
+                                                              <td className="px-3 py-2 text-center">{task.S}</td>
+                                                            </>
+                                                          ) : null}
+                                                          {showsTaskGrade ? <td className="px-3 py-2 text-center">{task.T}</td> : null}
+                                                        </tr>
+                                                      ))}
+                                                    </tbody>
+                                                  </table>
+                                                </div>
+                                              ))}
                                           </div>
                                         ) : (
                                           <p className="mt-3 text-sm text-slate-500">
