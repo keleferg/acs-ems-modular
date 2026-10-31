@@ -47,6 +47,9 @@ type QualificationWizard = {
   available_at: string;
   opened_at: string | null;
   current_revision_number: number;
+  // Recommending instructor from the practical-test request (offered on endorsement cards).
+  instructor_name?: string | null;
+  instructor_certificate_number?: string | null;
 };
 
 type QualificationRuleSet = {
@@ -111,7 +114,7 @@ const sectionNames: Record<string, string> = {
   eligibility: "General Eligibility",
   knowledge_test: "Knowledge Test",
   application: "Application Documents",
-  medical: "Medical Qualification",
+  medical: "Medical Certificate",
   experience: "Aeronautical Experience",
   cross_country: "Cross-Country Flights",
   endorsements: "Required Endorsements",
@@ -229,11 +232,23 @@ function isAnswerComplete(
 
   if (fields.length > 0) {
     return fields.every((field) =>
-      hasMeaningfulValue(draft.values[field.key]),
+      field.type === "instructor"
+        ? hasMeaningfulValue(draft.values.instructor_name) && hasMeaningfulValue(draft.values.instructor_certificate_number)
+        : hasMeaningfulValue(draft.values[field.key]) && matchesPattern(field, draft.values[field.key]),
     );
   }
 
   return hasMeaningfulValue(draft.values.value);
+}
+
+// A text field with a pattern (e.g. the 7–8 digit IACRA Application ID) must match it entirely.
+function matchesPattern(field: DisplayField, value: unknown) {
+  if (!field.pattern) return true;
+  try {
+    return new RegExp(`^(?:${field.pattern})$`).test(String(value ?? "").trim());
+  } catch {
+    return true;
+  }
 }
 
 function getDefaultFields(
@@ -294,26 +309,31 @@ function getDefaultFields(
       ];
 
     case "count":
+      // One line (Kele, Oct 31): date 1/4, takeoffs and landings 1/8, logbook 1/3 of the old half-width fields.
       return [
         {
           key: "completion_date",
           label: "Completion date",
           type: "date",
+          width: "8.5rem",
         },
         {
           key: "takeoffs",
-          label: "Qualifying takeoffs",
+          label: "Takeoffs",
           type: "number",
+          width: "4.5rem",
         },
         {
           key: "landings",
-          label: "Qualifying landings",
+          label: "Landings",
           type: "number",
+          width: "4.5rem",
         },
         {
           key: "logbook_reference",
-          label: "Logbook page or electronic reference",
+          label: "Logbook page / reference",
           type: "text",
+          width: "11rem",
         },
       ];
 
@@ -352,26 +372,19 @@ function getDefaultFields(
       ];
 
     case "endorsement":
+      // One line (Kele, Oct 31): date, then the recommending instructor from the request or another one.
       return [
         {
           key: "endorsement_date",
           label: "Endorsement date",
           type: "date",
+          width: "8.5rem",
         },
         {
-          key: "instructor_name",
-          label: "Instructor name",
-          type: "text",
-        },
-        {
-          key: "instructor_certificate_number",
-          label: "Instructor certificate number",
-          type: "text",
-        },
-        {
-          key: "endorsement_text",
-          label: "Endorsement text",
-          type: "textarea",
+          key: "instructor_source",
+          label: "Endorsing instructor",
+          type: "instructor",
+          width: "auto",
         },
       ];
 
@@ -1144,6 +1157,57 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
     const inputId = `${requirement.id}-${field.key}`;
     const disabled = !isEditable;
 
+    if (field.type === "instructor") {
+      // The recommending instructor from the request, or another instructor typed in.
+      const name = String(draft?.values.instructor_name ?? "");
+      const certificate = String(draft?.values.instructor_certificate_number ?? "");
+      const recommendingName = wizard?.instructor_name?.trim() ?? "";
+      const recommendingCertificate = wizard?.instructor_certificate_number?.trim() ?? "";
+      const source =
+        typeof value === "string" && value
+          ? value
+          : name
+            ? name === recommendingName && certificate === recommendingCertificate ? "recommending" : "other"
+            : "";
+      const choose = (next: string) => {
+        updateDraftValue(requirement.id, "instructor_source", next);
+        if (next === "recommending") {
+          updateDraftValue(requirement.id, "instructor_name", recommendingName);
+          updateDraftValue(requirement.id, "instructor_certificate_number", recommendingCertificate);
+        } else if (source === "recommending") {
+          updateDraftValue(requirement.id, "instructor_name", "");
+          updateDraftValue(requirement.id, "instructor_certificate_number", "");
+        }
+      };
+      const input = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-100";
+      return (
+        <div key={field.key} className="flex flex-wrap items-end gap-4">
+          <div style={{ width: "17rem" }} className="max-w-full">
+            <label htmlFor={inputId} className="mb-2 block text-sm font-semibold text-slate-800">{field.label}</label>
+            <select id={inputId} value={source} disabled={disabled} onChange={(event) => choose(event.target.value)} className={input}>
+              <option value="">Select the instructor</option>
+              {recommendingName ? (
+                <option value="recommending">{recommendingName}{recommendingCertificate ? ` (${recommendingCertificate})` : ""} — recommending instructor</option>
+              ) : null}
+              <option value="other">Another instructor</option>
+            </select>
+          </div>
+          {source === "other" ? (
+            <>
+              <div style={{ width: "12rem" }} className="max-w-full">
+                <label htmlFor={`${inputId}-name`} className="mb-2 block text-sm font-semibold text-slate-800">Instructor name</label>
+                <input id={`${inputId}-name`} value={name} disabled={disabled} onChange={(event) => updateDraftValue(requirement.id, "instructor_name", event.target.value)} className={input} />
+              </div>
+              <div style={{ width: "9.5rem" }} className="max-w-full">
+                <label htmlFor={`${inputId}-cert`} className="mb-2 block text-sm font-semibold text-slate-800">Certificate number</label>
+                <input id={`${inputId}-cert`} value={certificate} disabled={disabled} onChange={(event) => updateDraftValue(requirement.id, "instructor_certificate_number", event.target.value)} className={input} />
+              </div>
+            </>
+          ) : null}
+        </div>
+      );
+    }
+
     if (field.type === "entries") return <EntryFields key={field.key} field={field} value={value} disabled={disabled} id={inputId} onChange={(next) => updateDraftValue(requirement.id, field.key, next)} />;
     if (field.type === "checkbox") {
       return (
@@ -1308,6 +1372,8 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
           step={
             field.type === "number" ? "0.1" : undefined
           }
+          inputMode={field.inputMode}
+          maxLength={field.maxLength}
           min={
             field.type === "number" ? "0" : undefined
           }
@@ -1318,11 +1384,14 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
             updateDraftValue(
               requirement.id,
               field.key,
-              event.target.value,
+              field.inputMode === "numeric" ? event.target.value.replace(/\D/g, "") : event.target.value,
             )
           }
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-100"
         />
+        {field.pattern && hasMeaningfulValue(value) && !matchesPattern(field, value) ? (
+          <p className="mt-1 text-xs text-red-700">{field.patternHint ?? "Check the format of this value."}</p>
+        ) : null}
       </div>
     );
   }
@@ -1737,14 +1806,25 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                       </div>
                                     ) : (
                                       <>
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                          {fields.map((field) =>
-                                            renderField(
-                                              requirement,
-                                              field,
-                                            ),
-                                          )}
-                                        </div>
+                                        {fields.some((field) => field.width) ? (
+                                          // Fields with a set width sit on one line (wrapping on a phone).
+                                          <div className="flex flex-wrap items-end gap-4">
+                                            {fields.map((field) => (
+                                              <div key={field.key} className="max-w-full" style={{ width: field.width ?? "100%" }}>
+                                                {renderField(requirement, field)}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div className="grid gap-4 sm:grid-cols-2">
+                                            {fields.map((field) =>
+                                              renderField(
+                                                requirement,
+                                                field,
+                                              ),
+                                            )}
+                                          </div>
+                                        )}
 
                                         {answer?.automated_result ===
                                           "does_not_meet" &&
@@ -1770,7 +1850,7 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                         {requirement.requirement_code === "IR_ENDORSEMENT_PREREQUISITES" && requirements.some((row) => row.requirement_code === "IR_KNOWLEDGE_TEST") ? <p className="mt-3 text-sm text-slate-700">Knowledge-test deficiency codes: {String(answers.find((row) => row.requirement_id === requirements.find((item) => item.requirement_code === "IR_KNOWLEDGE_TEST")?.id)?.answer_value.deficiency_codes ?? "Save the knowledge-test report first.")}</p> : null}
                                         {requirement.requirement_code === "IR_PATHWAY" && graduationDateFlag(drafts[requirement.id]?.values ?? {}) ? <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{graduationDateFlag(drafts[requirement.id]?.values ?? {})}</p> : null}
                                         {revision && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} editable={isEditable} preview={preview} required={needsEvidence(requirement)} instruction={evidenceInstruction(requirement)} retentionDays={EVIDENCE_RETENTION_DAYS} scanFields={getDefaultFields(requirement).map(({ key, label, type, options }) => ({ key, label, type, options }))} onScanned={applyScannedValues} onCount={handleEvidenceCount} /> : null}
-                                        <div className="mt-5">
+                                        {requirement.rule_config.hide_notes === true ? null : <div className="mt-5">
                                           <label
                                             htmlFor={`notes-${requirement.id}`}
                                             className="mb-2 block text-sm font-semibold text-slate-800"
@@ -1799,7 +1879,7 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                             }
                                             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-100"
                                           />
-                                        </div>
+                                        </div>}
 
                                         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                                           <div>

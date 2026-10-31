@@ -3,6 +3,10 @@ import catalog from "@/data/instrument-qualification.json";
 export type QualificationField = {
   key: string; label?: string; type?: string; options?: string[];
   placeholder?: string; optional?: boolean; columns?: QualificationField[];
+  // Text fields: a whole-value pattern (e.g. "\\d{7,8}"), numeric keyboard, length limit, and the hint shown when it doesn't match.
+  pattern?: string; inputMode?: "numeric" | "text"; maxLength?: number; patternHint?: string;
+  // CSS width (e.g. "8.5rem"): when any field on a card has one, the card's fields sit on one line.
+  width?: string;
 };
 export type Values = Record<string, string | boolean>;
 export const instrumentRequirements = catalog;
@@ -18,6 +22,7 @@ export function fieldsComplete(fields: QualificationField[], values: Values): bo
   return fields.every((field) => {
     if (field.optional) return true;
     const value = values[field.key];
+    if (field.type === "instructor") return typeof values.instructor_name === "string" && values.instructor_name.trim() !== "" && typeof values.instructor_certificate_number === "string" && values.instructor_certificate_number.trim() !== "";
     if (field.type === "checkbox") return value === true;
     if (field.type === "yes_no") return typeof value === "boolean";
     if (field.type === "entries") {
@@ -108,7 +113,7 @@ export function evidenceInstruction(requirement: { requirement_code: string; sec
   if (code.endsWith("ENGLISH")) return "Required: a picture of your pilot certificate showing \"English Proficient\". You can use your existing certificate upload.";
   if (code.includes("KNOWLEDGE_TEST")) return "Required: a picture or PDF of your Airman Knowledge Test Report.";
   if (code.includes("APPLICATION")) return "Required: a picture or PDF of your IACRA application summary.";
-  if (code.includes("MEDICAL")) return "Required: pictures of the front and back of your medical certificate. For BasicMed, your Comprehensive Medical Examination Checklist and course completion certificate.";
+  if (code.includes("MEDICAL")) return "Required: pictures of the front and back of your medical certificate. For BasicMed, your Comprehensive Medical Examination Checklist and course completion certificate. For Sport Pilot, your driver's license. For a military medical, your military flight physical record.";
   if (code.includes("DEVICE")) return "Required: the logbook pages showing the device time, with the instructor's signature.";
   if (requirement.section_code === "endorsements" || code.includes("ENDORSEMENT")) return "Required: a picture of the endorsement in your logbook.";
   if (requirement.section_code === "experience" || requirement.section_code === "cross_country") return "Required: pictures of the logbook pages that show these entries.";
