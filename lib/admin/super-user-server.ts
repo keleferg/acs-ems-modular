@@ -60,13 +60,28 @@ export async function isSuperUser(service: Service, profileId: string) {
   return Boolean(su && role);
 }
 
-/** A one-time sign-in token for this email (no email is sent). */
+/** The account with exactly this login email, or null. */
+export async function findAccountByEmail(service: Service, email: string) {
+  const pattern = email.trim().replace(/[\\%_]/g, (ch) => `\\${ch}`);
+  const { data } = await service.from("profiles").select("id, email").ilike("email", pattern).limit(2);
+  const rows = (data ?? []) as Array<{ id: string; email: string | null }>;
+  return rows.find((row) => (row.email ?? "").trim().toLowerCase() === email.trim().toLowerCase()) ?? null;
+}
+
+/**
+ * A one-time sign-in token for an EXISTING account (no email is sent). Asking Supabase for a magic link
+ * creates the account when the email is new (Kele, Oct 31 2026: a mistyped email made a new account),
+ * so the account must be found first.
+ */
 export async function signInTokenFor(service: Service, email: string) {
+  const account = await findAccountByEmail(service, email);
+  if (!account) throw new Error("No account uses that email.");
   const { data, error } = await service.auth.admin.generateLink({ type: "magiclink", email });
   if (error || !data?.properties?.hashed_token || !data.user) {
     const message = error?.message ?? "";
     throw new Error(/not.*found|no user/i.test(message) ? "No account uses that email." : message || "Could not sign in as that user.");
   }
+  if (data.user.id !== account.id) throw new Error("That email matched a different account. Nothing was changed.");
   return { tokenHash: data.properties.hashed_token, userId: data.user.id, email: data.user.email ?? email };
 }
 
