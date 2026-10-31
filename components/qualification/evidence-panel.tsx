@@ -5,6 +5,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { localEvidence, type Evidence } from "@/lib/qualification/local-evidence";
 import { CLOSED_EVIDENCE_RETENTION_DAYS } from "@/lib/qualification/instrument";
+import { qrSvg } from "@/lib/qr";
+
+// "Use my phone": a random link token for the QR code (only its SHA-256 is stored).
+async function newPhoneToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const token = btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  const hash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return { token, hash };
+}
 
 const BUCKET = "qualification-evidence";
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
@@ -31,6 +41,9 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
   const [caption, setCaption] = useState("");
   const [scanEnabled, setScanEnabled] = useState(false);
   const [scanNote, setScanNote] = useState("");
+  const [phone, setPhone] = useState<{ url: string; svg: string; expiresAt: string } | null>(null);
+  const [phoneError, setPhoneError] = useState("");
+  const knownIds = useRef<Set<string> | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => {
@@ -57,6 +70,38 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
       .then(({ data }) => { if (active) setScanEnabled(data === true); });
     return () => { active = false; };
   }, [preview, editable, revisionId]);
+  async function openPhone() {
+    setPhoneError("");
+    try {
+      const { token, hash } = await newPhoneToken();
+      const { data, error: rpcError } = await createClient().rpc("applicant_create_phone_upload_token", {
+        p_revision_id: revisionId,
+        p_requirement_id: requirementId,
+        p_token_hash: hash,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      const url = `${window.location.origin}/phone-upload?t=${token}`;
+      knownIds.current = new Set(items.map((item) => item.id));
+      setPhone({ url, svg: qrSvg(url, 240), expiresAt: String(data) });
+    } catch (cause) {
+      setPhoneError(cause instanceof Error ? cause.message : "The phone link could not be created.");
+    }
+  }
+  // While the QR code is open, check for pictures sent from the phone every few seconds.
+  useEffect(() => {
+    if (!phone) return;
+    const timer = window.setInterval(() => { void load(); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [phone, load]);
+  useEffect(() => {
+    if (!phone || !knownIds.current) return;
+    const fresh = items.filter((item) => !knownIds.current!.has(item.id));
+    if (!fresh.length) return;
+    fresh.forEach((item) => knownIds.current!.add(item.id));
+    // Read the newest phone picture when picture reading is on.
+    void scan(fresh[fresh.length - 1].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, phone]);
   async function scan(evidenceId: string) {
     if (!scanEnabled || !scanFields?.length) return;
     setScanNote("Reading the picture…");
@@ -160,7 +205,19 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
       <button type="button" disabled={busy} onClick={() => cameraInput.current?.click()} className="rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 disabled:opacity-50">Take Photo</button>
       <button type="button" disabled={busy} onClick={() => fileInput.current?.click()} className="rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Saving…" : "Upload Pictures / PDF"}</button>
       <button type="button" disabled={busy} onClick={() => { setShowExisting(!showExisting); void load(); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50">Use Existing Upload</button>
+      {!preview ? <button type="button" disabled={busy} onClick={() => void openPhone()} className="rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 disabled:opacity-50">Use My Phone</button> : null}
     </div></> : null}
+    {phoneError ? <p role="alert" className="mt-3 text-sm text-red-700">{phoneError}</p> : null}
+    {phone ? <div role="dialog" aria-modal="true" aria-label="Upload from your phone" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" onClick={() => setPhone(null)}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <h4 className="text-lg font-bold text-slate-900">Upload from your phone</h4>
+        <p className="mt-1 text-sm text-slate-600">Point your phone&apos;s camera at the code, open the link, and take the picture. It appears here in a few seconds.</p>
+        <div className="mx-auto mt-4 w-fit rounded-lg border border-slate-200 p-2" dangerouslySetInnerHTML={{ __html: phone.svg }} />
+        <p className="mt-3 text-sm font-semibold text-sky-900">{items.length} {items.length === 1 ? "picture" : "pictures"} attached to this item</p>
+        <p className="mt-1 text-xs text-slate-500">This code works for 30 minutes, for this item only.</p>
+        <button type="button" onClick={() => setPhone(null)} className="mt-4 w-full rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white">Done</button>
+      </div>
+    </div> : null}
     {editable && scanEnabled ? <p className="mt-2 text-xs text-sky-800">Pictures you upload are read automatically and fill in this item. Check the values before saving.</p> : null}
     {scanNote ? <p role="status" className="mt-2 text-sm text-sky-900">{scanNote}</p> : null}
     {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
