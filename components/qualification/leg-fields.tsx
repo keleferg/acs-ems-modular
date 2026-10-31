@@ -99,6 +99,10 @@ export function LegFields({
   return (
     <fieldset className="space-y-3 sm:col-span-2">
       <legend className="mb-1 text-sm font-semibold text-slate-800">{field.label ?? "Flight legs"}</legend>
+      <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+        Enter your cross-country flight information for each leg. For example, if you flew HNL-LNY-OGG-HNL, enter the first leg as
+        HNL-LNY, the second leg as LNY-OGG, and so on. The distance between the two points will be automatically calculated.
+      </p>
       {legs.map((leg, index) => {
         const manual = computed[index] === null && airportCode(leg.departure).length >= 3 && airportCode(leg.destination).length >= 3 &&
           (airports[airportCode(leg.departure)] === null || airports[airportCode(leg.destination)] === null);
