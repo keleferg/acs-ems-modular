@@ -422,7 +422,7 @@ function qualificationPresentation(wizard: ApplicantQualificationWizard) {
         title: "Pretest Qualification",
         description: `Your pretest qualification opens ${formatDateTime(
           wizard.available_at,
-        )}. It becomes available 48 hours before your practical test.`,
+        )}. It becomes available 4 days before your practical test.`,
         classes: "border-slate-300 bg-slate-50 text-slate-900",
         badge: "border-slate-300 bg-white text-slate-700",
         buttonLabel: null,

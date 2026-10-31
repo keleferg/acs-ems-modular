@@ -2307,3 +2307,105 @@ export function buildRequestFollowupApplicantEmail(
     text,
   };
 }
+
+type QualificationReminderApplicantEmailInput = {
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  scheduledStartAt: string;
+  scheduledLocation: string | null;
+  qualificationUrl: string;
+};
+
+// Sent 4 days before a confirmed or scheduled practical test (Kele, Oct 30 2026), when the
+// pretest qualification opens.
+export function buildQualificationReminderApplicantEmail(
+  input: QualificationReminderApplicantEmailInput,
+) {
+  const applicantFirstName = firstName(input.applicantName);
+  const appointmentDate = formatScheduledAppointmentDate(input.scheduledStartAt);
+  const appointmentTime = formatScheduledAppointmentTime(input.scheduledStartAt);
+  const location = input.scheduledLocation?.trim() || "As scheduled";
+
+  const subject = `Action Required — Complete Your Pretest Qualification (${input.requestNumber})`;
+
+  const row = (label: string, value: string, last = false) => `
+                  <tr>
+                    <td style="padding:12px 16px;background:#f8fafc;${last ? "" : "border-bottom:1px solid #e2e8f0;"}font-size:13px;font-weight:700;color:#475569;width:160px;">${escapeHtml(label)}</td>
+                    <td style="padding:12px 16px;${last ? "" : "border-bottom:1px solid #e2e8f0;"}font-size:14px;">${escapeHtml(value)}</td>
+                  </tr>`;
+
+  const html = `
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f8fafc;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="background:#0f172a;padding:24px 28px;color:#ffffff;">
+                <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fbbf24;">Aviation Training Solutions</div>
+                <div style="margin-top:7px;font-size:24px;line-height:1.25;font-weight:700;">Pretest Qualification Is Open</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">
+                  Your practical test is coming up. Please complete your <strong>pretest qualification worksheet</strong>
+                  before the test. It is open now.
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                  ${row("Request Number", input.requestNumber)}
+                  ${row("Date", appointmentDate)}
+                  ${row("Time", appointmentTime)}
+                  ${row("Location", location)}
+                  ${row("Certificate", input.certificateSought)}
+                  ${row("Rating", input.ratingSought, true)}
+                </table>
+                <div style="margin-top:22px;padding:16px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:14px;line-height:1.6;">
+                  Have these ready: your photo ID, pilot certificate, medical certificate, knowledge test report,
+                  logbook and endorsements. You will enter each item and upload a picture or PDF of it.
+                  After you submit, your instructor reviews and certifies the package before your examiner reviews it.
+                </div>
+                <div style="margin-top:26px;">
+                  <a href="${escapeHtml(input.qualificationUrl)}" style="display:inline-block;padding:12px 18px;background:#d97706;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                    Open the Pretest Qualification
+                  </a>
+                </div>
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+                  You will be asked to sign in to your applicant portal. Uploaded pictures are deleted after your practical test.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `.trim();
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    "Your practical test is coming up. Please complete your pretest qualification worksheet before the test. It is open now.",
+    "",
+    `Request Number: ${input.requestNumber}`,
+    `Date: ${appointmentDate}`,
+    `Time: ${appointmentTime}`,
+    `Location: ${location}`,
+    `Certificate: ${input.certificateSought}`,
+    `Rating: ${input.ratingSought}`,
+    "",
+    "Have these ready: your photo ID, pilot certificate, medical certificate, knowledge test report, logbook and endorsements. You will enter each item and upload a picture or PDF of it. After you submit, your instructor reviews and certifies the package before your examiner reviews it.",
+    "",
+    `Open the pretest qualification: ${input.qualificationUrl}`,
+    "",
+    "You will be asked to sign in to your applicant portal. Uploaded pictures are deleted after your practical test.",
+  ].join("\n");
+
+  return { subject, html, text };
+}

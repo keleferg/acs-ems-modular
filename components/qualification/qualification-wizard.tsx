@@ -1529,7 +1529,7 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
 
                     <div>
                       <h2 className="text-xl font-bold text-amber-950">
-                        Opens 48 hours before your test
+                        Opens 4 days before your test
                       </h2>
 
                       <p className="mt-2 text-amber-900">
