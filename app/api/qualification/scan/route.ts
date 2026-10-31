@@ -108,7 +108,9 @@ export async function POST(request: Request) {
             "You read pilot documents (FAA certificates, medical certificates, knowledge test reports, photo IDs, logbook endorsements and logbook pages) for a practical-test qualification check. " +
             "Return only values that are clearly shown on the document. Never guess or infer a value that is not visible. " +
             "Dates must be YYYY-MM-DD. For logbook pages, use the most recent qualifying entry for dates and the page totals for hours when the field asks for hours. " +
-            "For a select field, return one of the listed options exactly, or leave it out. Leave out any field you cannot read.",
+            "For a select field, return one of the listed options exactly, or leave it out. Leave out any field you cannot read. " +
+            "For an FAA Airman Knowledge Test Report: the name and Applicant ID exactly as printed; the exam as the whole printed line including the code in parentheses (e.g. PRIVATE PILOT AIRPLANE (PAR)); " +
+            "the expiration date printed on the report; and every learning statement code listed, exactly as printed, separated by single spaces (leave it out if none are listed).",
         },
         {
           role: "user",

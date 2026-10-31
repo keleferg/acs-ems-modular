@@ -234,7 +234,9 @@ function isAnswerComplete(
 
   if (fields.length > 0) {
     return fields.every((field) =>
-      field.type === "instructor"
+      field.optional
+        ? true
+        : field.type === "instructor"
         ? hasMeaningfulValue(draft.values.instructor_name) && hasMeaningfulValue(draft.values.instructor_certificate_number)
         : field.type === "legs"
           ? legsComplete(draft.values[field.key])
