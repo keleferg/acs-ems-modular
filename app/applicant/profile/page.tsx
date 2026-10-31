@@ -483,6 +483,18 @@ export default function ApplicantProfilePage() {
           </button>
         </div>
       </form>
+
+      {/* Instructor access (Kele, Oct 31 2026): granted automatically once CFI information is complete. */}
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900">Are you a flight instructor?</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Request instructor access to see your students&apos; checkride requests, validate their qualification reviews and
+          view their results. Access turns on automatically when you enter current CFI information.
+        </p>
+        <a href="/instructor/profile" className="mt-4 inline-block rounded-lg border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 transition hover:bg-sky-50">
+          Request instructor access
+        </a>
+      </section>
     </main>
   );
 }

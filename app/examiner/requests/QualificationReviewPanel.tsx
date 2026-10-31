@@ -5,7 +5,7 @@ import { LEG_NAMES, parseLegs } from "@/lib/qualification/legs";
 
 import { EvidencePanel } from "@/components/qualification/evidence-panel";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export type QualificationWizardSummary = {
@@ -254,6 +254,42 @@ export default function QualificationReviewPanel({
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [skipReason, setSkipReason] = useState("");
+  // Initial CFI: recommending instructor's 14 CFR 61.195(h) verification (Kele, Oct 31 2026).
+  const [cfi195h, setCfi195h] = useState<{ required: boolean; verified?: boolean; waived?: boolean; instructor_name?: string | null } | null>(null);
+  const [cfi195hReason, setCfi195hReason] = useState("");
+  const wizardIdFor195h = wizard?.id;
+  useEffect(() => {
+    if (!wizardIdFor195h) return;
+    let active = true;
+    void createClient()
+      .rpc("applicant_cfi_195h_status", { p_wizard_id: wizardIdFor195h })
+      .then(({ data }: { data: unknown }) => {
+        if (active) setCfi195h((data as typeof cfi195h) ?? null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [wizardIdFor195h]);
+
+  async function skip195h() {
+    if (!wizard || saving) return;
+    if (!cfi195hReason.trim()) {
+      setError("Enter the reason for skipping the 61.195(h) check.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setMessage("");
+    const { error: skipError } = await createClient().rpc("examiner_waive_cfi_195h", { p_wizard_id: wizard.id, p_reason: cfi195hReason.trim() });
+    if (skipError) {
+      setError(skipError.message);
+    } else {
+      setCfi195h((current) => (current ? { ...current, waived: true } : current));
+      setCfi195hReason("");
+      setMessage("61.195(h) check skipped. The applicant can now submit.");
+    }
+    setSaving(false);
+  }
 
   const presentation = getStatusPresentation(wizard);
 
@@ -650,6 +686,30 @@ export default function QualificationReviewPanel({
               <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
                 Loading qualification package…
               </div>
+            ) : null}
+
+            {cfi195h?.required ? (
+              <section className={`rounded-xl border p-5 ${cfi195h.verified || cfi195h.waived ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
+                <h3 className="font-bold text-slate-900">14 CFR 61.195(h) — recommending instructor</h3>
+                <p className="mt-1 text-sm text-slate-700">
+                  {cfi195h.verified
+                    ? `${cfi195h.instructor_name ?? "The recommending instructor"} has verified 61.195(h) in the instructor portal.`
+                    : cfi195h.waived
+                      ? "You skipped this check for this package."
+                      : `${cfi195h.instructor_name ?? "The recommending instructor"} hasn't verified 61.195(h) in the instructor portal, so the applicant can't submit yet.`}
+                </p>
+                {!cfi195h.verified && !cfi195h.waived ? (
+                  <div className="mt-3 flex flex-wrap items-end gap-3">
+                    <label className="min-w-[16rem] flex-1 text-xs font-semibold text-slate-700">
+                      Reason for skipping
+                      <input value={cfi195hReason} onChange={(event) => setCfi195hReason(event.target.value)} placeholder="e.g. Verified the instructor's records myself" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" />
+                    </label>
+                    <button type="button" disabled={saving} onClick={() => void skip195h()} className="rounded-lg border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-800 transition hover:bg-violet-100 disabled:opacity-50">
+                      Skip 61.195(h) check
+                    </button>
+                  </div>
+                ) : null}
+              </section>
             ) : null}
 
             {loaded && revision ? (

@@ -442,6 +442,24 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
 
   const [wizard, setWizard] =
     useState<QualificationWizard | null>(null);
+  // Initial CFI packages: has the recommending instructor verified 14 CFR 61.195(h)? (Kele, Oct 31 2026)
+  const [cfi195h, setCfi195h] = useState<{ required: boolean; verified?: boolean; waived?: boolean; instructor_name?: string | null } | null>(null);
+  const wizardIdForCfiCheck = wizard?.id;
+  useEffect(() => {
+    if (!wizardIdForCfiCheck || preview || wizardIdForCfiCheck.startsWith("local-")) {
+      setCfi195h(null);
+      return;
+    }
+    let active = true;
+    void createClient()
+      .rpc("applicant_cfi_195h_status", { p_wizard_id: wizardIdForCfiCheck })
+      .then(({ data }: { data: unknown }) => {
+        if (active) setCfi195h((data as typeof cfi195h) ?? null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [wizardIdForCfiCheck, preview]);
 
   const [ruleSet, setRuleSet] =
     useState<QualificationRuleSet | null>(null);
@@ -1693,6 +1711,17 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                   <h2 className="font-bold">Your instructor asked for changes</h2>
                   <p className="mt-2 whitespace-pre-wrap text-sm">{wizard.instructor_change_notes}</p>
                   <p className="mt-3 text-xs text-amber-900">Make the changes below, then submit again. Your instructor will be emailed to review it again.</p>
+                </section>
+              ) : null}
+
+              {cfi195h?.required && !cfi195h.verified && !cfi195h.waived && isEditable ? (
+                <section className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+                  <h2 className="font-bold">Your instructor needs to verify 14 CFR 61.195(h)</h2>
+                  <p className="mt-2 text-sm">
+                    For an initial flight instructor certificate, your recommending instructor
+                    {cfi195h.instructor_name ? ` (${cfi195h.instructor_name})` : ""} must confirm in the EMS instructor portal that they meet
+                    14 CFR 61.195(h) before you can submit this qualification review. You can keep filling it in meanwhile.
+                  </p>
                 </section>
               ) : null}
 

@@ -65,6 +65,11 @@ export function LoginForm({
             ? "/examiner/dashboard"
             : "/examiner/setup",
         );
+      } else if (
+        (roleRows ?? []).some((row) => row.role === "instructor") &&
+        !(roleRows ?? []).some((row) => row.role === "applicant")
+      ) {
+        router.push("/instructor/dashboard");
       } else {
         router.push("/applicant/dashboard");
       }
