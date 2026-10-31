@@ -59,7 +59,9 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/qualification/phone-upload") &&
     // Instructor certification: the instructor has no account; the emailed token is checked by the API.
     !request.nextUrl.pathname.startsWith("/instructor-review") &&
-    !request.nextUrl.pathname.startsWith("/api/qualification/instructor-review")
+    !request.nextUrl.pathname.startsWith("/api/qualification/instructor-review") &&
+    // Super user "Return to my account" works after the borrowed session ended; the signed cookie is checked by the API.
+    !request.nextUrl.pathname.startsWith("/api/admin/super-user-return")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();

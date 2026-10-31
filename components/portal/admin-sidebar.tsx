@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   GraduationCap,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -86,6 +87,13 @@ const adminNavigation = [
   },
 ];
 
+// Shown only to super users (Kele, Oct 31 2026).
+const superUserNavigation = {
+  label: "Super User Login",
+  href: "/admin/super-user",
+  icon: KeyRound,
+};
+
 function isActive(pathname: string, href: string) {
   if (pathname === href) return true;
 
@@ -105,6 +113,7 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
   const [loadingAccount, setLoadingAccount] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
+  const [isSuperUser, setIsSuperUser] = useState(false);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -129,7 +138,7 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const [profileResult, rolesResult] = await Promise.all([
+      const [profileResult, rolesResult, superResult] = await Promise.all([
         supabase
           .from("profiles")
           .select("first_name,last_name,preferred_name,email")
@@ -137,6 +146,8 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
           .maybeSingle(),
 
         supabase.from("user_roles").select("role").eq("profile_id", user.id),
+
+        supabase.rpc("is_super_user"),
       ]);
 
       if (cancelled) return;
@@ -157,6 +168,7 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
 
       setProfile(profileResult.data ?? null);
       setRoles(loadedRoles);
+      setIsSuperUser(superResult.data === true);
       setLoadingAccount(false);
     }
 
@@ -301,7 +313,7 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {adminNavigation.map((item) => {
+        {(isSuperUser ? [...adminNavigation, superUserNavigation] : adminNavigation).map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href);
 
