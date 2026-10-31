@@ -905,6 +905,33 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
     }));
   }
 
+  // Picture reading (examiner setting): fill the card's empty fields from what was read on the
+  // uploaded picture, and point out any value the applicant already typed that differs.
+  function applyScannedValues(requirementId: string, values: Record<string, string>) {
+    const requirement = requirements.find((row) => row.id === requirementId);
+    if (!requirement) return;
+    const fields = getDefaultFields(requirement);
+    const current = drafts[requirementId]?.values ?? {};
+    const filled: string[] = [];
+    const differs: string[] = [];
+    for (const [key, value] of Object.entries(values)) {
+      const field = fields.find((item) => item.key === key);
+      if (!field) continue;
+      if (!hasMeaningfulValue(current[key])) {
+        updateDraftValue(requirementId, key, value);
+        filled.push(field.label ?? key);
+      } else if (String(current[key]) !== value) {
+        differs.push(`${field.label ?? key}: you entered ${String(current[key])}, the picture shows ${value}`);
+      }
+    }
+    setMessage(
+      [
+        filled.length ? `${requirement.title}: filled in ${filled.join(", ")} from the picture. Check the values, then save this item.` : "",
+        differs.length ? `Please check — ${differs.join("; ")}.` : "",
+      ].filter(Boolean).join(" "),
+    );
+  }
+
   function updateDraftNotes(
     requirementId: string,
     notes: string,
@@ -1742,7 +1769,7 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                         {requirement.requirement_code === "IR_INSTRUMENT_TOTAL" ? <p className="mt-3 text-sm font-semibold text-sky-900">Entered instrument total: {["actual_hours", "simulated_hours", "device_hours"].reduce((sum, key) => sum + Number(drafts[requirement.id]?.values[key] || 0), 0).toFixed(1)} hours · Device credit requires review.</p> : null}
                                         {requirement.requirement_code === "IR_ENDORSEMENT_PREREQUISITES" && requirements.some((row) => row.requirement_code === "IR_KNOWLEDGE_TEST") ? <p className="mt-3 text-sm text-slate-700">Knowledge-test deficiency codes: {String(answers.find((row) => row.requirement_id === requirements.find((item) => item.requirement_code === "IR_KNOWLEDGE_TEST")?.id)?.answer_value.deficiency_codes ?? "Save the knowledge-test report first.")}</p> : null}
                                         {requirement.requirement_code === "IR_PATHWAY" && graduationDateFlag(drafts[requirement.id]?.values ?? {}) ? <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{graduationDateFlag(drafts[requirement.id]?.values ?? {})}</p> : null}
-                                        {revision && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} editable={isEditable} preview={preview} required={needsEvidence(requirement)} instruction={evidenceInstruction(requirement)} retentionDays={EVIDENCE_RETENTION_DAYS} onCount={handleEvidenceCount} /> : null}
+                                        {revision && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} editable={isEditable} preview={preview} required={needsEvidence(requirement)} instruction={evidenceInstruction(requirement)} retentionDays={EVIDENCE_RETENTION_DAYS} scanFields={getDefaultFields(requirement).map(({ key, label, type, options }) => ({ key, label, type, options }))} onScanned={applyScannedValues} onCount={handleEvidenceCount} /> : null}
                                         <div className="mt-5">
                                           <label
                                             htmlFor={`notes-${requirement.id}`}

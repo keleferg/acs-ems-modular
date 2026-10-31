@@ -10,11 +10,16 @@ const BUCKET = "qualification-evidence";
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 const TYPES = ACCEPT.split(",");
 const MAX_SIZE = 15 * 1024 * 1024;
-export function EvidencePanel({ revisionId, requirementId, editable = false, preview = false, required = false, instruction, retentionDays, onCount }: {
+export type ScanField = { key: string; label?: string; type?: string; options?: string[] };
+
+export function EvidencePanel({ revisionId, requirementId, editable = false, preview = false, required = false, instruction, retentionDays, scanFields, onScanned, onCount }: {
   revisionId: string; requirementId: string; editable?: boolean; preview?: boolean; required?: boolean;
   instruction?: string;
   // Days after the practical test is marked completed that the uploads are deleted.
   retentionDays?: number;
+  // Fields the picture reader may fill, and where to send what it read (only when the examiner turned it on).
+  scanFields?: ScanField[];
+  onScanned?: (requirementId: string, values: Record<string, string>) => void;
   onCount?: (requirementId: string, count: number) => void;
 }) {
   const [items, setItems] = useState<Evidence[]>([]);
@@ -24,6 +29,8 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [caption, setCaption] = useState("");
+  const [scanEnabled, setScanEnabled] = useState(false);
+  const [scanNote, setScanNote] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => {
@@ -44,6 +51,32 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
   }, [preview, revisionId, requirementId, onCount]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
+    if (preview || !editable) return;
+    let active = true;
+    void createClient().rpc("qualification_picture_scan_enabled", { p_revision_id: revisionId })
+      .then(({ data }) => { if (active) setScanEnabled(data === true); });
+    return () => { active = false; };
+  }, [preview, editable, revisionId]);
+  async function scan(evidenceId: string) {
+    if (!scanEnabled || !scanFields?.length) return;
+    setScanNote("Reading the picture…");
+    try {
+      const response = await fetch("/api/qualification/scan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ evidenceId, fields: scanFields }),
+      });
+      const result = await response.json();
+      if (!result.ok) { setScanNote(result.error ? `The picture could not be read (${result.error}). Enter the information below.` : ""); return; }
+      if (!result.enabled) { setScanEnabled(false); setScanNote(""); return; }
+      const values = (result.values ?? {}) as Record<string, string>;
+      if (Object.keys(values).length) { onScanned?.(requirementId, values); setScanNote("Filled in from the picture. Check each value, then save this item."); }
+      else setScanNote("Nothing could be read from this picture. Enter the information below.");
+    } catch {
+      setScanNote("The picture could not be read. Enter the information below.");
+    }
+  }
+  useEffect(() => {
     let active = true;
     const objectUrls: string[] = [];
     const supabase = preview ? null : createClient();
@@ -63,6 +96,7 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
       const supabase = preview ? null : createClient();
       const user = supabase ? (await supabase.auth.getUser()).data.user : null;
       if (!preview && !user) throw new Error("Please sign in again before uploading.");
+      const uploadedIds: string[] = [];
       for (const file of Array.from(files)) {
         if (!TYPES.includes(file.type)) throw new Error(`${file.name}: use JPG, PNG, WebP, or PDF. Export HEIC pictures as JPG first.`);
         if (!file.size || file.size > MAX_SIZE) throw new Error(`${file.name}: file must be between 1 byte and 15 MB.`);
@@ -70,6 +104,7 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
         const extension = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
         const path = `${user?.id ?? "local"}/${revisionId}/${id}.${extension}`;
         const evidence: Evidence = { id, revision_id: revisionId, requirement_id: requirementId, object_path: path, file_name: file.name, mime_type: file.type, caption, created_at: new Date().toISOString() };
+        uploadedIds.push(id);
         if (preview) await localEvidence.put({ ...evidence, blob: file });
         else if (supabase) {
           const stored = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
@@ -82,6 +117,8 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
         }
       }
       setCaption("");
+      // Read the newest picture first: it is the one the applicant just took for this card.
+      if (!preview && uploadedIds.length) await scan(uploadedIds[uploadedIds.length - 1]);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Upload failed."); }
     finally { await load(); setBusy(false); if (fileInput.current) fileInput.current.value = ""; if (cameraInput.current) cameraInput.current.value = ""; }
   }
@@ -124,11 +161,14 @@ export function EvidencePanel({ revisionId, requirementId, editable = false, pre
       <button type="button" disabled={busy} onClick={() => fileInput.current?.click()} className="rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Saving…" : "Upload Pictures / PDF"}</button>
       <button type="button" disabled={busy} onClick={() => { setShowExisting(!showExisting); void load(); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50">Use Existing Upload</button>
     </div></> : null}
+    {editable && scanEnabled ? <p className="mt-2 text-xs text-sky-800">Pictures you upload are read automatically and fill in this item. Check the values before saving.</p> : null}
+    {scanNote ? <p role="status" className="mt-2 text-sm text-sky-900">{scanNote}</p> : null}
     {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
     {showExisting ? <div className="mt-3 rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-500">Reuse an upload from another requirement in this revision.</p>{existing.length ? existing.map((item) => <button key={item.id} type="button" disabled={busy} onClick={() => void reuse(item)} className="mt-2 block text-sm text-sky-800 underline">{item.file_name}{item.caption ? ` — ${item.caption}` : ""}</button>) : <p className="mt-2 text-sm">No other uploads available.</p>}</div> : null}
     <div className="mt-3 grid gap-3 sm:grid-cols-3">{items.map((item) => <div key={item.id} className="overflow-hidden rounded-lg border border-slate-200 p-2">
       {urls[item.id] ? <a href={urls[item.id]} target="_blank" rel="noreferrer" className="block text-sm text-sky-800 underline">{item.mime_type.startsWith("image/") ? <img src={urls[item.id]} alt={item.caption || item.file_name} className="mb-2 h-28 w-full rounded object-contain" /> : <span className="mb-2 flex h-20 items-center justify-center rounded bg-slate-100 font-semibold">PDF · Open document</span>}<span className="break-words">{item.file_name}</span></a> : <p className="break-words text-sm text-slate-600">{item.file_name} · Preview unavailable; reload to retry.</p>}
       {item.caption ? <p className="mt-1 text-xs text-slate-500">{item.caption}</p> : null}
+      {item.scan_result?.values && Object.keys(item.scan_result.values).length ? <p className="mt-1 text-xs text-sky-800">Read from picture: {Object.entries(item.scan_result.values).map(([key, value]) => `${scanFields?.find((field) => field.key === key)?.label ?? key.replaceAll("_", " ")}: ${value}`).join(" · ")}</p> : null}
       {editable ? <button type="button" disabled={busy} onClick={() => void remove(item)} className="mt-2 text-xs font-semibold text-red-700 disabled:opacity-50">Remove attachment</button> : null}
     </div>)}</div>
     <p className="mt-2 text-xs text-slate-500">{preview ? "Saved only in this browser for local testing." : "Private uploads visible to authorized reviewers."} An attachment does not verify the requirement.{retentionDays ? ` Uploads are deleted ${retentionDays} days after your practical test is marked complete, or ${CLOSED_EVIDENCE_RETENTION_DAYS} days after the request is cancelled or declined.` : ""}</p>

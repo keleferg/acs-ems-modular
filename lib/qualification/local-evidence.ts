@@ -1,6 +1,9 @@
 export type Evidence = {
   id: string; revision_id: string; requirement_id: string; object_path: string;
   file_name: string; mime_type: string; caption: string; created_at: string; blob?: Blob;
+  // Set when the examiner's "Read uploaded pictures" setting is on (filled by /api/qualification/scan).
+  scan_status?: string | null;
+  scan_result?: { values?: Record<string, string>; document_type?: string; error?: string } | null;
 };
 const DB_NAME = "dpe-qualification-local-evidence-v1";
 async function database() {

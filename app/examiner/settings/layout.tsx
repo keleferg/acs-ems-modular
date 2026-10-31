@@ -30,6 +30,11 @@ const settingsLinks = [
     description: "Authorized aircraft type ratings",
   },
   {
+    href: "/examiner/settings/qualification",
+    label: "Pretest Qualification",
+    description: "Reading uploaded pictures automatically",
+  },
+  {
     href: "/examiner/settings/designee",
     label: "Designee Information",
     description: "Examiner identity and designation details",
