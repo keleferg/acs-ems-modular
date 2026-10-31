@@ -91,6 +91,8 @@ type Props = {
   applicantName: string;
   wizard: QualificationWizardSummary | null;
   onWizardChanged: (wizard: QualificationWizardSummary) => void;
+  /** On its own page (Kele, Oct 31 2026): always open, loads at once, items numbered in order. */
+  standalone?: boolean;
 };
 
 function formatStatus(value: string | null | undefined) {
@@ -115,7 +117,7 @@ function formatDateTime(value: string | null) {
   }).format(new Date(value));
 }
 
-function getStatusPresentation(wizard: QualificationWizardSummary | null) {
+export function getStatusPresentation(wizard: QualificationWizardSummary | null) {
   if (!wizard) {
     return {
       label: "Not Started",
@@ -238,6 +240,7 @@ export default function QualificationReviewPanel({
   applicantName,
   wizard,
   onWizardChanged,
+  standalone = false,
 }: Props) {
   const [requirementNotes, setRequirementNotes] = useState<Record<string, string>>({});
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
@@ -575,32 +578,14 @@ export default function QualificationReviewPanel({
     wizard?.status === "instructor_certified" ||
     wizard?.status === "deficiencies_found";
 
-  return (
-    <details
-      className="group border-t border-slate-200"
-      onToggle={(event) => {
-        if (event.currentTarget.open) {
-          void loadDetails();
-        }
-      }}
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-        <div className="flex min-w-0 items-center gap-3">
-          <span>Qualification Review</span>
+  const wizardIdForLoad = wizard?.id;
+  useEffect(() => {
+    if (standalone && wizardIdForLoad) void loadDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standalone, wizardIdForLoad]);
 
-          <span
-            className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${presentation.classes}`}
-          >
-            {presentation.label}
-          </span>
-        </div>
-
-        <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
-          ⌄
-        </span>
-      </summary>
-
-      <div className="space-y-5 bg-slate-50/60 p-6">
+  const body = (
+      <div className={standalone ? "space-y-5" : "space-y-5 bg-slate-50/60 p-6"}>
         {!wizard ? (
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="font-semibold text-slate-900">
@@ -847,7 +832,7 @@ export default function QualificationReviewPanel({
                 ) : null}
 
                 <section className="space-y-3">
-                  {requirements.map((requirement) => {
+                  {requirements.map((requirement, index) => {
                     const answer =
                       answersByRequirement[requirement.id] ?? null;
 
@@ -865,6 +850,7 @@ export default function QualificationReviewPanel({
                               {formatStatus(requirement.section_code)}
                             </p>
                             <h4 className="mt-1 font-bold text-slate-900">
+                              {standalone ? <span className="mr-2 text-slate-400">{index + 1}.</span> : null}
                               {requirement.title}
                             </h4>
 
@@ -1036,6 +1022,36 @@ export default function QualificationReviewPanel({
           </>
         )}
       </div>
+  );
+
+  if (standalone) return body;
+
+  return (
+    <details
+      className="group border-t border-slate-200"
+      onToggle={(event) => {
+        if (event.currentTarget.open) {
+          void loadDetails();
+        }
+      }}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          <span>Qualification Review</span>
+
+          <span
+            className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${presentation.classes}`}
+          >
+            {presentation.label}
+          </span>
+        </div>
+
+        <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
+          ⌄
+        </span>
+      </summary>
+
+      {body}
     </details>
   );
 }

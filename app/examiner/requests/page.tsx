@@ -10,9 +10,8 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import QualificationReviewPanel, {
-  type QualificationWizardSummary,
-} from "./QualificationReviewPanel";
+import { type QualificationWizardSummary } from "./QualificationReviewPanel";
+import QualificationSummarySection from "./QualificationSummarySection";
 
 import OpenAssignmentsPanel from "@/components/portal/OpenAssignmentsPanel";
 import PracticalTestTypeSelector, {
@@ -5062,17 +5061,13 @@ export default function ExaminerRequestsPage() {
                             </div>
                           </details>
 
-                          <QualificationReviewPanel
-                            requestNumber={request.request_number}
+                          {/* Kele, Oct 31 2026: only whether the applicant is qualified here; the full
+                              review opens on its own page. */}
+                          <QualificationSummarySection
+                            requestId={request.id}
                             applicantName={request.applicant_name_snapshot}
                             wizard={
                               qualificationWizardsByRequest[request.id] ?? null
-                            }
-                            onWizardChanged={(updatedWizard) =>
-                              setQualificationWizardsByRequest((current) => ({
-                                ...current,
-                                [request.id]: updatedWizard,
-                              }))
                             }
                           />
 
