@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { supportsQualificationEvidence } from "@/lib/qualification/instrument";
+import { legsSummary } from "@/lib/qualification/legs";
 
 // "Validate Qualifications" report (Kele, Oct 31 2026): every qualification item with
 // a green check (passes), a yellow triangle (check it yourself) or a red X with the issue.
@@ -77,10 +78,11 @@ function formatDate(value: string | null | undefined, withTime = false) {
 function enteredSummary(requirement: Requirement, answer: Answer | undefined) {
   if (!answer) return "";
   const labels = new Map((requirement.display_config.fields ?? []).map((field) => [field.key, field.label ?? field.key]));
-  const skip = new Set(["instructor_source", "certified", "endorsement_text"]);
+  const skip = new Set(["instructor_source", "certified", "endorsement_text", "total_distance_nm"]);
   return Object.entries(answer.answer_value ?? {})
     .filter(([key, value]) => !skip.has(key) && hasValue(value))
     .map(([key, value]) => {
+      if (key === "legs") return legsSummary(value);
       const text = typeof value === "boolean" ? (value ? "Yes" : "No") : Array.isArray(value) ? `${value.length} entries` : String(value);
       const label = key === "value" ? "" : `${labels.get(key) ?? key.replaceAll("_", " ")}: `;
       return `${label}${/^\d{4}-\d{2}-\d{2}$/.test(text) ? formatDate(text) : text}`;
@@ -89,7 +91,7 @@ function enteredSummary(requirement: Requirement, answer: Answer | undefined) {
 }
 
 function normalizeName(value: unknown) {
-  return String(value ?? "").trim().toLowerCase().replace(/[^a-z]/g, "");
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function classify(

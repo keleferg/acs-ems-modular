@@ -21,6 +21,8 @@ import { graduationDateFlag, supportsQualificationEvidence, evidenceInstruction,
 import { localEvidence } from "@/lib/qualification/local-evidence";
 import { EvidencePanel } from "./evidence-panel";
 import { EntryFields } from "./entry-fields";
+import { LegFields } from "./leg-fields";
+import { legsComplete } from "@/lib/qualification/legs";
 
 type ApplicantRequest = {
   id: string;
@@ -234,7 +236,9 @@ function isAnswerComplete(
     return fields.every((field) =>
       field.type === "instructor"
         ? hasMeaningfulValue(draft.values.instructor_name) && hasMeaningfulValue(draft.values.instructor_certificate_number)
-        : hasMeaningfulValue(draft.values[field.key]) && matchesPattern(field, draft.values[field.key]),
+        : field.type === "legs"
+          ? legsComplete(draft.values[field.key])
+          : hasMeaningfulValue(draft.values[field.key]) && matchesPattern(field, draft.values[field.key]),
     );
   }
 
@@ -338,31 +342,12 @@ function getDefaultFields(
       ];
 
     case "route":
+      // Cross-country legs (Kele, Oct 31): up to six legs, distances filled in from the FAA airport list.
       return [
         {
-          key: "flight_date",
-          label: "Flight date",
-          type: "date",
-        },
-        {
-          key: "departure",
-          label: "Departure point",
-          type: "text",
-        },
-        {
-          key: "route",
-          label: "Intermediate points and route",
-          type: "textarea",
-        },
-        {
-          key: "destination",
-          label: "Destination or final point",
-          type: "text",
-        },
-        {
-          key: "logged_distance_nm",
-          label: "Logged distance in nautical miles",
-          type: "number",
+          key: "legs",
+          label: "Flight legs",
+          type: "legs",
         },
         {
           key: "logbook_reference",
@@ -1147,6 +1132,26 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
     }
   }
 
+  // ID vs. pilot-certificate names (Kele, Oct 31 2026): compared as typed, ignoring capitals and extra spaces.
+  function compareNames(requirement: QualificationRequirement) {
+    const isInstrument = requirement.requirement_code === "IR_NAME_COMPARISON";
+    const leftCode = String(requirement.rule_config.left_requirement ?? (isInstrument ? "IR_ID" : "IDENTITY_ID_NAME"));
+    const rightCode = String(requirement.rule_config.right_requirement ?? (isInstrument ? "IR_CERTIFICATE" : "IDENTITY_PILOT_CERTIFICATE_NAME"));
+    const nameOf = (code: string) => {
+      const row = requirements.find((item) => item.requirement_code === code);
+      const values = row ? drafts[row.id]?.values ?? {} : {};
+      return String(values.name_exact ?? values.legal_name ?? "").trim().replace(/\s+/g, " ");
+    };
+    const left = nameOf(leftCode);
+    const right = nameOf(rightCode);
+    if (!left || !right) {
+      return { match: false, left, right, message: "Enter the exact name on your ID and on your pilot certificate; they are compared here automatically." };
+    }
+    return left.toLowerCase() === right.toLowerCase()
+      ? { match: true, left, right, message: "The names match." }
+      : { match: false, left, right, message: "The names are different. The examiner will review this before the test." };
+  }
+
   function renderField(
     requirement: QualificationRequirement,
     field: DisplayField,
@@ -1208,6 +1213,7 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
       );
     }
 
+    if (field.type === "legs") return <LegFields key={field.key} field={field} value={value} disabled={disabled} id={inputId} onChange={(next) => updateDraftValue(requirement.id, field.key, next)} />;
     if (field.type === "entries") return <EntryFields key={field.key} field={field} value={value} disabled={disabled} id={inputId} onChange={(next) => updateDraftValue(requirement.id, field.key, next)} />;
     if (field.type === "checkbox") {
       return (
@@ -1704,16 +1710,37 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                               const isComputed =
                                 requirement.rule_config
                                   .answer_type === "computed";
+                              const nameCheck = isComputed ? compareNames(requirement) : null;
+
+                              // Row colour (Kele, Oct 31 2026): red = fails a rule; green = passes and complete;
+                              // yellow = needs examiner review (green check when everything is entered,
+                              // "!" when something is still missing); white = not started.
+                              const rowResult = nameCheck ? (nameCheck.match ? "meets" : nameCheck.left && nameCheck.right ? "manual_review" : "") : answer?.automated_result ?? "";
+                              const rowComplete = nameCheck ? Boolean(nameCheck.left && nameCheck.right) : completeWithEvidence(requirement);
+                              const rowTone: "red" | "green" | "yellow" | "none" = isInstructorOnly
+                                ? "none"
+                                : rowResult === "does_not_meet"
+                                  ? "red"
+                                  : !answer && !(nameCheck && rowComplete)
+                                    ? "none"
+                                    : rowResult === "meets" && rowComplete
+                                      ? "green"
+                                      : "yellow";
+                              const rowClasses = {
+                                red: "border-l-4 border-l-red-500 bg-red-50",
+                                green: "border-l-4 border-l-emerald-500 bg-emerald-50",
+                                yellow: "border-l-4 border-l-amber-400 bg-amber-50",
+                                none: "border-l-4 border-l-transparent bg-white",
+                              }[rowTone];
 
                               return (
                                 <details
                                   key={requirement.id}
-                                  className="group"
+                                  className={`group ${rowClasses}`}
                                 >
-                                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4 px-6 py-5 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4 px-6 py-5 hover:brightness-[0.98] [&::-webkit-details-marker]:hidden">
                                     <div className="flex min-w-0 gap-3">
-                                      {answer?.automated_result ===
-                                      "does_not_meet" ? (
+                                      {rowTone === "red" ? (
                                         <span
                                           aria-label="Does not meet qualification requirement"
                                           title="Does not meet qualification requirement"
@@ -1721,14 +1748,13 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                         >
                                           ×
                                         </span>
-                                      ) : answer?.automated_result ===
-                                        "meets" ? (
+                                      ) : rowTone === "green" || (rowTone === "yellow" && rowComplete) ? (
                                         <CheckCircle2
-                                          aria-label="Meets qualification requirement"
+                                          aria-label={rowTone === "green" ? "Meets qualification requirement" : "Complete — waiting for examiner review"}
                                           className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
                                         />
                                       ) : (
-                                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                                        <AlertTriangle aria-label="Information missing" className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                                       )}
 
                                       <div className="min-w-0">
@@ -1800,9 +1826,15 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                         submit the applicant
                                         portion.
                                       </div>
-                                    ) : isComputed ? (
-                                      <div className="rounded-xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-900">
-                                        {requirement.requirement_code === "IR_NAME_COMPARISON" ? instrumentResult("IR_NAME_COMPARISON", {}, selectedRequest.scheduled_start_at, Object.fromEntries(requirements.map((row) => [row.requirement_code, (answers.find((answer) => answer.requirement_id === row.id)?.answer_value ?? {}) as Record<string, string | boolean>]))).automated_result_message : "This result will be calculated automatically from your related answers."}
+                                    ) : isComputed && nameCheck ? (
+                                      <div className={`rounded-xl border p-5 text-sm ${nameCheck.match ? "border-emerald-200 bg-emerald-50 text-emerald-900" : nameCheck.left && nameCheck.right ? "border-amber-200 bg-amber-50 text-amber-900" : "border-sky-200 bg-sky-50 text-sky-900"}`}>
+                                        <p className="font-semibold">{nameCheck.message}</p>
+                                        {nameCheck.left || nameCheck.right ? (
+                                          <dl className="mt-3 grid gap-1 sm:grid-cols-[12rem_1fr]">
+                                            <dt className="text-slate-600">Name on ID</dt><dd className="font-mono">{nameCheck.left || "—"}</dd>
+                                            <dt className="text-slate-600">Name on pilot certificate</dt><dd className="font-mono">{nameCheck.right || "—"}</dd>
+                                          </dl>
+                                        ) : null}
                                       </div>
                                     ) : (
                                       <>
@@ -1849,7 +1881,7 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
                                         {requirement.requirement_code === "IR_INSTRUMENT_TOTAL" ? <p className="mt-3 text-sm font-semibold text-sky-900">Entered instrument total: {["actual_hours", "simulated_hours", "device_hours"].reduce((sum, key) => sum + Number(drafts[requirement.id]?.values[key] || 0), 0).toFixed(1)} hours · Device credit requires review.</p> : null}
                                         {requirement.requirement_code === "IR_ENDORSEMENT_PREREQUISITES" && requirements.some((row) => row.requirement_code === "IR_KNOWLEDGE_TEST") ? <p className="mt-3 text-sm text-slate-700">Knowledge-test deficiency codes: {String(answers.find((row) => row.requirement_id === requirements.find((item) => item.requirement_code === "IR_KNOWLEDGE_TEST")?.id)?.answer_value.deficiency_codes ?? "Save the knowledge-test report first.")}</p> : null}
                                         {requirement.requirement_code === "IR_PATHWAY" && graduationDateFlag(drafts[requirement.id]?.values ?? {}) ? <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{graduationDateFlag(drafts[requirement.id]?.values ?? {})}</p> : null}
-                                        {revision && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} editable={isEditable} preview={preview} required={needsEvidence(requirement)} instruction={evidenceInstruction(requirement)} retentionDays={EVIDENCE_RETENTION_DAYS} scanFields={getDefaultFields(requirement).map(({ key, label, type, options }) => ({ key, label, type, options }))} onScanned={applyScannedValues} onCount={handleEvidenceCount} /> : null}
+                                        {revision && supportsQualificationEvidence(requirement, drafts[requirement.id]?.values) ? <EvidencePanel revisionId={revision.id} requirementId={requirement.id} editable={isEditable} preview={preview} required={needsEvidence(requirement)} instruction={evidenceInstruction(requirement)} retentionDays={EVIDENCE_RETENTION_DAYS} scanFields={getDefaultFields(requirement).filter((field) => field.type !== "legs" && field.type !== "instructor").map(({ key, label, type, options }) => ({ key, label, type, options }))} onScanned={applyScannedValues} onCount={handleEvidenceCount} /> : null}
                                         {requirement.rule_config.hide_notes === true ? null : <div className="mt-5">
                                           <label
                                             htmlFor={`notes-${requirement.id}`}

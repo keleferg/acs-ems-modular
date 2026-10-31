@@ -1,6 +1,7 @@
 "use client";
 
 import { supportsQualificationEvidence, EVIDENCE_RETENTION_DAYS } from "@/lib/qualification/instrument";
+import { LEG_NAMES, parseLegs } from "@/lib/qualification/legs";
 
 import { EvidencePanel } from "@/components/qualification/evidence-panel";
 
@@ -190,6 +191,16 @@ function formatAnswerValue(value: Record<string, unknown> | null | undefined) {
 
       if (typeof entry === "boolean") {
         return `${label}: ${entry ? "Yes" : "No"}`;
+      }
+
+      if (key === "legs") {
+        return parseLegs(entry)
+          .map((leg, index) => `${LEG_NAMES[index] ?? `Leg ${index + 1}`}: ${leg.date || "—"} ${leg.departure || "?"} → ${leg.destination || "?"}, ${leg.distance_nm || "—"} NM`)
+          .join("\n");
+      }
+
+      if (key === "total_distance_nm") {
+        return `Total Distance: ${String(entry)} NM`;
       }
 
       if (entry === null || entry === undefined || entry === "") {
