@@ -44,6 +44,8 @@ type Form = {
   phone: string;
   email: string;
   schoolIds: string[];
+  freelance: boolean;
+  otherSchools: string[];
   certificateNumber: string;
   expirationDate: string;
   issuedDate: string;
@@ -64,6 +66,7 @@ export default function InstructorProfilePage() {
   const [message, setMessage] = useState("");
   const [reasons, setReasons] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [newSchool, setNewSchool] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -96,6 +99,8 @@ export default function InstructorProfilePage() {
         phone: text("phone") || data.account?.phone || "",
         email: data.account?.email ?? "",
         schoolIds: data.flight_school_ids ?? [],
+        freelance: p.is_freelance === true,
+        otherSchools: Array.isArray(p.other_flight_schools) ? (p.other_flight_schools as string[]) : [],
         certificateNumber: text("certificate_number"),
         expirationDate: text("certificate_expiration_date"),
         issuedDate: text("cfi_issued_date"),
@@ -117,6 +122,18 @@ export default function InstructorProfilePage() {
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
   }
 
+  function addSchool() {
+    const name = newSchool.trim().replace(/\s+/g, " ");
+    if (!form || !name) return;
+    const known = schools.find((school) => school.name.toLowerCase() === name.toLowerCase());
+    if (known) {
+      if (!form.schoolIds.includes(known.id)) update("schoolIds", [...form.schoolIds, known.id]);
+    } else if (!form.otherSchools.some((school) => school.toLowerCase() === name.toLowerCase())) {
+      update("otherSchools", [...form.otherSchools, name]);
+    }
+    setNewSchool("");
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form || saving) return;
@@ -131,6 +148,11 @@ export default function InstructorProfilePage() {
       setError("Select how you meet 14 CFR 61.195(h).");
       return;
     }
+    // A name typed but not added yet still counts.
+    const typed = newSchool.trim().replace(/\s+/g, " ");
+    const otherSchools = typed && !form.otherSchools.some((school) => school.toLowerCase() === typed.toLowerCase()) && !schools.some((school) => school.name.toLowerCase() === typed.toLowerCase())
+      ? [...form.otherSchools, typed]
+      : form.otherSchools;
     setSaving(true);
     try {
       const { data, error: saveError } = await createClient().rpc("instructor_save_profile", {
@@ -140,6 +162,8 @@ export default function InstructorProfilePage() {
           last_name: form.name.last,
           phone: form.phone,
           flight_school_ids: form.schoolIds,
+          freelance: form.freelance,
+          other_flight_schools: otherSchools,
           certificate_number: form.certificateNumber,
           certificate_expiration_date: form.expirationDate || null,
           cfi_issued_date: form.issuedDate || null,
@@ -206,14 +230,42 @@ export default function InstructorProfilePage() {
 
         <fieldset className="border-t border-slate-200 pt-6">
           <legend className="text-lg font-bold text-slate-900">Flight schools</legend>
-          <p className="mt-1 text-sm text-slate-600">Select the flight schools you instruct for.</p>
+          <p className="mt-1 text-sm text-slate-600">Select the flight schools you instruct for, or add one that isn&apos;t listed.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <input type="checkbox" checked={form.freelance} onChange={() => update("freelance", !form.freelance)} className="h-4 w-4" />
+              Freelance / Self
+            </label>
             {schools.map((school) => (
               <label key={school.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 <input type="checkbox" checked={form.schoolIds.includes(school.id)} onChange={() => update("schoolIds", toggle(form.schoolIds, school.id))} className="h-4 w-4" />
                 {school.name}
               </label>
             ))}
+            {form.otherSchools.map((name) => (
+              <label key={`other-${name}`} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <input type="checkbox" checked onChange={() => update("otherSchools", form.otherSchools.filter((school) => school !== name))} className="h-4 w-4" />
+                {name}
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              value={newSchool}
+              onChange={(event) => setNewSchool(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addSchool();
+                }
+              }}
+              placeholder="Flight school not listed? Type its name"
+              aria-label="Other flight school name"
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+            />
+            <button type="button" onClick={addSchool} disabled={!newSchool.trim()} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              Add school
+            </button>
           </div>
         </fieldset>
 
