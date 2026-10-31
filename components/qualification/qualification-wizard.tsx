@@ -229,13 +229,17 @@ function isAnswerComplete(
     return true;
   }
 
-  const fields = requirement.display_config.fields ?? [];
+  // The card's shown fields — its own list, or the built-in fields for its answer type
+  // (cards with an empty field list used to count as incomplete forever; Kele, Oct 31 2026).
+  const fields = requirement.rule_config.instrument_rule ? requirement.display_config.fields ?? [] : getDefaultFields(requirement);
   if (requirement.rule_config.instrument_rule) return fieldsComplete(fields, draft.values);
 
   if (fields.length > 0) {
     return fields.every((field) =>
       field.optional
         ? true
+        : field.type === "checkbox"
+        ? draft.values[field.key] === true
         : field.type === "instructor"
         ? hasMeaningfulValue(draft.values.instructor_name) && hasMeaningfulValue(draft.values.instructor_certificate_number)
         : field.type === "legs"
