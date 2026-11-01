@@ -668,6 +668,14 @@ export default function ExaminerReportsPage() {
         createClient();
 
       try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          throw new Error("Please sign in again.");
+        }
+
         const [
           requestResult,
           testResult,
@@ -704,6 +712,11 @@ export default function ExaminerReportsPage() {
             .eq(
               "status",
               "completed",
+            )
+            // Only this examiner's tests (Kele, Nov 1 2026).
+            .eq(
+              "assigned_examiner_profile_id",
+              user.id,
             )
             .limit(10000),
 

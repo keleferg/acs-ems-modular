@@ -24,6 +24,7 @@ import {
 } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import acsTaskNames from "@/data/acs-task-names.json";
 
 type DatePreset =
   | "month"
@@ -125,6 +126,7 @@ type AnalyticsTest = {
   certificate: string;
   rating: string;
   ratingLabel: string;
+  acsPrefix: string;
   school: string;
   instructor: string;
 
@@ -139,6 +141,7 @@ type AnalyticsTest = {
 
 type TaskSummary = {
   taskCode: string;
+  label: string;
   evaluations: number;
   average: number | null;
   kAverage: number | null;
@@ -164,6 +167,41 @@ type ComparisonRow = {
 
 function clean(value: unknown) {
   return String(value ?? "").trim();
+}
+
+// Plain-English ACS task names (Kele, Nov 1 2026) instead of codes like "X_D".
+const TASK_NAMES = acsTaskNames as Record<string, string>;
+const PREFIX_LABEL: Record<string, string> = {
+  PA: "Private", PH: "Private Helicopter", CA: "Commercial", CH: "Commercial Helicopter",
+  IR: "Instrument", IH: "Instrument Helicopter", AA: "ATP", AI: "CFI", HI: "CFI Helicopter",
+};
+
+/** ACS document prefix for a test (PA, CA, IR, …), or "" when there is no ACS (e.g. CFII uses a PTS). */
+function acsPrefixFor(certificate: unknown, category: unknown, rating: unknown) {
+  const cert = String(certificate ?? "").toLowerCase();
+  const text = `${cert} ${String(category ?? "")} ${String(rating ?? "")}`.toLowerCase();
+  const heli = text.includes("helicopter") || text.includes("rotorcraft");
+  if (cert.includes("instructor") || cert === "cfi") {
+    if (text.includes("instrument")) return "";
+    return heli ? "HI" : "AI";
+  }
+  if (cert.includes("airline") || cert === "atp") return "AA";
+  if (cert.includes("instrument")) return heli ? "IH" : "IR";
+  if (cert.includes("commercial")) return heli ? "CH" : "CA";
+  if (cert.includes("private")) return heli ? "PH" : "PA";
+  return "";
+}
+
+/** "X_D", "PA.X.D" or "X.D" → "X.D". */
+function normalizeTaskCode(code: string) {
+  const parts = code.toUpperCase().replace(/_/g, ".").split(".").filter(Boolean);
+  if (parts.length >= 3 && /^[A-Z]{1,2}$/.test(parts[0]) && /^[IVXL]+$/.test(parts[1])) parts.shift();
+  return parts.slice(0, 2).join(".");
+}
+
+function taskName(prefix: string, code: string) {
+  const normalized = normalizeTaskCode(code);
+  return (prefix && TASK_NAMES[`${prefix}.${normalized}`]) || normalized || code;
 }
 
 function display(value: unknown, fallback = "Unknown") {
@@ -711,6 +749,10 @@ export default function ExaminerDataPage() {
   const [comparisonMode, setComparisonMode] =
     useState<ComparisonMode>("instructor");
 
+  // My Data: this examiner's tests. Global Data: every examiner's tests with no names (Kele, Nov 1 2026).
+  const [scope, setScope] =
+    useState<"mine" | "global">("mine");
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setPageError("");
@@ -718,6 +760,40 @@ export default function ExaminerDataPage() {
     const supabase = createClient();
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("Please sign in again.");
+      }
+
+      if (scope === "global") {
+        const [globalResult, airportResult, locationResult] = await Promise.all([
+          supabase.rpc("examiner_get_global_data"),
+          supabase
+            .from("faa_airports")
+            .select("id, faa_identifier, icao_identifier, airport_name, state_code, state_name")
+            .eq("is_active", true)
+            .limit(20000),
+          supabase.from("test_locations").select("id, code, name").limit(1000),
+        ]);
+        const failure = globalResult.error ?? airportResult.error ?? locationResult.error;
+        if (failure) throw new Error(failure.message);
+        const global = (globalResult.data ?? {}) as {
+          requests?: PracticalTestRequest[];
+          tests?: PracticalTest[];
+          grades?: PracticalTestGrade[];
+        };
+        setRequests(global.requests ?? []);
+        setPracticalTests(global.tests ?? []);
+        setGrades(global.grades ?? []);
+        setAirports((airportResult.data ?? []) as Airport[]);
+        setLocations((locationResult.data ?? []) as TestLocation[]);
+        setRequestInstructors([]);
+        return;
+      }
+
       const [
         requestResult,
         testResult,
@@ -758,6 +834,8 @@ export default function ExaminerDataPage() {
             `,
           )
           .eq("status", "completed")
+          // My Data: only tests assigned to this examiner.
+          .eq("assigned_examiner_profile_id", user.id)
           .limit(10000),
 
         supabase
@@ -872,7 +950,7 @@ export default function ExaminerDataPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void loadData();
@@ -1003,6 +1081,12 @@ export default function ExaminerDataPage() {
 
           ratingLabel:
             getRatingLabel(request),
+
+          acsPrefix: acsPrefixFor(
+            request.certificate_sought,
+            request.category_sought,
+            request.rating_sought,
+          ),
 
           school: display(
             request.flight_school_name_snapshot,
@@ -1329,6 +1413,24 @@ export default function ExaminerDataPage() {
       }));
   }, [currentTests]);
 
+  // Which ACS each graded test used, so "X_D" becomes the right task name.
+  const prefixByTest = useMemo(() => {
+    const map = new Map<string, string>();
+    analyticsTests.forEach((test) => {
+      if (test.practicalTestId) map.set(test.practicalTestId, test.acsPrefix);
+    });
+    return map;
+  }, [analyticsTests]);
+
+  const taskKeyFor = useCallback(
+    (grade: PracticalTestGrade) => {
+      const code = clean(grade.task_code);
+      if (!code) return "";
+      return `${prefixByTest.get(grade.practical_test_id) ?? ""}|${normalizeTaskCode(code)}`;
+    },
+    [prefixByTest],
+  );
+
   const taskSummaries = useMemo<
     TaskSummary[]
   >(() => {
@@ -1338,9 +1440,7 @@ export default function ExaminerDataPage() {
     >();
 
     currentGrades.forEach((grade) => {
-      const taskCode = clean(
-        grade.task_code,
-      );
+      const taskCode = taskKeyFor(grade);
 
       if (!taskCode) return;
 
@@ -1413,8 +1513,11 @@ export default function ExaminerDataPage() {
           (row) => row.grade_value === "NP",
         ).length;
 
+        const [prefix, code] = taskCode.split("|");
+
         return {
           taskCode,
+          label: taskName(prefix, code),
           evaluations: uniqueTests.size,
           average: average(numeric),
           kAverage:
@@ -1450,8 +1553,18 @@ export default function ExaminerDataPage() {
         if (b.average === null) return -1;
 
         return a.average - b.average;
+      })
+      .map((row, _index, rows) => {
+        // Same task name from two ACSs (e.g. Private and Commercial): say which.
+        const prefix = row.taskCode.split("|")[0];
+        const duplicate = rows.some(
+          (other) => other !== row && other.label === row.label,
+        );
+        return duplicate && PREFIX_LABEL[prefix]
+          ? { ...row, label: `${row.label} (${PREFIX_LABEL[prefix]})` }
+          : row;
       });
-  }, [currentGrades]);
+  }, [currentGrades, taskKeyFor]);
 
   useEffect(() => {
     if (
@@ -1519,7 +1632,7 @@ export default function ExaminerDataPage() {
     currentGrades
       .filter(
         (grade) =>
-          grade.task_code ===
+          taskKeyFor(grade) ===
           selectedTask,
       )
       .forEach((grade) => {
@@ -1559,6 +1672,7 @@ export default function ExaminerDataPage() {
     selectedTask,
     currentGrades,
     currentTests,
+    taskKeyFor,
   ]);
 
   const selectedTaskSummary =
@@ -1576,6 +1690,9 @@ export default function ExaminerDataPage() {
       state?: string;
     } = {},
   ) {
+    // Global Data has no records to open.
+    if (scope === "global") return;
+
     const params =
       new URLSearchParams();
 
@@ -1898,6 +2015,39 @@ export default function ExaminerDataPage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            role="tablist"
+            aria-label="Data scope"
+            className="inline-flex rounded-lg border border-slate-300 bg-white p-1"
+          >
+            {(
+              [
+                ["mine", "My Data"],
+                ["global", "Global Data"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={scope === value}
+                onClick={() => {
+                  setInstructorFilter("");
+                  setSchoolFilter("");
+                  setScope(value);
+                }}
+                className={`rounded-md px-4 py-1.5 text-sm font-semibold transition ${
+                  scope === value
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
         <button
           type="button"
           onClick={() => void loadData()}
@@ -1914,7 +2064,15 @@ export default function ExaminerDataPage() {
 
           Refresh
         </button>
+        </div>
       </div>
+
+      {scope === "global" ? (
+        <p className="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-5 py-3 text-sm text-sky-900">
+          Global Data: every examiner&apos;s completed practical tests. No people&apos;s names are shown — instructors
+          appear as codes so you can still filter and compare them. Flight schools keep their names.
+        </p>
+      ) : null}
 
       {pageError ? (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
@@ -2176,6 +2334,7 @@ export default function ExaminerDataPage() {
               </p>
             </div>
 
+            {scope === "mine" ? (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <button
                 type="button"
@@ -2301,6 +2460,7 @@ export default function ExaminerDataPage() {
                 </div>
               </button>
             </div>
+            ) : null}
 
             <div className="mt-6 grid gap-6 xl:grid-cols-2">
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -2474,7 +2634,7 @@ export default function ExaminerDataPage() {
                           className="flex w-full items-center justify-between rounded-lg bg-white px-3 py-2 text-left"
                         >
                           <span className="font-semibold text-slate-800">
-                            {task.taskCode}
+                            {task.label}
                           </span>
 
                           <span className="font-bold text-red-700">
@@ -2518,7 +2678,7 @@ export default function ExaminerDataPage() {
                           className="flex w-full items-center justify-between rounded-lg bg-white px-3 py-2 text-left"
                         >
                           <span className="font-semibold text-slate-800">
-                            {task.taskCode}
+                            {task.label}
                           </span>
 
                           <span className="font-bold text-emerald-700">
@@ -2611,8 +2771,8 @@ export default function ExaminerDataPage() {
                               : ""
                           }`}
                         >
-                          <td className="whitespace-nowrap px-5 py-3 font-bold text-slate-900">
-                            {task.taskCode}
+                          <td className="px-5 py-3 font-bold text-slate-900">
+                            {task.label}
                           </td>
 
                           <td className="px-5 py-3">
@@ -2700,7 +2860,7 @@ export default function ExaminerDataPage() {
 
                     <h3 className="mt-1 text-xl font-bold text-slate-900">
                       {
-                        selectedTaskSummary.taskCode
+                        selectedTaskSummary.label
                       }
                     </h3>
                   </div>
@@ -2730,7 +2890,7 @@ export default function ExaminerDataPage() {
                               }
                             >
                               {
-                                task.taskCode
+                                task.label
                               }
                             </option>
                           ),
