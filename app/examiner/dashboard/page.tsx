@@ -204,6 +204,8 @@ export default function ExaminerDashboardPage() {
         dms_preapproval_number
       `,
       )
+      // Only this examiner's requests (Kele, Oct 31 2026); open requests are in Open Assignments.
+      .eq("assigned_examiner_profile_id", user.id)
       .order("submitted_at", {
         ascending: false,
         nullsFirst: false,
