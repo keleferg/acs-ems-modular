@@ -19,6 +19,7 @@ import PracticalTestTypeSelector, {
 } from "@/components/practical-test/practical-test-type-selector";
 import AirportSelector from "@/components/practical-test/airport-selector";
 import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
+import FstdCheckField, { type FstdCheckState } from "@/components/practical-test/fstd-check-field";
 import AircraftTypeSelector from "@/components/practical-test/aircraft-type-selector";
 
 type PracticalTestRequest = {
@@ -210,6 +211,11 @@ type NoGradesheetDetails = {
   groundDuration: string;
   simulatorDuration: string;
   flightDuration: string;
+  // Simulator used for the FTD / FFS time, from the FAA FSTD list (Kele, Nov 1 2026).
+  fstdFaaId: string;
+  fstdLabel: string;
+  fstdConfirmed: boolean;
+  fstdState: FstdCheckState;
 };
 
 function getNoGradesheetDetails(
@@ -221,7 +227,15 @@ function getNoGradesheetDetails(
     groundDuration: "",
     simulatorDuration: "",
     flightDuration: "",
+    fstdFaaId: "",
+    fstdLabel: "",
+    fstdConfirmed: false,
+    fstdState: "",
   };
+}
+
+function usesSimulator(details: NoGradesheetDetails) {
+  return details.simulatorDuration.trim() !== "" && Number(details.simulatorDuration) > 0;
 }
 
 function noGradesheetDetailsError(details: NoGradesheetDetails): string {
@@ -238,6 +252,12 @@ function noGradesheetDetailsError(details: NoGradesheetDetails): string {
     if (value.trim() && (!Number.isFinite(Number(value)) || Number(value) < 0)) {
       return `${label} must be a nonnegative number of hours.`;
     }
+  }
+  if (usesSimulator(details)) {
+    if (!details.fstdFaaId) return "Select the simulator (FSTD) used for the FTD / FFS time.";
+    if (details.fstdState === "checking" || details.fstdState === "") return "Checking the simulator…";
+    if (details.fstdState === "block") return "This simulator isn't on the FAA list of qualified FSTDs.";
+    if (details.fstdState === "warn" && !details.fstdConfirmed) return "Confirm the simulator warnings.";
   }
   return "";
 }
@@ -2036,6 +2056,9 @@ export default function ExaminerRequestsPage() {
           ? Number(details.simulatorDuration) : null,
         p_flight_duration: details.flightDuration.trim()
           ? Number(details.flightDuration) : null,
+        p_fstd_faa_id: usesSimulator(details) && details.fstdFaaId
+          ? Number(details.fstdFaaId) : null,
+        p_fstd_warnings_confirmed: details.fstdConfirmed,
       },
     );
 
@@ -3477,10 +3500,60 @@ export default function ExaminerRequestsPage() {
                                     );
                                   })}
                                 </div>
+                                {usesSimulator(getNoGradesheetDetails(request, noGradesheetDetails[request.id])) ? (
+                                  <div className="mt-4 text-sm font-semibold text-slate-700">
+                                    Simulator (FSTD) used *
+                                    <FstdCheckField
+                                      requestId={request.id}
+                                      flightHours={getNoGradesheetDetails(request, noGradesheetDetails[request.id]).flightDuration}
+                                      faaId={getNoGradesheetDetails(request, noGradesheetDetails[request.id]).fstdFaaId}
+                                      label={getNoGradesheetDetails(request, noGradesheetDetails[request.id]).fstdLabel}
+                                      confirmed={getNoGradesheetDetails(request, noGradesheetDetails[request.id]).fstdConfirmed}
+                                      disabled={Boolean(savingNoGradesheetId)}
+                                      onChange={(fstdFaaId, fstdLabel) =>
+                                        setNoGradesheetDetails((current) => ({
+                                          ...current,
+                                          [request.id]: {
+                                            ...getNoGradesheetDetails(request, current[request.id]),
+                                            fstdFaaId,
+                                            fstdLabel,
+                                          },
+                                        }))
+                                      }
+                                      onConfirmedChange={(fstdConfirmed) =>
+                                        setNoGradesheetDetails((current) => ({
+                                          ...current,
+                                          [request.id]: {
+                                            ...getNoGradesheetDetails(request, current[request.id]),
+                                            fstdConfirmed,
+                                          },
+                                        }))
+                                      }
+                                      onStateChange={(fstdState) =>
+                                        setNoGradesheetDetails((current) => ({
+                                          ...current,
+                                          [request.id]: {
+                                            ...getNoGradesheetDetails(request, current[request.id]),
+                                            fstdState,
+                                          },
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                ) : null}
                                 <p className="mt-3 text-xs text-slate-600">
                                   Enter times in decimal hours. Ground Duration is required.
-                                  Enter FTD / FFS Duration, Flight Duration, or both.
+                                  Enter FTD / FFS Duration, Flight Duration, or both. FTD / FFS time
+                                  needs the simulator from the FAA list of qualified FSTDs.
                                 </p>
+                                {(() => {
+                                  const problem = noGradesheetDetailsError(
+                                    getNoGradesheetDetails(request, noGradesheetDetails[request.id]),
+                                  );
+                                  return problem && usesSimulator(getNoGradesheetDetails(request, noGradesheetDetails[request.id])) && problem.toLowerCase().includes("simulator") ? (
+                                    <p className="mt-2 text-xs font-semibold text-amber-800">{problem}</p>
+                                  ) : null;
+                                })()}
                                 <button
                                   type="button"
                                   onClick={() => void completeWithoutGradesheet(request)}
