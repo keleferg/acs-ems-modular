@@ -18,6 +18,7 @@ import PracticalTestTypeSelector, {
   type PracticalTestTypeSelection,
 } from "@/components/practical-test/practical-test-type-selector";
 import AirportSelector from "@/components/practical-test/airport-selector";
+import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 import AircraftTypeSelector from "@/components/practical-test/aircraft-type-selector";
 
 type PracticalTestRequest = {
@@ -1078,6 +1079,7 @@ export default function ExaminerRequestsPage() {
           `,
           )
           .eq("is_active", true)
+          .lt("sort_order", 4000)
           .order("sort_order", { ascending: true })
           .order("name", { ascending: true }),
 
@@ -3797,62 +3799,33 @@ export default function ExaminerRequestsPage() {
                                   </h4>
 
                                   <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                    <label className="text-sm font-semibold text-slate-700">
+                                    <div className="text-sm font-semibold text-slate-700 md:col-span-2">
                                       Flight School
-                                      <select
-                                        value={requestEditDrafts[request.id].flight_school_id}
-                                        onChange={(event) => {
-                                          const school =
-                                            schedulingLocations.find(
-                                              (item) =>
-                                                item.id === event.target.value,
-                                            );
-                                          updateRequestEditDraft(
-                                            request.id,
-                                            "flight_school_id",
-                                            school?.id ?? "",
-                                          );
-                                          updateRequestEditDraft(
-                                            request.id,
-                                            "flight_school_name_snapshot",
-                                            school?.name ?? "",
-                                          );
-                                        }}
-                                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal"
-                                      >
-                                        <option value="">
-                                          Not listed / other
-                                        </option>
-                                        {schedulingLocations.map((school) => (
-                                          <option
-                                            key={school.id}
-                                            value={school.id}
-                                          >
-                                            {school.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </label>
-
-                                    {!requestEditDrafts[request.id].flight_school_id ? (
-                                      <label className="text-sm font-semibold text-slate-700">
-                                        Flight School Name (if not listed)
-                                        <input
-                                          type="text"
+                                      <div className="mt-2 font-normal">
+                                        <FlightSchoolSelector
                                           value={
                                             requestEditDrafts[request.id].flight_school_name_snapshot
+                                              ? {
+                                                  id: requestEditDrafts[request.id].flight_school_id || null,
+                                                  name: requestEditDrafts[request.id].flight_school_name_snapshot,
+                                                }
+                                              : null
                                           }
-                                          onChange={(event) =>
+                                          onChange={(school) => {
+                                            updateRequestEditDraft(
+                                              request.id,
+                                              "flight_school_id",
+                                              school?.id ?? "",
+                                            );
                                             updateRequestEditDraft(
                                               request.id,
                                               "flight_school_name_snapshot",
-                                              event.target.value,
-                                            )
-                                          }
-                                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                                              school?.name ?? "",
+                                            );
+                                          }}
                                         />
-                                      </label>
-                                    ) : null}
+                                      </div>
+                                    </div>
 
                                     <label className="text-sm font-semibold text-slate-700">
                                       Oral Test Location

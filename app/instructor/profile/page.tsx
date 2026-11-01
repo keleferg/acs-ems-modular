@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { LegalNameFields } from "@/components/legal-name-fields";
 import { type LegalName } from "@/lib/legal-name";
 import { createClient } from "@/lib/supabase/client";
+import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 
 // Instructor profile (Kele, Oct 31 2026). Top: the same name/phone/email block as the applicant profile.
 // Below: flight schools, CFI certificate, ratings, recent experience and 14 CFR 61.195(h).
@@ -66,14 +67,13 @@ export default function InstructorProfilePage() {
   const [message, setMessage] = useState("");
   const [reasons, setReasons] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [newSchool, setNewSchool] = useState("");
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
       const [profileResult, schoolResult] = await Promise.all([
         supabase.rpc("instructor_get_profile"),
-        supabase.from("flight_schools").select("id, name").eq("is_active", true).order("sort_order", { ascending: true }).order("name", { ascending: true }),
+        supabase.from("flight_schools").select("id, name").eq("is_active", true).lt("sort_order", 4000).order("sort_order", { ascending: true }).order("name", { ascending: true }),
       ]);
       if (profileResult.error) {
         setError(profileResult.error.message);
@@ -87,7 +87,14 @@ export default function InstructorProfilePage() {
       };
       const p = data.profile ?? {};
       const text = (key: string) => (typeof p[key] === "string" ? (p[key] as string) : "");
-      setSchools((schoolResult.data ?? []) as School[]);
+      // The usual local schools, plus any other school this instructor already picked.
+      const loadedSchools = (schoolResult.data ?? []) as School[];
+      const missing = (data.flight_school_ids ?? []).filter((id) => !loadedSchools.some((school) => school.id === id));
+      if (missing.length) {
+        const { data: extra } = await supabase.from("flight_schools").select("id, name").in("id", missing);
+        loadedSchools.push(...((extra ?? []) as School[]));
+      }
+      setSchools(loadedSchools);
       setIsInstructor(Boolean(data.is_instructor));
       setForm({
         name: {
@@ -122,18 +129,6 @@ export default function InstructorProfilePage() {
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
   }
 
-  function addSchool() {
-    const name = newSchool.trim().replace(/\s+/g, " ");
-    if (!form || !name) return;
-    const known = schools.find((school) => school.name.toLowerCase() === name.toLowerCase());
-    if (known) {
-      if (!form.schoolIds.includes(known.id)) update("schoolIds", [...form.schoolIds, known.id]);
-    } else if (!form.otherSchools.some((school) => school.toLowerCase() === name.toLowerCase())) {
-      update("otherSchools", [...form.otherSchools, name]);
-    }
-    setNewSchool("");
-  }
-
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form || saving) return;
@@ -148,11 +143,7 @@ export default function InstructorProfilePage() {
       setError("Select how you meet 14 CFR 61.195(h).");
       return;
     }
-    // A name typed but not added yet still counts.
-    const typed = newSchool.trim().replace(/\s+/g, " ");
-    const otherSchools = typed && !form.otherSchools.some((school) => school.toLowerCase() === typed.toLowerCase()) && !schools.some((school) => school.name.toLowerCase() === typed.toLowerCase())
-      ? [...form.otherSchools, typed]
-      : form.otherSchools;
+    const otherSchools = form.otherSchools;
     setSaving(true);
     try {
       const { data, error: saveError } = await createClient().rpc("instructor_save_profile", {
@@ -230,7 +221,7 @@ export default function InstructorProfilePage() {
 
         <fieldset className="border-t border-slate-200 pt-6">
           <legend className="text-lg font-bold text-slate-900">Flight schools</legend>
-          <p className="mt-1 text-sm text-slate-600">Select the flight schools you instruct for, or add one that isn&apos;t listed.</p>
+          <p className="mt-1 text-sm text-slate-600">Check the flight schools you instruct for. Search to add any FAA Part 141/142 school, or add one that isn&apos;t listed.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
               <input type="checkbox" checked={form.freelance} onChange={() => update("freelance", !form.freelance)} className="h-4 w-4" />
@@ -249,23 +240,19 @@ export default function InstructorProfilePage() {
               </label>
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input
-              value={newSchool}
-              onChange={(event) => setNewSchool(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  addSchool();
-                }
+          <div className="mt-3">
+            <FlightSchoolSelector
+              value={null}
+              clearOnSelect
+              placeholder="Add another school — search name, city, or FAA certificate…"
+              onChange={(school) => {
+                if (!school) return;
+                setSchools((current) =>
+                  current.some((item) => item.id === school.id) ? current : [...current, { id: school.id, name: school.name }],
+                );
+                if (!form.schoolIds.includes(school.id)) update("schoolIds", [...form.schoolIds, school.id]);
               }}
-              placeholder="Flight school not listed? Type its name"
-              aria-label="Other flight school name"
-              className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
             />
-            <button type="button" onClick={addSchool} disabled={!newSchool.trim()} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-              Add school
-            </button>
           </div>
         </fieldset>
 

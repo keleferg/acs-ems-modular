@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { LegalNameFields } from "@/components/legal-name-fields";
+import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 import { legalNameColumns, legalNameFromRecord, type LegalName } from "@/lib/legal-name";
 
 type FlightSchool = {
@@ -15,6 +16,7 @@ type ProfileForm = {
   ftnNumber: string;
   pilotCertificateNumber: string;
   flightSchoolId: string;
+  flightSchoolName: string;
   otherFlightSchool: string;
   phone: string;
   email: string;
@@ -25,6 +27,7 @@ const initialForm: ProfileForm = {
   ftnNumber: "",
   pilotCertificateNumber: "",
   flightSchoolId: "",
+  flightSchoolName: "",
   otherFlightSchool: "",
   phone: "",
   email: "",
@@ -32,7 +35,7 @@ const initialForm: ProfileForm = {
 
 export default function ApplicantProfilePage() {
   const [form, setForm] = useState<ProfileForm>(initialForm);
-  const [flightSchools, setFlightSchools] = useState<FlightSchool[]>([]);
+  const [, setFlightSchools] = useState<FlightSchool[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -98,6 +101,7 @@ export default function ApplicantProfilePage() {
           .from("flight_schools")
           .select("id, name")
           .eq("is_active", true)
+          .lt("sort_order", 4000)
           .order("sort_order", { ascending: true })
           .order("name", { ascending: true }),
       ]);
@@ -132,7 +136,21 @@ export default function ApplicantProfilePage() {
         .filter(Boolean)
         .join(" ");
 
-      setFlightSchools((schoolsResult.data ?? []) as FlightSchool[]);
+      const loadedSchools = (schoolsResult.data ?? []) as FlightSchool[];
+      setFlightSchools(loadedSchools);
+
+      let savedSchoolName =
+        loadedSchools.find((school) => school.id === applicant?.flight_school_id)?.name ?? "";
+      if (applicant?.flight_school_id && !savedSchoolName) {
+        const { data: savedSchool } = await supabase
+          .from("flight_schools")
+          .select("name")
+          .eq("id", applicant.flight_school_id)
+          .maybeSingle();
+        savedSchoolName = savedSchool?.name ?? "";
+      }
+
+      if (cancelled) return;
 
       setForm({
         legalName: legalNameFromRecord(applicant, profileName),
@@ -142,6 +160,7 @@ export default function ApplicantProfilePage() {
         flightSchoolId:
           applicant?.flight_school_id ??
           (applicant?.flight_school_name_other ? "other" : ""),
+        flightSchoolName: savedSchoolName,
         otherFlightSchool:
           applicant?.flight_school_name_other ?? "",
         phone: profile?.phone ?? "",
@@ -378,56 +397,30 @@ export default function ApplicantProfilePage() {
             </span>
           </label>
 
-          <select
+          <FlightSchoolSelector
             id="flightSchool"
-            value={form.flightSchoolId}
-            onChange={(event) => {
-              updateField("flightSchoolId", event.target.value);
+            value={
+              form.flightSchoolId === "other"
+                ? { id: null, name: form.otherFlightSchool }
+                : form.flightSchoolId
+                  ? { id: form.flightSchoolId, name: form.flightSchoolName }
+                  : null
+            }
+            onChange={(school) =>
+              setForm((current) => ({
+                ...current,
+                flightSchoolId: school?.id ?? "",
+                flightSchoolName: school?.name ?? "",
+                otherFlightSchool: "",
+              }))
+            }
+          />
 
-              if (event.target.value !== "other") {
-                updateField("otherFlightSchool", "");
-              }
-            }}
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
-          >
-            <option value="">
-              No flight school / independent
-            </option>
-
-            {flightSchools.map((school) => (
-              <option key={school.id} value={school.id}>
-                {school.name}
-              </option>
-            ))}
-
-            <option value="other">Other</option>
-          </select>
+          <p className="mt-2 text-xs text-slate-500">
+            Leave blank if you train independently. If your school isn’t listed, type its
+            name and choose “Add”.
+          </p>
         </div>
-
-        {form.flightSchoolId === "other" ? (
-          <div>
-            <label
-              htmlFor="otherFlightSchool"
-              className="mb-2 block text-sm font-semibold text-slate-800"
-            >
-              Flight school name
-              <span className="ml-1 text-red-600">*</span>
-            </label>
-
-            <input
-              id="otherFlightSchool"
-              value={form.otherFlightSchool}
-              onChange={(event) =>
-                updateField(
-                  "otherFlightSchool",
-                  event.target.value,
-                )
-              }
-              required
-              className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
-            />
-          </div>
-        ) : null}
 
         <div className="grid gap-6 sm:grid-cols-2">
           <div>

@@ -17,6 +17,7 @@ import RecommendingInstructorLookup, {
   type SavedInstructor,
 } from "@/components/practical-test/recommending-instructor-lookup";
 import { createClient } from "@/lib/supabase/client";
+import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 
 type ApplicantOption = {
   applicant_profile_id: string;
@@ -53,6 +54,7 @@ export default function ExaminerCreateRequestPage() {
   const [test, setTest] = useState(emptyTest);
   const [flightSchools, setFlightSchools] = useState<FlightSchoolOption[]>([]);
   const [flightSchoolId, setFlightSchoolId] = useState("");
+  const [flightSchoolName, setFlightSchoolName] = useState("");
   const [otherFlightSchool, setOtherFlightSchool] = useState("");
   const [oralTestLocation, setOralTestLocation] = useState("");
   const [airport, setAirport] = useState<AirportSelection | null>(null);
@@ -87,6 +89,7 @@ export default function ExaminerCreateRequestPage() {
     setSearch("");
     setTest(emptyTest);
     setFlightSchoolId("");
+    setFlightSchoolName("");
     setOtherFlightSchool("");
     setOralTestLocation("");
     setAirport(null);
@@ -257,7 +260,7 @@ export default function ExaminerCreateRequestPage() {
             ? otherFlightSchool.trim()
             : flightSchoolId === "independent"
               ? "Self / Independent"
-              : flightSchools.find((school) => school.id === flightSchoolId)?.name ?? null,
+              : flightSchools.find((school) => school.id === flightSchoolId)?.name ?? (flightSchoolName || null),
         p_oral_test_location: oralTestLocation.trim(),
         p_flight_airport_id: airport.id,
         p_flight_airport_code: airport.faa_identifier,
@@ -396,39 +399,59 @@ export default function ExaminerCreateRequestPage() {
             and aircraft information.
           </p>
 
-          <label className="mt-5 block text-sm font-semibold text-slate-800">
+          <div className="mt-5 text-sm font-semibold text-slate-800">
             Flight training location <span className="text-red-600">*</span>
-            <select
-              required
-              value={flightSchoolId}
-              onChange={(event) => {
-                const value = event.target.value;
-                const school = flightSchools.find((item) => item.id === value);
-                setFlightSchoolId(value);
-                setOralTestLocation(school?.default_oral_test_location ?? "");
-              }}
-              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
-            >
-              <option value="">Select a school or option</option>
-              {flightSchools.map((school) => (
-                <option key={school.id} value={school.id}>{school.name}</option>
-              ))}
-              <option value="independent">Self / Independent</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-
-          {flightSchoolId === "other" ? (
-            <label className="mt-4 block text-sm font-semibold text-slate-800">
-              Other flight school or training provider <span className="text-red-600">*</span>
-              <input
-                required
-                value={otherFlightSchool}
-                onChange={(event) => setOtherFlightSchool(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3"
-              />
-            </label>
-          ) : null}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[
+                { label: "Flight school", value: "" },
+                { label: "Self / Independent", value: "independent" },
+              ].map((option) => {
+                const active = (flightSchoolId === "independent") === (option.value === "independent");
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    onClick={() => {
+                      if (active) return;
+                      setFlightSchoolId(option.value);
+                      setFlightSchoolName("");
+                      setOtherFlightSchool("");
+                      setOralTestLocation("");
+                    }}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                      active ? "border-sky-700 bg-sky-700 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            {flightSchoolId !== "independent" ? (
+              <div className="mt-3 font-normal">
+                <FlightSchoolSelector
+                  value={
+                    flightSchoolId === "other"
+                      ? otherFlightSchool
+                        ? { id: null, name: otherFlightSchool }
+                        : null
+                      : flightSchoolId
+                        ? { id: flightSchoolId, name: flightSchoolName || flightSchools.find((item) => item.id === flightSchoolId)?.name || "" }
+                        : null
+                  }
+                  onChange={(school) => {
+                    setFlightSchoolId(school?.id ?? "");
+                    setFlightSchoolName(school?.name ?? "");
+                    setOtherFlightSchool("");
+                    setOralTestLocation(school?.default_oral_test_location ?? "");
+                  }}
+                />
+                <p className="mt-2 text-xs text-slate-500">
+                  Search FAA Part 141 and 142 schools by name, city, or certificate number, or add one that isn’t listed.
+                </p>
+              </div>
+            ) : null}
+          </div>
 
           <label className="mt-4 block text-sm font-semibold text-slate-800">
             Oral-test meeting location <span className="text-red-600">*</span>

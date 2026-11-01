@@ -7,6 +7,9 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import FlightSchoolSelector, {
+  type FlightSchoolPick,
+} from "@/components/practical-test/flight-school-selector";
 
 type FlightSchool = {
   id: string;
@@ -22,7 +25,7 @@ export default function LocationsSettingsPage() {
   const [flightSchools, setFlightSchools] = useState<
     FlightSchool[]
   >([]);
-  const [newSchoolName, setNewSchoolName] = useState("");
+  const [newSchool, setNewSchool] = useState<FlightSchoolPick | null>(null);
   const [newSchoolLocation, setNewSchoolLocation] =
     useState("");
   const [newSchoolAirport, setNewSchoolAirport] =
@@ -52,6 +55,8 @@ export default function LocationsSettingsPage() {
         is_active,
         sort_order
       `)
+      // Only the usual local schools; the FAA list is searched when adding one.
+      .lt("sort_order", 4000)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 
@@ -77,11 +82,9 @@ export default function LocationsSettingsPage() {
   ) {
     event.preventDefault();
 
-    const name = newSchoolName.trim();
-
-    if (!name) {
+    if (!newSchool) {
       setErrorMessage(
-        "Enter a flight-school or location name.",
+        "Search for the flight school (or add it if it isn’t listed).",
       );
       return;
     }
@@ -92,19 +95,21 @@ export default function LocationsSettingsPage() {
 
     const nextSortOrder =
       flightSchools.length > 0
-        ? Math.max(
-            ...flightSchools.map(
-              (item) => item.sort_order,
-            ),
-          ) + 10
+        ? Math.min(
+            3990,
+            Math.max(
+              ...flightSchools.map(
+                (item) => item.sort_order,
+              ),
+            ) + 10,
+          )
         : 100;
 
     const supabase = createClient();
 
     const { data, error } = await supabase
       .from("flight_schools")
-      .insert({
-        name,
+      .update({
         default_oral_test_location:
           newSchoolLocation.trim() || null,
         default_airport_code:
@@ -114,6 +119,7 @@ export default function LocationsSettingsPage() {
         is_active: true,
         sort_order: nextSortOrder,
       })
+      .eq("id", newSchool.id)
       .select(`
         id,
         name,
@@ -135,11 +141,11 @@ export default function LocationsSettingsPage() {
       );
     } else {
       setFlightSchools((current) => [
-        ...current,
+        ...current.filter((item) => item.id !== (data as FlightSchool).id),
         data as FlightSchool,
       ]);
 
-      setNewSchoolName("");
+      setNewSchool(null);
       setNewSchoolLocation("");
       setNewSchoolAirport("HNL");
       setNewSchoolNotes("");
@@ -283,14 +289,13 @@ export default function LocationsSettingsPage() {
               Flight school or location name
             </label>
 
-            <input
-              value={newSchoolName}
-              onChange={(event) =>
-                setNewSchoolName(event.target.value)
-              }
-              required
-              placeholder="Example: Pacific Flight Academy"
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+            <FlightSchoolSelector
+              value={newSchool}
+              onChange={(school) => {
+                setNewSchool(school);
+                if (school?.default_oral_test_location) setNewSchoolLocation(school.default_oral_test_location);
+                if (school?.default_airport_code) setNewSchoolAirport(school.default_airport_code);
+              }}
             />
           </div>
 

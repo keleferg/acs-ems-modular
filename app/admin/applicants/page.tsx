@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 import {
   Archive,
   Link2,
@@ -253,7 +254,7 @@ export default function AdminApplicantsPage() {
       pilot_certificate_number: nullable(draft.pilotCertificateNumber),
       flight_school_id: nullable(draft.flightSchoolId),
       flight_school_name_other: draft.flightSchoolId
-        ? (selectedSchool?.name ?? null)
+        ? (selectedSchool?.name ?? nullable(draft.otherFlightSchool))
         : nullable(draft.otherFlightSchool),
       mailing_address_line_1: nullable(draft.address1),
       mailing_address_line_2: nullable(draft.address2),
@@ -550,40 +551,32 @@ export default function AdminApplicantsPage() {
               </select>
             </label>
 
-            <label className="grid gap-2 text-sm font-semibold text-slate-700">
+            <div className="grid gap-2 text-sm font-semibold text-slate-700">
               Flight School
-              <select
-                value={draft.flightSchoolId}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    flightSchoolId: event.target.value,
-                  }))
-                }
-                className="h-11 rounded-xl border border-slate-300 bg-white px-3 font-normal text-slate-900"
-              >
-                <option value="">Other / None</option>
-
-                {schools.map((school) => (
-                  <option key={school.id} value={school.id}>
-                    {school.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {!draft.flightSchoolId ? (
-              <Field
-                label="Other Flight School"
-                value={draft.otherFlightSchool}
-                onChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    otherFlightSchool: value,
-                  }))
-                }
-              />
-            ) : null}
+              <div className="font-normal">
+                <FlightSchoolSelector
+                  value={
+                    draft.flightSchoolId
+                      ? {
+                          id: draft.flightSchoolId,
+                          name:
+                            schools.find((school) => school.id === draft.flightSchoolId)?.name ??
+                            draft.otherFlightSchool,
+                        }
+                      : draft.otherFlightSchool
+                        ? { id: null, name: draft.otherFlightSchool }
+                        : null
+                  }
+                  onChange={(school) =>
+                    setDraft((current) => ({
+                      ...current,
+                      flightSchoolId: school?.id ?? "",
+                      otherFlightSchool: school?.name ?? "",
+                    }))
+                  }
+                />
+              </div>
+            </div>
           </div>
 
           <div className="mt-8">

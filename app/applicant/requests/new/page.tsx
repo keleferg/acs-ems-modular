@@ -13,6 +13,7 @@ import PracticalTestTypeSelector, {
   type PracticalTestTypeSelection,
 } from "@/components/practical-test/practical-test-type-selector";
 import { createClient } from "@/lib/supabase/client";
+import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 
 const STORAGE_KEY = "dpe-emt-practical-test-request-draft";
 
@@ -47,6 +48,10 @@ type FormData = {
   ppcAircraftCivilModelDesignation: string;
 
   flightSchool: string;
+  /** flight_schools.id of the picked school ("" for Self / Independent or a typed name). */
+  flightSchoolId: string;
+  /** "yes" when the school is one of the usual local schools (no oral-test address needed). */
+  flightSchoolFeatured: string;
   otherFlightSchool: string;
   oralTestLocation: string;
   flightAirportId: string;
@@ -113,6 +118,8 @@ const initialFormData: FormData = {
   ppcAircraftCivilModelDesignation: "",
 
   flightSchool: "",
+  flightSchoolId: "",
+  flightSchoolFeatured: "",
   otherFlightSchool: "",
   oralTestLocation: "",
   flightAirportId: "",
@@ -417,6 +424,7 @@ export default function NewRequestPage() {
         `,
         )
         .eq("is_active", true)
+        .lt("sort_order", 4000)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
 
@@ -503,11 +511,12 @@ export default function NewRequestPage() {
             .trim();
 
           let savedFlightSchool = "";
+          let savedFlightSchoolFeatured = "";
 
           if (applicant?.flight_school_id) {
             const { data: school, error: schoolError } = await supabase
               .from("flight_schools")
-              .select("name")
+              .select("name, sort_order")
               .eq("id", applicant.flight_school_id)
               .maybeSingle();
 
@@ -518,6 +527,8 @@ export default function NewRequestPage() {
               );
             } else {
               savedFlightSchool = school?.name ?? "";
+              savedFlightSchoolFeatured =
+                school && school.sort_order < 4000 ? "yes" : "";
             }
           }
 
@@ -533,6 +544,10 @@ export default function NewRequestPage() {
             flightSchool:
               savedFlightSchool ||
               (applicant?.flight_school_name_other ? "Other" : ""),
+            flightSchoolId: savedFlightSchool
+              ? applicant?.flight_school_id ?? ""
+              : "",
+            flightSchoolFeatured: savedFlightSchoolFeatured,
             otherFlightSchool:
               applicant?.flight_school_name_other?.trim() || "",
           };
@@ -590,6 +605,8 @@ export default function NewRequestPage() {
         "applicantPhone",
         "applicantEmail",
         "flightSchool",
+        "flightSchoolId",
+        "flightSchoolFeatured",
         "otherFlightSchool",
       ];
 
@@ -640,9 +657,15 @@ export default function NewRequestPage() {
     return () => window.clearTimeout(timeout);
   }, [formData, currentStep, loaded]);
 
+  // The usual local schools have a known meeting place; anyone else gives the oral-test address.
+  const legacySchool = flightSchools.find(
+    (school) => school.name === formData.flightSchool,
+  );
   const selectedSchoolRequiresLocation =
-    formData.flightSchool === "Self / Independent" ||
-    formData.flightSchool === "Other";
+    Boolean(formData.flightSchool) &&
+    (formData.flightSchool === "Self / Independent" ||
+      formData.flightSchool === "Other" ||
+      !(formData.flightSchoolFeatured === "yes" || legacySchool));
 
   const isPpcRequest =
     formData.certificateSought === "Pilot Proficiency Check (61.58)" ||
@@ -839,9 +862,11 @@ export default function NewRequestPage() {
         );
       }
 
-      const selectedSchool = flightSchools.find(
-        (school) => school.name === formData.flightSchool,
-      );
+      const selectedSchool = formData.flightSchoolId
+        ? { id: formData.flightSchoolId }
+        : flightSchools.find(
+            (school) => school.name === formData.flightSchool,
+          );
 
       const flightSchoolName =
         formData.flightSchool === "Other"
@@ -1532,60 +1557,90 @@ export default function NewRequestPage() {
                 <div className="sm:col-span-2">
                   <FieldLabel required>Flight training location</FieldLabel>
 
-                  <SelectInput
-                    value={formData.flightSchool}
-                    onChange={(value) => {
-                      const selectedSchool = flightSchools.find(
-                        (school) => school.name === value,
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {[
+                      { label: "Flight school", independent: false },
+                      { label: "Self / Independent", independent: true },
+                    ].map((option) => {
+                      const active =
+                        option.independent ===
+                        (formData.flightSchool === "Self / Independent");
+                      return (
+                        <button
+                          key={option.label}
+                          type="button"
+                          onClick={() =>
+                            !active &&
+                            setFormData((current) => ({
+                              ...current,
+                              flightSchool: option.independent
+                                ? "Self / Independent"
+                                : "",
+                              flightSchoolId: "",
+                              flightSchoolFeatured: "",
+                              otherFlightSchool: "",
+                              oralTestLocation: "",
+                              otherFlightAirport: "",
+                            }))
+                          }
+                          className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                            active
+                              ? "border-sky-700 bg-sky-700 text-white"
+                              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
                       );
-
-                      setFormData((current) => ({
-                        ...current,
-                        flightSchool: value,
-                        otherFlightSchool:
-                          value === "Other" ? current.otherFlightSchool : "",
-                        oralTestLocation:
-                          selectedSchool?.default_oral_test_location ?? "",
-                        flightAirport:
-                          selectedSchool?.default_airport_code ?? "",
-                        otherFlightAirport: "",
-                      }));
-                    }}
-                  >
-                    <option value="">
-                      {flightSchoolsLoading
-                        ? "Loading flight schools…"
-                        : "Select a school or option"}
-                    </option>
-
-                    {flightSchools.map((school) => (
-                      <option key={school.id} value={school.name}>
-                        {school.name}
-                      </option>
-                    ))}
-
-                    <option value="Self / Independent">
-                      Self / Independent
-                    </option>
-
-                    <option value="Other">Other</option>
-                  </SelectInput>
-                </div>
-
-                {formData.flightSchool === "Other" ? (
-                  <div className="sm:col-span-2">
-                    <FieldLabel required>
-                      Other flight school or training provider
-                    </FieldLabel>
-
-                    <TextInput
-                      value={formData.otherFlightSchool}
-                      onChange={(value) =>
-                        updateField("otherFlightSchool", value)
-                      }
-                    />
+                    })}
                   </div>
-                ) : null}
+
+                  {formData.flightSchool !== "Self / Independent" ? (
+                    <>
+                      <FlightSchoolSelector
+                        value={
+                          formData.flightSchool === "Other"
+                            ? formData.otherFlightSchool
+                              ? { id: null, name: formData.otherFlightSchool }
+                              : null
+                            : formData.flightSchool
+                              ? {
+                                  id:
+                                    formData.flightSchoolId ||
+                                    legacySchool?.id ||
+                                    null,
+                                  name: formData.flightSchool,
+                                }
+                              : null
+                        }
+                        onChange={(school) =>
+                          setFormData((current) => ({
+                            ...current,
+                            flightSchool: school?.name ?? "",
+                            flightSchoolId: school?.id ?? "",
+                            flightSchoolFeatured:
+                              school &&
+                              flightSchools.some((item) => item.id === school.id)
+                                ? "yes"
+                                : "",
+                            otherFlightSchool: "",
+                            oralTestLocation:
+                              school?.default_oral_test_location ?? "",
+                            flightAirport: school?.default_airport_code ?? "",
+                            otherFlightAirport: "",
+                          }))
+                        }
+                      />
+
+                      <p className="mt-2 text-sm text-slate-500">
+                        Search FAA Part 141 and 142 schools by name, city, or
+                        certificate number. If yours isn’t listed, type its
+                        name and choose “Add”.
+                        {flightSchoolsLoading ? " Loading local schools…" : ""}
+                      </p>
+                    </>
+                  ) : null}
+                </div>
 
                 {selectedSchoolRequiresLocation ? (
                   <div className="sm:col-span-2">
