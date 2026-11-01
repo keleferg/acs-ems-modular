@@ -23,12 +23,19 @@ type Props = {
   selectedLabel: string;
   onSelect: (airport: AirportSelection) => void;
   onClear: () => void;
+  /** Smaller input without the "Airport selected" line, for compact rows. */
+  compact?: boolean;
+  placeholder?: string;
+  id?: string;
 };
 
 export default function AirportSelector({
   selectedLabel,
   onSelect,
   onClear,
+  compact = false,
+  placeholder = "Search HNL, PHNL, Honolulu, Hilo, Kona…",
+  id,
 }: Props) {
   const [query, setQuery] = useState(selectedLabel);
   const [results, setResults] = useState<
@@ -130,6 +137,7 @@ export default function AirportSelector({
   return (
     <div ref={containerRef} className="relative">
       <input
+        id={id}
         type="text"
         value={query}
         onChange={(event) =>
@@ -140,12 +148,16 @@ export default function AirportSelector({
             setOpen(true);
           }
         }}
-        placeholder="Search HNL, PHNL, Honolulu, Hilo, Kona…"
+        placeholder={placeholder}
         autoComplete="off"
-        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+        className={
+          compact
+            ? "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+            : "w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+        }
       />
 
-      {selectedLabel ? (
+      {selectedLabel && !compact ? (
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">
             Airport selected

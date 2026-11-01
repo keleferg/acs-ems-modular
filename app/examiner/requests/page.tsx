@@ -20,6 +20,8 @@ import PracticalTestTypeSelector, {
 import AirportSelector from "@/components/practical-test/airport-selector";
 import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 import FstdCheckField, { type FstdCheckState } from "@/components/practical-test/fstd-check-field";
+import OralLocationInput from "@/components/practical-test/oral-location-input";
+import { type AirportSelection } from "@/components/practical-test/airport-selector";
 import AircraftTypeSelector from "@/components/practical-test/aircraft-type-selector";
 
 type PracticalTestRequest = {
@@ -168,6 +170,19 @@ type RequestEditDraft = {
   scheduling_notes: string;
   applicant_comments: string;
 };
+
+// Flight location (airport) on the appointment (Kele, Nov 1 2026).
+type AppointmentAirport = {
+  id: string;
+  code: string;
+  icao: string;
+  name: string;
+};
+
+function airportLabel(airport: AppointmentAirport | null | undefined) {
+  if (!airport?.code) return "";
+  return `${airport.icao || airport.code} — ${airport.name}`;
+}
 
 type SchedulingLocation = {
   id: string;
@@ -883,7 +898,10 @@ export default function ExaminerRequestsPage() {
   const [appointmentLocationDrafts, setAppointmentLocationDrafts] = useState<
     Record<string, string>
   >({});
-  const [schedulingLocations, setSchedulingLocations] = useState<
+  const [appointmentAirportDrafts, setAppointmentAirportDrafts] = useState<
+    Record<string, AppointmentAirport | null>
+  >({});
+  const [, setSchedulingLocations] = useState<
     SchedulingLocation[]
   >([]);
   const [defaultDurations, setDefaultDurations] = useState<
@@ -1200,6 +1218,22 @@ export default function ExaminerRequestsPage() {
           loadedRequests.map((request) => [
             request.id,
             request.scheduled_location ?? request.oral_test_location ?? "",
+          ]),
+        ),
+      );
+
+      setAppointmentAirportDrafts(
+        Object.fromEntries(
+          loadedRequests.map((request) => [
+            request.id,
+            request.flight_airport_id && request.flight_airport_code
+              ? {
+                  id: request.flight_airport_id,
+                  code: request.flight_airport_code,
+                  icao: request.flight_airport_icao ?? "",
+                  name: request.flight_airport_name ?? "",
+                }
+              : null,
           ]),
         ),
       );
@@ -2397,6 +2431,13 @@ export default function ExaminerRequestsPage() {
       return;
     }
 
+    const flightAirport = appointmentAirportDrafts[request.id] ?? null;
+
+    if (!flightAirport?.id) {
+      setPageError("Select the flight location airport before saving.");
+      return;
+    }
+
     const scheduledEndAt = calculateEndIso(scheduledStartAt, durationMinutes);
 
     if (!scheduledEndAt) {
@@ -2417,6 +2458,7 @@ export default function ExaminerRequestsPage() {
         p_scheduled_start_at: scheduledStartAt,
         p_scheduled_end_at: scheduledEndAt,
         p_scheduled_location: scheduledLocation,
+        p_flight_airport_id: flightAirport.id,
       },
     );
 
@@ -2448,6 +2490,10 @@ export default function ExaminerRequestsPage() {
               scheduled_start_at: updatedRequest.scheduled_start_at,
               scheduled_end_at: updatedRequest.scheduled_end_at,
               scheduled_location: updatedRequest.scheduled_location,
+              flight_airport_id: updatedRequest.flight_airport_id,
+              flight_airport_code: updatedRequest.flight_airport_code,
+              flight_airport_icao: updatedRequest.flight_airport_icao,
+              flight_airport_name: updatedRequest.flight_airport_name,
               appointment_response_status:
                 updatedRequest.appointment_response_status,
               appointment_responded_at: updatedRequest.appointment_responded_at,
@@ -4691,7 +4737,7 @@ export default function ExaminerRequestsPage() {
 
                                 <div className="mt-5 grid gap-5 lg:grid-cols-[1.25fr_1fr_0.65fr] lg:items-end">
                                   <div className="lg:col-span-3">
-                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.15fr_0.55fr_1.3fr_auto] xl:items-end">
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.1fr_0.5fr_1.3fr_0.9fr_auto] xl:items-end">
                                       <div>
                                         <label
                                           htmlFor={`finalized-time-${request.id}`}
@@ -4824,50 +4870,87 @@ export default function ExaminerRequestsPage() {
                                           htmlFor={`location-${request.id}`}
                                           className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
                                         >
-                                          Appointment Location
+                                          Appointment Location (Oral Exam)
                                         </label>
 
-                                        <input
+                                        <OralLocationInput
                                           id={`location-${request.id}`}
-                                          list={`location-options-${request.id}`}
                                           value={
                                             appointmentLocationDrafts[
                                               request.id
                                             ] ?? ""
                                           }
-                                          onChange={(event) =>
+                                          onChange={(value) =>
                                             setAppointmentLocationDrafts(
                                               (current) => ({
                                                 ...current,
-                                                [request.id]:
-                                                  event.target.value,
+                                                [request.id]: value,
                                               }),
                                             )
                                           }
-                                          placeholder="Select or enter location"
-                                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                                          onPick={(suggestion) => {
+                                            // Fill the flight airport from the school's default airport when it's empty.
+                                            const code = suggestion.default_airport_code?.trim().toUpperCase();
+                                            if (!code || appointmentAirportDrafts[request.id]) return;
+                                            void createClient()
+                                              .rpc("search_faa_airports", { p_search: code, p_limit: 5 })
+                                              .then(({ data }: { data: AirportSelection[] | null }) => {
+                                                const airport = (data ?? []).find(
+                                                  (item) =>
+                                                    item.faa_identifier.toUpperCase() === code ||
+                                                    (item.icao_identifier ?? "").toUpperCase() === code,
+                                                );
+                                                if (!airport) return;
+                                                setAppointmentAirportDrafts((current) =>
+                                                  current[request.id]
+                                                    ? current
+                                                    : {
+                                                        ...current,
+                                                        [request.id]: {
+                                                          id: airport.id,
+                                                          code: airport.faa_identifier,
+                                                          icao: airport.icao_identifier ?? "",
+                                                          name: airport.airport_name,
+                                                        },
+                                                      },
+                                                );
+                                              });
+                                          }}
+                                          placeholder="Oral exam location — type a school or address"
                                         />
+                                      </div>
 
-                                        <datalist
-                                          id={`location-options-${request.id}`}
+                                      <div>
+                                        <label
+                                          htmlFor={`flight-airport-${request.id}`}
+                                          className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600"
                                         >
-                                          {schedulingLocations.map(
-                                            (location) => (
-                                              <option
-                                                key={location.id}
-                                                value={
-                                                  location.default_oral_test_location?.trim() ||
-                                                  location.name
-                                                }
-                                              >
-                                                {location.name}
-                                                {location.default_airport_code
-                                                  ? ` · ${location.default_airport_code}`
-                                                  : ""}
-                                              </option>
-                                            ),
-                                          )}
-                                        </datalist>
+                                          Flight Location
+                                        </label>
+
+                                        <AirportSelector
+                                          id={`flight-airport-${request.id}`}
+                                          compact
+                                          placeholder="Airport (ITO, PHTO, Hilo…)"
+                                          selectedLabel={airportLabel(appointmentAirportDrafts[request.id])}
+                                          onSelect={(airport) =>
+                                            setAppointmentAirportDrafts((current) => ({
+                                              ...current,
+                                              [request.id]: {
+                                                id: airport.id,
+                                                code: airport.faa_identifier,
+                                                icao: airport.icao_identifier ?? "",
+                                                name: airport.airport_name,
+                                              },
+                                            }))
+                                          }
+                                          onClear={() =>
+                                            setAppointmentAirportDrafts((current) => ({
+                                              ...current,
+                                              [request.id]: null,
+                                            }))
+                                          }
+                                        />
                                       </div>
 
                                       <button
@@ -4884,7 +4967,8 @@ export default function ExaminerRequestsPage() {
                                             appointmentLocationDrafts[
                                               request.id
                                             ] ?? ""
-                                          ).trim()
+                                          ).trim() ||
+                                          !appointmentAirportDrafts[request.id]?.id
                                         }
                                         className="rounded-lg border border-amber-700 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
                                       >
@@ -4917,6 +5001,14 @@ export default function ExaminerRequestsPage() {
                                         {displayValue(
                                           request.scheduled_location,
                                         )}
+                                        {request.flight_airport_code
+                                          ? ` · Flight: ${request.flight_airport_code}${
+                                              request.flight_airport_icao &&
+                                              request.flight_airport_icao !== request.flight_airport_code
+                                                ? ` (${request.flight_airport_icao})`
+                                                : ""
+                                            }`
+                                          : ""}
                                       </div>
                                     ) : null}
                                   </div>
