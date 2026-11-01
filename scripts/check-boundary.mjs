@@ -51,6 +51,9 @@ const EMT_RPC_ALLOWLIST = [
   "examiner_get_emt_appointments",
   "examiner_get_practical_test_offerings",
   "examiner_get_type_rating_poa_questions",
+  // Pretest qualification for the Eligibility tab (read)
+  "examiner_get_qualification_review",
+  "examiner_get_knowledge_test_codes",
   // EMT grading session (EMT-owned)
   "examiner_get_ppc_evaluation",
   "examiner_save_ppc_evaluation",
@@ -62,13 +65,15 @@ const EMT_RPC_ALLOWLIST = [
   "examiner_finalize_ppc_8410",
 ];
 
-// Grading functions EMS must never call.
+// Grading functions EMS must never call (everything EMT may call except the EMS -> EMT reads).
 const EMS_RPC_DENYLIST = EMT_RPC_ALLOWLIST.filter(
   (name) =>
     ![
       "examiner_get_emt_appointments",
       "examiner_get_practical_test_offerings",
       "examiner_get_type_rating_poa_questions",
+      "examiner_get_qualification_review",
+      "examiner_get_knowledge_test_codes",
     ].includes(name),
 );
 

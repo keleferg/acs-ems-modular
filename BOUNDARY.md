@@ -20,6 +20,8 @@ EMS → EMT (EMT reads, never writes):
 - Appointments: `examiner_get_emt_appointments()`, `examiner_get_practical_test_offerings()`
 - Frozen POAs: `generated_plan_of_actions`, `generated_plan_of_action_questions`, `generated_plan_of_action_flight_tasks`, `generated_plan_of_action_triggers`, `examiner_plan_of_actions`, `examiner_get_type_rating_poa_questions()`
 - Reference: `practical_test_types`, `examiner_designee_profiles`
+- Pretest qualification, shown read-only on the Eligibility tab: `examiner_get_qualification_review()`, `examiner_get_knowledge_test_codes()`
+- Qualification pictures and PDFs for that review: read-only downloads from the `qualification-evidence` storage bucket (the bucket's policy limits them to the request's examiner). EMT deletes its copies once the test is submitted.
 - Question library (written-test review during grading): `poa_questions` with its `poa_question_practical_test_types` and `poa_question_acs_applicability` joins
 - A link: EMS may link to `NEXT_PUBLIC_EMT_WEB_URL/index.html?request=<id>`. A link is not code sharing.
 
