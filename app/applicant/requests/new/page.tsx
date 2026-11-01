@@ -1026,7 +1026,7 @@ export default function NewRequestPage() {
           submitted_at: submittedAt,
           source_system: "web_app",
         })
-        .select("id, request_number")
+        .select("id, request_number, assigned_examiner_profile_id")
         .single();
 
       if (insertError) {
@@ -1058,6 +1058,34 @@ export default function NewRequestPage() {
           "Practical-test request was submitted, but the confirmation email request failed:",
           emailError,
         );
+      }
+
+      // Tell the examiner the applicant chose (Kele, Oct 31 2026).
+      if (insertedRequest.assigned_examiner_profile_id) {
+        try {
+          const examinerEmailResponse = await fetch("/api/email/practical-test", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              eventType: "request_submitted_examiner",
+              requestId: insertedRequest.id,
+            }),
+          });
+
+          if (!examinerEmailResponse.ok) {
+            console.warn(
+              "Practical-test request was submitted, but the examiner email was not sent:",
+              await examinerEmailResponse.json().catch(() => null),
+            );
+          }
+        } catch (emailError) {
+          console.warn(
+            "Practical-test request was submitted, but the examiner email request failed:",
+            emailError,
+          );
+        }
       }
 
       window.localStorage.removeItem(STORAGE_KEY);

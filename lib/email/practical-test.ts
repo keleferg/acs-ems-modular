@@ -2542,3 +2542,66 @@ export function buildInstructorDecisionExaminerEmail(input: InstructorDecisionEx
   const text = [summary, "", `Applicant: ${input.applicantName}`, `Request Number: ${input.requestNumber}`, `Instructor: ${input.instructorName}`, ...(input.notes ? [`Notes: ${input.notes}`] : []), "", `Open requests: ${input.examinerPortalUrl}`].join("\n");
   return { subject, html, text };
 }
+
+
+type RequestSubmittedExaminerEmailInput = {
+  examinerName: string | null;
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string | null;
+  ratingSought: string | null;
+  requestedDatesText: string | null;
+  examinerPortalUrl: string;
+};
+
+// New checkride request for the examiner the applicant chose (Kele, Oct 31 2026).
+export function buildRequestSubmittedExaminerEmail(input: RequestSubmittedExaminerEmailInput) {
+  const examinerGreeting = input.examinerName?.trim() ? firstName(input.examinerName) : "Examiner";
+  const requestedDates = input.requestedDatesText?.trim() || "No specific date preference recorded";
+  const certificate = input.certificateSought?.trim() || "—";
+  const rating = input.ratingSought?.trim() || "—";
+  const subject = `New Practical Test Request — ${input.applicantName} (${input.requestNumber})`;
+
+  const html = qualificationEmailShell(
+    "New Practical Test Request",
+    `
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(examinerGreeting)},</p>
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">
+                  <strong>${escapeHtml(input.applicantName)}</strong> submitted a practical test request with you.
+                  Please review it and accept or decline it in the Examiner Portal.
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                  ${qualificationEmailRow("Applicant", input.applicantName)}
+                  ${qualificationEmailRow("Request Number", input.requestNumber)}
+                  ${qualificationEmailRow("Certificate", certificate)}
+                  ${qualificationEmailRow("Rating", rating)}
+                  ${qualificationEmailRow("Requested Dates", requestedDates, true)}
+                </table>
+                <div style="margin-top:26px;">
+                  <a href="${escapeHtml(input.examinerPortalUrl)}" style="display:inline-block;padding:12px 18px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                    Review Request
+                  </a>
+                </div>
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+                  Replying to this email goes to the applicant.
+                </p>`,
+  );
+
+  const text = [
+    `Aloha ${examinerGreeting},`,
+    "",
+    `${input.applicantName} submitted a practical test request with you. Please review it and accept or decline it in the Examiner Portal.`,
+    "",
+    `Applicant: ${input.applicantName}`,
+    `Request Number: ${input.requestNumber}`,
+    `Certificate: ${certificate}`,
+    `Rating: ${rating}`,
+    `Requested Dates: ${requestedDates}`,
+    "",
+    `Review the request: ${input.examinerPortalUrl}`,
+    "",
+    "Replying to this email goes to the applicant.",
+  ].join("\n");
+
+  return { subject, html, text };
+}

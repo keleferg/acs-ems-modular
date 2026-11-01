@@ -4,6 +4,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 import {
   buildAppointmentAcceptedExaminerEmail,
+  buildRequestSubmittedExaminerEmail,
   buildAssignmentProposedApplicantEmail,
   buildAppointmentRescheduleRequestedExaminerEmail,
   buildFeesFinalizedApplicantEmail,
@@ -53,6 +54,7 @@ type ApplicantPortalDetail = {
 
 const supportedEvents = new Set([
   "request_submitted_applicant",
+  "request_submitted_examiner",
   "request_accepted_applicant",
   "request_declined_applicant",
   "request_scheduled_applicant",
@@ -254,6 +256,7 @@ async function handlePost(request: Request): Promise<Response> {
 
   const applicantGeneratedEvent =
     eventType === "request_submitted_applicant" ||
+    eventType === "request_submitted_examiner" ||
     eventType === "appointment_accepted_examiner" ||
     eventType === "appointment_reschedule_requested_examiner";
 
@@ -1046,6 +1049,28 @@ async function handlePost(request: Request): Promise<Response> {
       );
     }
 
+    // New request (Kele, Oct 31 2026: examiners weren't told when an applicant
+    // submitted a request to them).
+    if (eventType === "request_submitted_examiner") {
+      recipientRole = "examiner";
+
+      replyToEmail =
+        practicalTestRequest.applicant_email_snapshot?.trim() || undefined;
+
+      email = buildRequestSubmittedExaminerEmail({
+        examinerName: examinerDetail.examiner_name,
+        applicantName: practicalTestRequest.applicant_name_snapshot,
+        requestNumber: practicalTestRequest.request_number,
+        certificateSought: practicalTestRequest.certificate_sought,
+        ratingSought: practicalTestRequest.rating_sought,
+        requestedDatesText: practicalTestRequest.requested_dates_text,
+        examinerPortalUrl: `${portalOrigin}/examiner/requests?request=${encodeURIComponent(
+          practicalTestRequest.id,
+        )}`,
+      });
+
+      dedupeKey = `request_submitted_examiner:${practicalTestRequest.id}`;
+    } else {
     const scheduledStartAt = practicalTestRequest.scheduled_start_at;
 
     const scheduledEndAt = practicalTestRequest.scheduled_end_at;
@@ -1128,6 +1153,7 @@ async function handlePost(request: Request): Promise<Response> {
         scheduledStartAt,
         practicalTestRequest.appointment_responded_at || "accepted",
       ].join(":");
+    }
     }
   }
 
