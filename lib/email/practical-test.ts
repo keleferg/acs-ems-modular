@@ -103,6 +103,11 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#039;");
 }
 
+/** Requested dates as MM/dd/yyyy (Kele, Oct 31 2026): "2026-11-20, 2026-11-21" → "11/20/2026, 11/21/2026". */
+function formatRequestedDates(value: string) {
+  return value.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, "$2/$3/$1");
+}
+
 function firstName(value: string) {
   const cleaned = value.trim();
 
@@ -192,7 +197,7 @@ export function buildRequestSubmittedApplicantEmail(
   const subject = `Practical Test Request Received — ${input.requestNumber}`;
 
   const requestedDates =
-    input.requestedDatesText?.trim() || "No specific date preference recorded";
+    formatRequestedDates(input.requestedDatesText?.trim() || "") || "No specific date preference recorded";
 
   const html = `
 <!doctype html>
@@ -2153,7 +2158,7 @@ export function buildRequestFollowupApplicantEmail(
                       border-bottom:1px solid #e2e8f0;
                       font-size:14px;
                     ">
-                      ${escapeHtml(input.requestedDatesText)}
+                      ${escapeHtml(formatRequestedDates(input.requestedDatesText))}
                     </td>
                   </tr>
 
@@ -2291,7 +2296,7 @@ export function buildRequestFollowupApplicantEmail(
     "",
     `Request Number: ${input.requestNumber}`,
     `Practical Test: ${input.certificateSought} — ${input.ratingSought}`,
-    `Requested Dates: ${input.requestedDatesText}`,
+    `Requested Dates: ${formatRequestedDates(input.requestedDatesText)}`,
     `Location: ${input.locationText}`,
     `Submitted: ${input.submittedDateText}`,
     "",
@@ -2557,7 +2562,7 @@ type RequestSubmittedExaminerEmailInput = {
 // New checkride request for the examiner the applicant chose (Kele, Oct 31 2026).
 export function buildRequestSubmittedExaminerEmail(input: RequestSubmittedExaminerEmailInput) {
   const examinerGreeting = input.examinerName?.trim() ? firstName(input.examinerName) : "Examiner";
-  const requestedDates = input.requestedDatesText?.trim() || "No specific date preference recorded";
+  const requestedDates = formatRequestedDates(input.requestedDatesText?.trim() || "") || "No specific date preference recorded";
   const certificate = input.certificateSought?.trim() || "—";
   const rating = input.ratingSought?.trim() || "—";
   const subject = `New Practical Test Request — ${input.applicantName} (${input.requestNumber})`;
