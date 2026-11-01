@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import DoubleBookingNote from "@/components/portal/DoubleBookingNote";
+import { useDoubleBookings } from "@/lib/double-booking";
 
 type DashboardRequest = {
   id: string;
@@ -142,6 +144,7 @@ function dmsWarningClasses(request: DashboardRequest, now: number) {
 }
 
 export default function ExaminerDashboardPage() {
+  const doubleBookings = useDoubleBookings();
   const [requests, setRequests] = useState<DashboardRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -536,11 +539,13 @@ export default function ExaminerDashboardPage() {
                 <Link
                   key={request.id}
                   href={`/examiner/requests?request=${request.id}`}
-                  className={`block rounded-xl border p-4 transition hover:border-sky-300 ${dmsWarningClasses(
-                    request,
-                    clock,
-                  )}`}
+                  className={`block rounded-xl border p-4 transition hover:border-sky-300 ${
+                    doubleBookings[request.id]?.length
+                      ? "border-red-400 bg-red-50"
+                      : dmsWarningClasses(request, clock)
+                  }`}
                 >
+                  <DoubleBookingNote bookings={doubleBookings[request.id]} className="mb-3" />
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                     <div>
                       <p className="font-bold text-slate-900">
@@ -610,12 +615,15 @@ export default function ExaminerDashboardPage() {
                 <Link
                   key={request.id}
                   href={`/examiner/requests?request=${request.id}`}
-                  className="flex flex-col justify-between gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center"
+                  className={`flex flex-col justify-between gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center ${
+                    doubleBookings[request.id]?.length ? "-mx-3 rounded-lg bg-red-50 px-3" : ""
+                  }`}
                 >
                   <div>
                     <p className="font-bold text-slate-900">
                       {request.applicant_name_snapshot}
                     </p>
+                    <DoubleBookingNote bookings={doubleBookings[request.id]} className="mt-1" />
 
                     <p className="mt-1 text-sm text-slate-600">
                       {request.certificate_sought} · {request.rating_sought}

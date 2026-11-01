@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import DoubleBookingNote from "@/components/portal/DoubleBookingNote";
+import { useDoubleBookings } from "@/lib/double-booking";
 
 type OpenAssignment = {
   id: string;
@@ -198,6 +200,7 @@ function DetailSection({
 }
 
 export default function OpenAssignmentsPanel() {
+  const doubleBookings = useDoubleBookings();
   const [assignments, setAssignments] =
     useState<OpenAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -531,10 +534,10 @@ export default function OpenAssignmentsPanel() {
             return (
               <article
                 key={request.id}
-                className={`overflow-hidden rounded-lg border shadow-sm ${request.offered_by_me ? "border-yellow-300 bg-yellow-100" : "border-slate-200 bg-white"}`}
+                className={`overflow-hidden rounded-lg border shadow-sm ${doubleBookings[request.id]?.length ? "border-red-400 bg-red-50" : request.offered_by_me ? "border-yellow-300 bg-yellow-100" : "border-slate-200 bg-white"}`}
               >
                 <details className="group/assignment">
-                  <summary className={`cursor-pointer list-none border-b px-4 py-3 transition [&::-webkit-details-marker]:hidden ${request.offered_by_me ? "border-yellow-300 bg-yellow-100 hover:bg-yellow-200" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+                  <summary className={`cursor-pointer list-none border-b px-4 py-3 transition [&::-webkit-details-marker]:hidden ${doubleBookings[request.id]?.length ? "border-red-300 bg-red-100 hover:bg-red-200" : request.offered_by_me ? "border-yellow-300 bg-yellow-100 hover:bg-yellow-200" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
                     <div className="flex items-center gap-3">
                       <span
                         aria-hidden="true"
@@ -615,6 +618,7 @@ export default function OpenAssignmentsPanel() {
                           </div>
 
                         </div>
+                        <DoubleBookingNote bookings={doubleBookings[request.id]} className="mt-2" />
                       </div>
                     </div>
                   </summary>

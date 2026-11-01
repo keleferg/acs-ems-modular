@@ -21,6 +21,8 @@ import AirportSelector from "@/components/practical-test/airport-selector";
 import FlightSchoolSelector from "@/components/practical-test/flight-school-selector";
 import FstdCheckField, { type FstdCheckState } from "@/components/practical-test/fstd-check-field";
 import OralLocationInput from "@/components/practical-test/oral-location-input";
+import DoubleBookingNote from "@/components/portal/DoubleBookingNote";
+import { useDoubleBookings } from "@/lib/double-booking";
 import { type AirportSelection } from "@/components/practical-test/airport-selector";
 import AircraftTypeSelector from "@/components/practical-test/aircraft-type-selector";
 
@@ -898,6 +900,8 @@ export default function ExaminerRequestsPage() {
   const [appointmentLocationDrafts, setAppointmentLocationDrafts] = useState<
     Record<string, string>
   >({});
+  // Same applicant + same test with another examiner (Scheduled / Confirmed / Completed).
+  const doubleBookings = useDoubleBookings();
   const [appointmentAirportDrafts, setAppointmentAirportDrafts] = useState<
     Record<string, AppointmentAirport | null>
   >({});
@@ -3230,13 +3234,23 @@ export default function ExaminerRequestsPage() {
                         directRequestId === request.id
                           ? "ring-4 ring-amber-300 ring-offset-2"
                           : ""
-                      } ${getDmsDeadlineCardClasses(request, deadlineClock)}`}
+                      } ${
+                        doubleBookings[request.id]?.length
+                          ? "border-red-400 bg-red-50"
+                          : getDmsDeadlineCardClasses(request, deadlineClock)
+                      }`}
                     >
                       <details
                         className="group/request"
                         open={directRequestId === request.id}
                       >
-                        <summary className="cursor-pointer list-none border-b border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                        <summary
+                          className={`cursor-pointer list-none border-b px-4 py-3 transition [&::-webkit-details-marker]:hidden ${
+                            doubleBookings[request.id]?.length
+                              ? "border-red-300 bg-red-100 hover:bg-red-200"
+                              : "border-slate-200 bg-white hover:bg-slate-50"
+                          }`}
+                        >
                           <div className="flex items-center gap-3">
                             <span
                               aria-hidden="true"
@@ -3335,6 +3349,11 @@ export default function ExaminerRequestsPage() {
                                   </span>
                                 </div>
                               </div>
+
+                              <DoubleBookingNote
+                                bookings={doubleBookings[request.id]}
+                                className="mt-2"
+                              />
                             </div>
                           </div>
                         </summary>
