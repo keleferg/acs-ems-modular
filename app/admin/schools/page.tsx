@@ -3,6 +3,7 @@
 import { Building2, ChevronDown, ChevronRight, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import FlightSchoolSelector, { schoolSubtitle } from "@/components/practical-test/flight-school-selector";
+import AirportSelector from "@/components/practical-test/airport-selector";
 import { createClient } from "@/lib/supabase/client";
 
 // Schools (Kele, Nov 1 2026): the FAA Part 141 pilot schools and Part 142 training centers
@@ -38,11 +39,84 @@ type School = {
   postal_code: string | null;
   phone: string | null;
   email: string | null;
+  website: string | null;
+  default_oral_test_location: string | null;
+  default_airport_code: string | null;
+  notes: string | null;
+  admin_edited_fields: string[] | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
   flight_school_locations: Location[];
 };
+
+// The edit form (Kele, Nov 1 2026): every field can be changed. Address/contact fields changed
+// here are remembered in admin_edited_fields so an FAA re-import doesn't overwrite them.
+type EditDraft = {
+  name: string;
+  address_line_1: string;
+  address_line_2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  phone: string;
+  email: string;
+  website: string;
+  default_oral_test_location: string;
+  default_airport_code: string;
+  default_airport_label: string;
+  notes: string;
+  local: boolean;
+  is_active: boolean;
+};
+
+const EDIT_FIELDS: { key: keyof EditDraft; label: string; wide?: boolean; placeholder?: string }[] = [
+  { key: "name", label: "Name shown in the portal", wide: true },
+  { key: "address_line_1", label: "Address line 1", wide: true },
+  { key: "address_line_2", label: "Address line 2", wide: true },
+  { key: "city", label: "City" },
+  { key: "state", label: "State", placeholder: "HI" },
+  { key: "postal_code", label: "ZIP" },
+  { key: "phone", label: "Phone" },
+  { key: "email", label: "Email" },
+  { key: "website", label: "Website", placeholder: "https://" },
+];
+
+const FIELD_LABELS: Record<string, string> = {
+  address_line_1: "address",
+  address_line_2: "address line 2",
+  city: "city",
+  state: "state",
+  postal_code: "ZIP",
+  phone: "phone",
+  email: "email",
+  website: "website",
+};
+
+function toDraft(school: School): EditDraft {
+  return {
+    name: school.name,
+    address_line_1: school.address_line_1 ?? "",
+    address_line_2: school.address_line_2 ?? "",
+    city: school.city ?? "",
+    state: school.state ?? "",
+    postal_code: school.postal_code ?? "",
+    phone: school.phone ?? "",
+    email: school.email ?? "",
+    website: school.website ?? "",
+    default_oral_test_location: school.default_oral_test_location ?? "",
+    default_airport_code: school.default_airport_code ?? "",
+    default_airport_label: school.default_airport_code ?? "",
+    notes: school.notes ?? "",
+    local: school.sort_order < 4000,
+    is_active: school.is_active,
+  };
+}
+
+function clean(value: string) {
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  return trimmed === "" ? null : trimmed;
+}
 
 type Filter = "all" | "141" | "142" | "added" | "hawaii" | "inactive";
 
@@ -77,7 +151,8 @@ export default function AdminSchoolsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [shown, setShown] = useState(PAGE);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, EditDraft>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
@@ -87,7 +162,8 @@ export default function AdminSchoolsPage() {
       .from("flight_schools")
       .select(
         `id, name, source, faa_part, faa_certificate_number, faa_agency_name, dba_names, faa_listed, faa_update_date,
-         address_line_1, address_line_2, city, state, postal_code, phone, email, is_active, sort_order, created_at,
+         address_line_1, address_line_2, city, state, postal_code, phone, email, website, default_oral_test_location,
+         default_airport_code, notes, admin_edited_fields, is_active, sort_order, created_at,
          flight_school_locations ( id, faa_designator_code, name, address_line_1, address_line_2, city, state, postal_code, phone, is_main_base )`,
       )
       .order("name", { ascending: true })
@@ -146,31 +222,92 @@ export default function AdminSchoolsPage() {
     });
   }, [schools, search, filter]);
 
-  async function saveName(school: School) {
-    const name = (editingName[school.id] ?? school.name).trim().replace(/\s+/g, " ");
-    if (!name || name === school.name) return;
-    const { error } = await supabase.from("flight_schools").update({ name }).eq("id", school.id);
-    if (error) {
-      setErrorMessage(error.code === "23505" ? "Another added school already has that name." : error.message);
+  function draftFor(school: School) {
+    return drafts[school.id] ?? toDraft(school);
+  }
+
+  function updateDraft(school: School, changes: Partial<EditDraft>) {
+    setDrafts((current) => ({ ...current, [school.id]: { ...(current[school.id] ?? toDraft(school)), ...changes } }));
+  }
+
+  async function saveSchool(school: School) {
+    const draft = draftFor(school);
+    const name = clean(draft.name);
+    if (!name) {
+      setErrorMessage("The school needs a name.");
       return;
     }
-    setSchools((current) => current.map((item) => (item.id === school.id ? { ...item, name } : item)));
-    setEditingName((current) => {
+    const email = clean(draft.email);
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrorMessage("Enter a valid email address, or leave it blank.");
+      return;
+    }
+    let website = clean(draft.website);
+    if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
+    const sortOrder = draft.local
+      ? school.sort_order < 4000
+        ? school.sort_order
+        : 1000
+      : school.sort_order < 4000
+        ? school.source === "faa"
+          ? 5000
+          : 4000
+        : school.sort_order;
+    const update = {
+      name,
+      address_line_1: clean(draft.address_line_1),
+      address_line_2: clean(draft.address_line_2),
+      city: clean(draft.city),
+      state: clean(draft.state)?.toUpperCase() ?? null,
+      postal_code: clean(draft.postal_code),
+      phone: clean(draft.phone),
+      email: email?.toLowerCase() ?? null,
+      website,
+      default_oral_test_location: clean(draft.default_oral_test_location),
+      default_airport_code: clean(draft.default_airport_code)?.toUpperCase() ?? null,
+      notes: clean(draft.notes),
+      sort_order: sortOrder,
+      is_active: draft.is_active,
+    };
+    setSavingId(school.id);
+    setErrorMessage("");
+    setMessage("");
+    const { data, error } = await supabase
+      .from("flight_schools")
+      .update(update)
+      .eq("id", school.id)
+      .select("admin_edited_fields")
+      .single();
+    setSavingId(null);
+    if (error) {
+      setErrorMessage(
+        error.code === "23505" ? "Another added school already has that name." : `${school.name} could not be saved: ${error.message}`,
+      );
+      return;
+    }
+    setSchools((current) =>
+      current.map((item) =>
+        item.id === school.id
+          ? { ...item, ...update, admin_edited_fields: (data?.admin_edited_fields as string[] | null) ?? item.admin_edited_fields }
+          : item,
+      ),
+    );
+    setDrafts((current) => {
       const next = { ...current };
       delete next[school.id];
       return next;
     });
-    setMessage(`Renamed to “${name}”.`);
+    setMessage(`${name} saved.`);
   }
 
-  async function setActive(school: School, isActive: boolean) {
-    const { error } = await supabase.from("flight_schools").update({ is_active: isActive }).eq("id", school.id);
+  async function allowFaaUpdates(school: School) {
+    const { error } = await supabase.from("flight_schools").update({ admin_edited_fields: [] }).eq("id", school.id);
     if (error) {
       setErrorMessage(error.message);
       return;
     }
-    setSchools((current) => current.map((item) => (item.id === school.id ? { ...item, is_active: isActive } : item)));
-    setMessage(isActive ? `${school.name} is active again.` : `${school.name} is hidden from the school search.`);
+    setSchools((current) => current.map((item) => (item.id === school.id ? { ...item, admin_edited_fields: [] } : item)));
+    setMessage(`The next FAA update will refresh ${school.name}'s address and contact details.`);
   }
 
   const lastUpdate = schools.map((s) => s.faa_update_date).filter(Boolean).sort().at(-1) ?? null;
@@ -307,23 +444,123 @@ export default function AdminSchoolsPage() {
 
               {open ? (
                 <div className="grid gap-5 bg-slate-50 px-12 py-4 text-sm md:grid-cols-2">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Name shown in the portal</p>
-                    <div className="mt-2 flex gap-2">
-                      <input
-                        value={editingName[school.id] ?? school.name}
-                        onChange={(event) => setEditingName((current) => ({ ...current, [school.id]: event.target.value }))}
-                        className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void saveName(school)}
-                        disabled={(editingName[school.id] ?? school.name).trim() === school.name}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-                      >
-                        Save
-                      </button>
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void saveSchool(school);
+                    }}
+                  >
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Edit school</p>
+                    <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                      {EDIT_FIELDS.map((field) => (
+                        <label
+                          key={field.key}
+                          className={`block text-xs font-semibold text-slate-600 ${field.wide ? "sm:col-span-3" : ""}`}
+                        >
+                          {field.label}
+                          <input
+                            value={String(draftFor(school)[field.key] ?? "")}
+                            placeholder={field.placeholder}
+                            onChange={(event) => updateDraft(school, { [field.key]: event.target.value } as Partial<EditDraft>)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-sky-600"
+                          />
+                        </label>
+                      ))}
+                      <label className="block text-xs font-semibold text-slate-600 sm:col-span-3">
+                        Oral-test location
+                        <textarea
+                          rows={2}
+                          value={draftFor(school).default_oral_test_location}
+                          placeholder="Address and room used for the oral exam"
+                          onChange={(event) => updateDraft(school, { default_oral_test_location: event.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-sky-600"
+                        />
+                      </label>
+                      <div className="text-xs font-semibold text-slate-600 sm:col-span-2">
+                        Default airport
+                        <div className="mt-1 font-normal">
+                          <AirportSelector
+                            compact
+                            placeholder="Airport (ITO, PHTO, Hilo…)"
+                            selectedLabel={draftFor(school).default_airport_label}
+                            onSelect={(airport) =>
+                              updateDraft(school, {
+                                default_airport_code: airport.faa_identifier,
+                                default_airport_label: `${airport.faa_identifier} — ${airport.airport_name}`,
+                              })
+                            }
+                            onClear={() => updateDraft(school, { default_airport_code: "", default_airport_label: "" })}
+                          />
+                        </div>
+                      </div>
+                      <label className="block text-xs font-semibold text-slate-600 sm:col-span-3">
+                        Notes
+                        <textarea
+                          rows={2}
+                          value={draftFor(school).notes}
+                          onChange={(event) => updateDraft(school, { notes: event.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-sky-600"
+                        />
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-3">
+                        <input
+                          type="checkbox"
+                          checked={draftFor(school).local}
+                          onChange={(event) => updateDraft(school, { local: event.target.checked })}
+                          className="h-4 w-4"
+                        />
+                        Local school — show it first in the school and oral-location pickers
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-3">
+                        <input
+                          type="checkbox"
+                          checked={draftFor(school).is_active}
+                          onChange={(event) => updateDraft(school, { is_active: event.target.checked })}
+                          className="h-4 w-4"
+                        />
+                        Active — shown in the school search
+                      </label>
                     </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <button
+                        type="submit"
+                        disabled={savingId === school.id || !drafts[school.id]}
+                        className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-50"
+                      >
+                        {savingId === school.id ? "Saving…" : "Save changes"}
+                      </button>
+                      {drafts[school.id] ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDrafts((current) => {
+                              const next = { ...current };
+                              delete next[school.id];
+                              return next;
+                            })
+                          }
+                          className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+                        >
+                          Undo changes
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {school.source === "faa" && school.admin_edited_fields?.length ? (
+                      <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        Edited here, so FAA updates won’t change:{" "}
+                        {school.admin_edited_fields.map((field) => FIELD_LABELS[field] ?? field).join(", ")}.{" "}
+                        <button
+                          type="button"
+                          onClick={() => void allowFaaUpdates(school)}
+                          className="font-semibold text-sky-700 underline hover:text-sky-900"
+                        >
+                          Let FAA updates change them again
+                        </button>
+                      </p>
+                    ) : null}
+
                     <dl className="mt-4 grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1 text-slate-700">
                       <dt className="text-slate-500">Source</dt>
                       <dd>{school.source === "faa" ? `FAA Part ${school.faa_part}` : "Added (not on the FAA list)"}</dd>
@@ -333,15 +570,12 @@ export default function AdminSchoolsPage() {
                           <dd>{school.faa_certificate_number}</dd>
                         </>
                       ) : null}
-                      <dt className="text-slate-500">Address</dt>
-                      <dd>
-                        {[school.address_line_1, school.address_line_2].filter(Boolean).join(", ") || "—"}
-                        {school.city ? <span className="block">{[school.city, school.state].filter(Boolean).join(", ")} {school.postal_code ?? ""}</span> : null}
-                      </dd>
-                      <dt className="text-slate-500">Phone</dt>
-                      <dd>{school.phone ?? "—"}</dd>
-                      <dt className="text-slate-500">Email</dt>
-                      <dd className="break-all">{school.email ?? "—"}</dd>
+                      {school.faa_agency_name && school.faa_agency_name !== school.name ? (
+                        <>
+                          <dt className="text-slate-500">FAA name</dt>
+                          <dd>{school.faa_agency_name}</dd>
+                        </>
+                      ) : null}
                       {school.source === "faa" ? (
                         <>
                           <dt className="text-slate-500">FAA data</dt>
@@ -357,14 +591,7 @@ export default function AdminSchoolsPage() {
                         </>
                       )}
                     </dl>
-                    <button
-                      type="button"
-                      onClick={() => void setActive(school, !school.is_active)}
-                      className="mt-4 text-sm font-semibold text-sky-700 hover:text-sky-900"
-                    >
-                      {school.is_active ? "Hide from the school search" : "Make active again"}
-                    </button>
-                  </div>
+                  </form>
 
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">

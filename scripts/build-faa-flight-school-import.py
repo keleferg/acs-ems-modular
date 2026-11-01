@@ -1,8 +1,9 @@
-"""Build the FAA flight school import SQL from the FAA facility dashboard
+"""Build an FAA flight school import migration from the FAA facility dashboard
 "Download Crosstab" files (UTF-16, tab separated). Usage:
-  python3 scripts/build-faa-flight-school-import.py DATA.sql Part141.csv [Part142.csv]
-Then place DATA.sql between the head and tail of the flight school migration
-(see dpe-database migration 20261101030000_faa_flight_schools.sql) as a new migration.
+  python3 scripts/build-faa-flight-school-import.py OUT.sql Part141.csv [Part142.csv]
+OUT.sql is a complete migration (name it like 20270101000000_faa_flight_schools_update.sql):
+it loads the files into temp tables and runs public.apply_faa_school_import(), which updates
+FAA schools only, never renames a school, and keeps any field edited on Admin -> Schools.
 Each file's certificate letter decides its part (S = Part 141, X/W = Part 142).
 Only agency-level contact details are kept (no accountable manager or liaison names)."""
 import csv, io, re, sys
@@ -71,6 +72,49 @@ def phone(p):
     d = re.sub(r"\D", "", p or "")
     return f"({d[:3]}) {d[3:6]}-{d[6:]}" if len(d) == 10 else (p or None)
 
+HEADER = """-- owner: EMS
+-- FAA flight school list update (built by scripts/build-faa-flight-school-import.py).
+
+create temp table faa_school_import (
+  faa_certificate_number text primary key,
+  faa_part text not null,
+  faa_agency_name text not null,
+  dba_names text[] not null,
+  address_line_1 text,
+  address_line_2 text,
+  city text,
+  state text,
+  postal_code text,
+  phone text,
+  email text,
+  faa_update_date date
+);
+
+create temp table faa_location_import (
+  faa_certificate_number text not null,
+  faa_designator_code text primary key,
+  name text not null,
+  dba_names text[] not null,
+  address_line_1 text,
+  address_line_2 text,
+  city text,
+  state text,
+  postal_code text,
+  country text,
+  phone text,
+  email text,
+  is_main_base boolean not null
+);
+
+"""
+
+FOOTER = """
+select public.apply_faa_school_import();
+
+drop table if exists faa_school_import;
+drop table if exists faa_location_import;
+"""
+
 def main():
     out, files = sys.argv[1], sys.argv[2:]
     schools, locations = {}, []
@@ -107,10 +151,12 @@ def main():
                          q(", ".join(x for x in [l["a2"], l["a3"]] if x) or None), q(l["city"]), q(l["state"]),
                          q(l["postal"]), q(l["country"]), q(l["phone"]), q(l["email"]), "true" if l["main"] else "false"]) + ")")
     with open(out, "w") as fh:
+        fh.write(HEADER)
         fh.write("insert into faa_school_import (faa_certificate_number, faa_part, faa_agency_name, dba_names, address_line_1, address_line_2, city, state, postal_code, phone, email, faa_update_date) values\n")
         fh.write(",\n".join(lines) + ";\n\n")
         fh.write("insert into faa_location_import (faa_certificate_number, faa_designator_code, name, dba_names, address_line_1, address_line_2, city, state, postal_code, country, phone, email, is_main_base) values\n")
         fh.write(",\n".join(loc_lines) + ";\n")
+        fh.write(FOOTER)
     print(len(schools), "schools,", len(locations), "locations", file=sys.stderr)
 
 main()
