@@ -173,6 +173,11 @@ type RequestEditDraft = {
   applicant_comments: string;
 };
 
+// A pasted full DMS number ("PR-999995215-2026-0110") keeps only the year-sequence part.
+function stripDmsPrefix(value: string) {
+  return value.replace(/^\s*PR-?\s*\d+\s*-\s*/i, "");
+}
+
 // Flight location (airport) on the appointment (Kele, Nov 1 2026).
 type AppointmentAirport = {
   id: string;
@@ -902,6 +907,27 @@ export default function ExaminerRequestsPage() {
   >({});
   // Same applicant + same test with another examiner (Scheduled / Confirmed / Completed).
   const doubleBookings = useDoubleBookings();
+
+  // DMS preapproval numbers are PR-[designation number]-[year]-[sequence]; the examiner types
+  // only the year-sequence part, after a PR-[designation number]- label (Kele, Nov 2 2026).
+  const [designationNumber, setDesignationNumber] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const supabase = createClient();
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data } = await supabase
+        .from("examiner_designee_profiles")
+        .select("designation_number")
+        .eq("profile_id", auth.user.id)
+        .maybeSingle();
+      if (!cancelled) setDesignationNumber(data?.designation_number?.trim() || "");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [appointmentAirportDrafts, setAppointmentAirportDrafts] = useState<
     Record<string, AppointmentAirport | null>
   >({});
@@ -2358,7 +2384,7 @@ export default function ExaminerRequestsPage() {
       "examiner_save_dms_preapproval_number",
       {
         p_request_id: request.id,
-        p_dms_preapproval_number: dmsDrafts[request.id] ?? "",
+        p_dms_preapproval_number: stripDmsPrefix(dmsDrafts[request.id] ?? ""),
       },
     );
 
@@ -5040,7 +5066,19 @@ export default function ExaminerRequestsPage() {
                                       DMS Preapproval Number
                                     </label>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={`shrink-0 font-mono text-sm font-semibold ${
+                                          designationNumber ? "text-slate-700" : "text-amber-700"
+                                        }`}
+                                        title={
+                                          designationNumber === ""
+                                            ? "Add your designation number in Settings → Designee"
+                                            : undefined
+                                        }
+                                      >
+                                        PR-{designationNumber || "[designation #]"}-
+                                      </span>
                                       <input
                                         id={`dms-${request.id}`}
                                         type="text"
@@ -5048,10 +5086,10 @@ export default function ExaminerRequestsPage() {
                                         onChange={(event) =>
                                           setDmsDrafts((current) => ({
                                             ...current,
-                                            [request.id]: event.target.value,
+                                            [request.id]: stripDmsPrefix(event.target.value),
                                           }))
                                         }
-                                        placeholder="Enter DMS number"
+                                        placeholder="Year-sequence, e.g. 2026-0110"
                                         className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
                                       />
 
