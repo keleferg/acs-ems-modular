@@ -965,6 +965,27 @@ export default function ApplicantRequestsPage() {
     };
   }, []);
 
+  // Arriving from the dashboard (?request=...): scroll to the part that needs a response.
+  const [scrolledToRequest, setScrolledToRequest] = useState(false);
+
+  useEffect(() => {
+    if (loading || scrolledToRequest) return;
+
+    const requestedId = new URLSearchParams(window.location.search).get(
+      "request",
+    );
+    if (!requestedId) return;
+
+    setScrolledToRequest(true);
+
+    window.setTimeout(() => {
+      const target =
+        document.querySelector(`[data-response-required="${requestedId}"]`) ??
+        document.getElementById(`request-${requestedId}`);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, [loading, scrolledToRequest]);
+
   const cancellableStatuses = new Set([
     "draft",
     "submitted",
@@ -1679,7 +1700,10 @@ export default function ApplicantRequestsPage() {
                     </div>
                   ) : null}
 
-                  <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <article
+                    id={`request-${request.id}`}
+                    className="scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                  >
                     <button
                       type="button"
                       onClick={() =>
@@ -1778,7 +1802,10 @@ export default function ApplicantRequestsPage() {
                       <div className="border-t border-slate-200 px-6 py-6">
                         <div className="space-y-5">
                           {proposal ? (
-                            <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+                            <section
+                              data-response-required={request.id}
+                              className="scroll-mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950"
+                            >
                               <h3 className="text-lg font-bold">
                                 Examiner {proposal.examiner_name} has proposed
                                 the following appointment:
@@ -1967,7 +1994,10 @@ export default function ApplicantRequestsPage() {
                                 </p>
                               </section>
                             ) : (
-                              <section className="rounded-xl border border-amber-300 bg-amber-50 p-5">
+                              <section
+                                data-response-required={request.id}
+                                className="scroll-mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5"
+                              >
                                 <h3 className="text-lg font-bold text-amber-950">
                                   Fee Acceptance Required
                                 </h3>
@@ -2001,7 +2031,10 @@ export default function ApplicantRequestsPage() {
 
                           {request.status === "scheduled" &&
                           request.appointment_response_status !== "accepted" ? (
-                            <section className="rounded-xl border border-sky-300 bg-sky-50 p-5">
+                            <section
+                              data-response-required={request.id}
+                              className="scroll-mt-6 rounded-xl border border-sky-300 bg-sky-50 p-5"
+                            >
                               <h3 className="text-lg font-bold text-sky-950">
                                 Appointment Response Required
                               </h3>

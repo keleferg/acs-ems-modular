@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { acceptAppointment, acceptFees } from "@/lib/applicant-responses";
 
 type ApplicantRequest = {
   id: string;
@@ -39,6 +40,9 @@ type ApplicantRequest = {
   flight_airport_code: string | null;
 
   fee_amount: number | null;
+  travel_fee_amount: number | null;
+  fees_finalized_at: string | null;
+  fee_response_status: string | null;
   dms_preapproval_number: string | null;
 
   appointment_response_status: string | null;
@@ -49,6 +53,42 @@ type ApplicantRequest = {
 
   applicant_notification_acknowledged_status: string | null;
   applicant_notification_acknowledged_at: string | null;
+};
+
+type AssignmentProposal = {
+  practical_test_request_id: string;
+  examiner_name: string;
+  proposed_start_at: string;
+  proposed_location: string | null;
+};
+
+type QualificationWizard = {
+  practical_test_request_id: string;
+  status: string;
+};
+
+type ResponseItem = {
+  key: string;
+  request: ApplicantRequest;
+  kind:
+    | "appointment"
+    | "fees"
+    | "proposal"
+    | "information"
+    | "reschedule"
+    | "qualification";
+  title: string;
+  description: string;
+};
+
+const QUALIFICATION_ACTION_STATUSES: Record<string, string> = {
+  available: "Your pretest qualification is open. Complete it before your practical test.",
+  applicant_in_progress:
+    "Your pretest qualification is in progress. Finish and submit it before your practical test.",
+  instructor_changes_required:
+    "Your instructor asked for corrections to your pretest qualification.",
+  deficiencies_found:
+    "Your examiner found items in your pretest qualification that need attention.",
 };
 
 const closedStatuses = new Set([
@@ -299,6 +339,10 @@ export default function ApplicantDashboardPage() {
   const [clock, setClock] = useState(0);
   const [acknowledgingRequestId, setAcknowledgingRequestId] =
     useState<string | null>(null);
+  const [proposals, setProposals] = useState<AssignmentProposal[]>([]);
+  const [wizards, setWizards] = useState<QualificationWizard[]>([]);
+  const [respondingKey, setRespondingKey] = useState("");
+  const [responseMessage, setResponseMessage] = useState("");
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -368,6 +412,9 @@ export default function ApplicantDashboardPage() {
         flight_airport_code,
 
         fee_amount,
+        travel_fee_amount,
+        fees_finalized_at,
+        fee_response_status,
         dms_preapproval_number,
 
         appointment_response_status,
@@ -396,7 +443,47 @@ export default function ApplicantDashboardPage() {
       );
       setRequests([]);
     } else {
-      setRequests((data ?? []) as ApplicantRequest[]);
+      const loaded = (data ?? []) as ApplicantRequest[];
+      setRequests(loaded);
+
+      const openIds = loaded
+        .filter((request) => !closedStatuses.has(request.status))
+        .map((request) => request.id);
+
+      const [proposalResult, wizardResult] = await Promise.all([
+        supabase.rpc("applicant_list_assignment_proposals"),
+        openIds.length > 0
+          ? supabase
+              .from("qualification_wizards")
+              .select("practical_test_request_id, status")
+              .in("practical_test_request_id", openIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      if (proposalResult.error) {
+        console.error(
+          "Unable to load assignment proposals:",
+          proposalResult.error,
+        );
+      }
+
+      if (wizardResult.error) {
+        console.error(
+          "Unable to load pretest qualification status:",
+          wizardResult.error,
+        );
+      }
+
+      setProposals(
+        proposalResult.error
+          ? []
+          : ((proposalResult.data ?? []) as AssignmentProposal[]),
+      );
+      setWizards(
+        wizardResult.error
+          ? []
+          : ((wizardResult.data ?? []) as QualificationWizard[]),
+      );
     }
 
     setClock(Date.now());
@@ -542,18 +629,142 @@ export default function ApplicantDashboardPage() {
     [requests],
   );
 
+  const responseItems = useMemo(() => {
+    const items: ResponseItem[] = [];
+    const proposalByRequest = new Map(
+      proposals.map((proposal) => [
+        proposal.practical_test_request_id,
+        proposal,
+      ]),
+    );
+    const wizardByRequest = new Map(
+      wizards.map((wizard) => [wizard.practical_test_request_id, wizard]),
+    );
+
+    for (const request of requests) {
+      if (closedStatuses.has(request.status)) continue;
+
+      const proposal = proposalByRequest.get(request.id);
+      if (proposal) {
+        items.push({
+          key: `proposal-${request.id}`,
+          request,
+          kind: "proposal",
+          title: `Examiner ${proposal.examiner_name} proposed an appointment`,
+          description: `${formatDateTime(proposal.proposed_start_at)}${
+            proposal.proposed_location
+              ? ` · ${proposal.proposed_location}`
+              : ""
+          }. Review the proposal and accept or decline it.`,
+        });
+      }
+
+      if (request.status === "awaiting_applicant_information") {
+        items.push({
+          key: `information-${request.id}`,
+          request,
+          kind: "information",
+          title: "Your examiner needs more information",
+          description:
+            request.status_reason?.trim() ||
+            "Review your request and send the examiner the requested information.",
+        });
+      }
+
+      if (request.status === "reschedule_required") {
+        items.push({
+          key: `reschedule-${request.id}`,
+          request,
+          kind: "reschedule",
+          title: "Rescheduling is required",
+          description:
+            request.status_reason?.trim() ||
+            "Contact your examiner to arrange a new practical-test date.",
+        });
+      }
+
+      if (
+        request.status === "scheduled" &&
+        request.appointment_response_status !== "accepted"
+      ) {
+        items.push({
+          key: `appointment-${request.id}`,
+          request,
+          kind: "appointment",
+          title: "Accept your appointment",
+          description: `${formatDateTime(request.scheduled_start_at)} · ${getLocation(
+            request,
+          )}. Accept it or request a different date and time.`,
+        });
+      }
+
+      if (
+        request.fees_finalized_at &&
+        request.fee_amount !== null &&
+        request.fee_response_status !== "accepted"
+      ) {
+        const total =
+          Number(request.fee_amount) + Number(request.travel_fee_amount ?? 0);
+        items.push({
+          key: `fees-${request.id}`,
+          request,
+          kind: "fees",
+          title: "Accept your test fees",
+          description: `Test fee ${formatCurrency(request.fee_amount)} + travel fee ${formatCurrency(
+            request.travel_fee_amount ?? 0,
+          )} = ${formatCurrency(total)} total.`,
+        });
+      }
+
+      const wizard = wizardByRequest.get(request.id);
+      const qualificationText = wizard
+        ? QUALIFICATION_ACTION_STATUSES[wizard.status]
+        : undefined;
+      if (qualificationText) {
+        items.push({
+          key: `qualification-${request.id}`,
+          request,
+          kind: "qualification",
+          title: "Pretest qualification",
+          description: qualificationText,
+        });
+      }
+    }
+
+    return items;
+  }, [proposals, requests, wizards]);
+
   const pendingActionCount = useMemo(
-    () =>
-      requests.filter(
-        (request) =>
-          ["awaiting_applicant_information", "reschedule_required"].includes(
-            request.status,
-          ) ||
-          (request.status === "scheduled" &&
-            request.appointment_response_status !== "accepted"),
-      ).length,
-    [requests],
+    () => new Set(responseItems.map((item) => item.request.id)).size,
+    [responseItems],
   );
+
+  async function respondInline(item: ResponseItem) {
+    if (respondingKey) return;
+
+    setRespondingKey(item.key);
+    setResponseMessage("");
+    setPageError("");
+
+    const result =
+      item.kind === "fees"
+        ? await acceptFees(item.request.id)
+        : await acceptAppointment(item.request.id);
+
+    if (result.error) {
+      setPageError(result.error);
+      setRespondingKey("");
+      return;
+    }
+
+    setResponseMessage(
+      item.kind === "fees"
+        ? `Fees accepted for ${item.request.request_number}.`
+        : `Appointment accepted for ${item.request.request_number}.`,
+    );
+    setRespondingKey("");
+    await loadDashboard();
+  }
 
   const recentRequests = requests.slice(0, 5);
 
@@ -744,6 +955,100 @@ export default function ApplicantDashboardPage() {
           </p>
         </article>
       </section>
+
+      {responseMessage ? (
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900">
+          {responseMessage}
+        </div>
+      ) : null}
+
+      {!loading && responseItems.length > 0 ? (
+        <section className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertTriangle aria-hidden className="h-6 w-6 shrink-0 text-amber-700" />
+            <h2 className="text-xl font-bold text-amber-950">
+              Awaiting Your Response
+            </h2>
+            <span className="rounded-full bg-amber-200 px-3 py-0.5 text-sm font-bold text-amber-900">
+              {responseItems.length}
+            </span>
+          </div>
+
+          <ul className="mt-5 space-y-3">
+            {responseItems.map((item) => {
+              const href = `/applicant/requests?request=${item.request.id}`;
+              const responding = respondingKey === item.key;
+
+              return (
+                <li
+                  key={item.key}
+                  className="flex flex-col justify-between gap-4 rounded-xl border border-amber-200 bg-white p-5 lg:flex-row lg:items-center"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {item.kind === "fees" ? (
+                        <DollarSign aria-hidden className="h-5 w-5 shrink-0 text-amber-700" />
+                      ) : item.kind === "qualification" ? (
+                        <ClipboardList aria-hidden className="h-5 w-5 shrink-0 text-amber-700" />
+                      ) : (
+                        <CalendarDays aria-hidden className="h-5 w-5 shrink-0 text-amber-700" />
+                      )}
+                      <h3 className="font-bold text-slate-900">{item.title}</h3>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {item.description}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {item.request.request_number} ·{" "}
+                      {item.request.certificate_sought} ·{" "}
+                      {item.request.rating_sought}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap gap-3">
+                    {item.kind === "appointment" || item.kind === "fees" ? (
+                      <button
+                        type="button"
+                        disabled={Boolean(respondingKey)}
+                        onClick={() => void respondInline(item)}
+                        className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {responding
+                          ? "Saving…"
+                          : item.kind === "fees"
+                            ? "Accept Fees"
+                            : "Accept Appointment"}
+                      </button>
+                    ) : null}
+
+                    {item.kind === "qualification" ? (
+                      <Link
+                        href="/applicant/qualification"
+                        className="rounded-lg bg-sky-700 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-sky-800"
+                      >
+                        Open Qualification
+                      </Link>
+                    ) : (
+                      <Link
+                        href={href}
+                        className="rounded-lg border border-amber-400 px-4 py-2.5 text-center text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                      >
+                        {item.kind === "appointment"
+                          ? "Request a Different Time"
+                          : item.kind === "proposal"
+                            ? "Review Proposal"
+                            : item.kind === "fees"
+                              ? "View Request"
+                              : "Open Request"}
+                      </Link>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       {nextAppointment ? (
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
