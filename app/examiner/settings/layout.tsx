@@ -22,7 +22,7 @@ const settingsLinks = [
   {
     href: "/examiner/settings/aircraft",
     label: "Aircraft Authorized",
-    description: "Aircraft categories and limitations",
+    description: "Aircraft you are qualified in",
   },
   {
     href: "/examiner/settings/type-ratings",
