@@ -58,6 +58,7 @@ const EMT_RPC_ALLOWLIST = [
   "examiner_get_ppc_evaluation",
   "examiner_save_ppc_evaluation",
   "examiner_get_ppc_8410_packet",
+  "examiner_prepare_type_rating_8410",
   // EMT -> EMS result handoff
   "examiner_submit_emt_practical_test",
   "examiner_finalize_emt_practical_test",

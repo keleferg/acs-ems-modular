@@ -29,7 +29,7 @@ EMT → EMS (results handoff):
 - `examiner_submit_emt_practical_test()`, `examiner_finalize_emt_practical_test()`, `examiner_complete_ppc_event()`, `examiner_finalize_ppc_8410()`. These database functions are the only way EMT changes a request's status.
 - `POST {EMS}/api/email/practical-test` (event `ppc_completed_applicant`). EMT asks, EMS sends. Allowed origins: `EMT_WEB_ORIGINS`.
 
-EMT-internal grading functions: `examiner_get_ppc_evaluation()`, `examiner_save_ppc_evaluation()`, `examiner_get_ppc_8410_packet()`.
+EMT-internal grading functions: `examiner_get_ppc_evaluation()`, `examiner_save_ppc_evaluation()`, `examiner_get_ppc_8410_packet()`, `examiner_prepare_type_rating_8410()` (fills a type rating's FAA 8410-1 from its ACS grades).
 
 EMS reads EMT results (read-only) for records and history: `practical_tests`, `practical_test_grades`, `practical_test_reports`, `ppc_8410_documents` and the `practical-test-reports` and `ppc-8410-documents` storage buckets.
 
