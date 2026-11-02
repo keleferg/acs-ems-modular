@@ -2605,3 +2605,69 @@ export function buildRequestSubmittedExaminerEmail(input: RequestSubmittedExamin
 
   return { subject, html, text };
 }
+
+// Open assignment alert (Kele, Nov 2 2026): sent to examiners whose Settings → Locations areas
+// include the request's flight-test airport.
+type OpenAssignmentAlertEmailInput = {
+  examinerName: string | null;
+  requestNumber: string;
+  certificateSought: string | null;
+  ratingSought: string | null;
+  requestedDatesText: string | null;
+  airportLabel: string | null;
+  openAssignmentsUrl: string;
+  locationsUrl: string;
+};
+
+export function buildOpenAssignmentAlertEmail(input: OpenAssignmentAlertEmailInput) {
+  const examinerGreeting = input.examinerName?.trim() ? firstName(input.examinerName) : "Examiner";
+  const certificate = input.certificateSought?.trim() || "—";
+  const rating = input.ratingSought?.trim() || "—";
+  const airport = input.airportLabel?.trim() || "Not given";
+  // Raw text: the MM/dd/yyyy date formatting (patch 0037) isn't live yet.
+  const requestedDates = input.requestedDatesText?.trim() || "No specific date preference recorded";
+  const subject = `New Open Assignment — ${certificate} (${input.requestNumber})`;
+
+  const html = qualificationEmailShell(
+    "New Open Assignment",
+    `
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(examinerGreeting)},</p>
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">
+                  A new practical test request in your area is open to any examiner.
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                  ${qualificationEmailRow("Request Number", input.requestNumber)}
+                  ${qualificationEmailRow("Certificate", certificate)}
+                  ${qualificationEmailRow("Rating", rating)}
+                  ${qualificationEmailRow("Flight Airport", airport)}
+                  ${qualificationEmailRow("Requested Dates", requestedDates, true)}
+                </table>
+                <div style="margin-top:26px;">
+                  <a href="${escapeHtml(input.openAssignmentsUrl)}" style="display:inline-block;padding:12px 18px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                    View Open Assignments
+                  </a>
+                </div>
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+                  You get these because of your areas in Settings → Locations.
+                  <a href="${escapeHtml(input.locationsUrl)}" style="color:#0369a1;">Change your areas or turn off these emails</a>.
+                </p>`,
+  );
+
+  const text = [
+    `Aloha ${examinerGreeting},`,
+    "",
+    "A new practical test request in your area is open to any examiner.",
+    "",
+    `Request Number: ${input.requestNumber}`,
+    `Certificate: ${certificate}`,
+    `Rating: ${rating}`,
+    `Flight Airport: ${airport}`,
+    `Requested Dates: ${requestedDates}`,
+    "",
+    `View Open Assignments: ${input.openAssignmentsUrl}`,
+    "",
+    `You get these because of your areas in Settings → Locations. Change them or turn off these emails: ${input.locationsUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}

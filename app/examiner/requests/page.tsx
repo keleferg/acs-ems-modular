@@ -1396,6 +1396,11 @@ export default function ExaminerRequestsPage() {
     const parameters = new URLSearchParams(window.location.search);
     const requestId = parameters.get("request");
 
+    // ?tab=open opens Open Assignments (link in the open assignment alert email).
+    if (parameters.get("tab") === "open") {
+      setActiveRequestsTab("open");
+    }
+
     if (requestId) {
       setDirectRequestId(requestId);
       setStatusFilter("all");

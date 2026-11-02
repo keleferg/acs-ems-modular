@@ -17,7 +17,7 @@ const settingsLinks = [
   {
     href: "/examiner/settings/locations",
     label: "Locations",
-    description: "Flight schools and test locations",
+    description: "Areas for open assignment alerts",
   },
   {
     href: "/examiner/settings/aircraft",

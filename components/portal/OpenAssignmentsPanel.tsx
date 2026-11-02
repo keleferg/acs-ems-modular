@@ -210,6 +210,24 @@ export default function OpenAssignmentsPanel() {
     useState<Record<string, ProposalDraft>>({});
   const [savingId, setSavingId] =
     useState<string | null>(null);
+  // Settings → Locations (Kele, Nov 2 2026): only requests in the examiner's areas, unless
+  // "Show all" is on. No areas set = everything matches.
+  const [locationMatches, setLocationMatches] =
+    useState<Record<string, { inMine: boolean; airport: string | null }>>({});
+  const [showAll, setShowAll] = useState(false);
+
+  const visibleAssignments = useMemo(
+    () =>
+      showAll
+        ? assignments
+        : assignments.filter(
+            (request) => request.offered_by_me || locationMatches[request.id]?.inMine !== false,
+          ),
+    [assignments, locationMatches, showAll],
+  );
+  const hiddenCount = assignments.filter(
+    (request) => !request.offered_by_me && locationMatches[request.id]?.inMine === false,
+  ).length;
 
   const quarterHourValues = useMemo(
     () => new Set(quarterHourTimes.map((item) => item.value)),
@@ -248,6 +266,27 @@ export default function OpenAssignmentsPanel() {
     const rows = (data ?? []) as unknown as OpenAssignment[];
 
     setAssignments(rows);
+
+    if (rows.length > 0) {
+      const { data: matchRows, error: matchError } = await supabase.rpc(
+        "examiner_open_assignment_location_matches",
+        { p_request_ids: rows.map((row) => row.id) },
+      );
+      if (matchError) {
+        console.error("Unable to check open assignment locations:", matchError);
+        setLocationMatches({});
+      } else {
+        setLocationMatches(
+          Object.fromEntries(
+            ((matchRows ?? []) as { request_id: string; in_my_locations: boolean; airport_label: string | null }[]).map(
+              (row) => [row.request_id, { inMine: row.in_my_locations, airport: row.airport_label }],
+            ),
+          ),
+        );
+      }
+    } else {
+      setLocationMatches({});
+    }
 
     setDrafts((current) => {
       const next = { ...current };
@@ -476,14 +515,34 @@ export default function OpenAssignmentsPanel() {
         </div>
       ) : null}
 
-      {!loading && assignments.length === 0 ? (
+      {!loading && hiddenCount > 0 ? (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-5 py-3 text-sm text-sky-900">
+          <span>
+            {showAll
+              ? `Showing all ${assignments.length} open assignments, including ${hiddenCount} outside your locations.`
+              : `Showing ${visibleAssignments.length} open assignment${visibleAssignments.length === 1 ? "" : "s"} in your locations. ${hiddenCount} outside your locations ${hiddenCount === 1 ? "is" : "are"} hidden.`}{" "}
+            <a href="/examiner/settings/locations" className="font-semibold underline">
+              Edit my locations
+            </a>
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAll((value) => !value)}
+            className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 font-semibold text-sky-800 hover:bg-sky-100"
+          >
+            {showAll ? "Show only my locations" : "Show all"}
+          </button>
+        </div>
+      ) : null}
+
+      {!loading && visibleAssignments.length === 0 ? (
         <div className="mt-6 flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
           <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-3xl text-slate-500">
             ▰
           </div>
 
           <p className="mt-5 text-lg font-bold text-slate-900">
-            No open assignments
+            {assignments.length > 0 ? "No open assignments in your locations" : "No open assignments"}
           </p>
 
           <p className="mt-2 text-sm text-slate-500">
@@ -492,9 +551,9 @@ export default function OpenAssignmentsPanel() {
         </div>
       ) : null}
 
-      {!loading && assignments.length > 0 ? (
+      {!loading && visibleAssignments.length > 0 ? (
         <div className="mt-6 space-y-6">
-          {assignments.map((request) => {
+          {visibleAssignments.map((request) => {
             const draft = drafts[request.id] ?? {
               start: "",
               durationMinutes: "180",
