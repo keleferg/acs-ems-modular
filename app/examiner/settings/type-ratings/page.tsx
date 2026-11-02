@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  VINTAGE_SOURCE_DOCUMENT,
+  VintageLibraryTable,
+  useVintageTypeRatings,
+} from "./vintage-library";
+
+type LibraryTab = "faa" | "vintage";
 
 type TypeRatingDesignation = {
   id: string;
@@ -37,6 +44,9 @@ export default function TypeRatingsSettingsPage() {
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("faa");
+
+  const vintage = useVintageTypeRatings(examinerProfileId);
 
   const loadTypeRatings = useCallback(async () => {
     setLoading(true);
@@ -73,6 +83,7 @@ export default function TypeRatingsSettingsPage() {
           `,
         )
         .eq("is_active", true)
+        .neq("source_document", VINTAGE_SOURCE_DOCUMENT)
         .order("sort_order", { ascending: true })
         .order("designation", { ascending: true }),
 
@@ -320,6 +331,18 @@ export default function TypeRatingsSettingsPage() {
   }
 
   async function clearAllSelections() {
+    if (libraryTab === "vintage") {
+      if (vintage.selectionCount === 0) return;
+      const confirmedVintage = window.confirm(
+        "Remove all selected vintage type ratings and vintage groups?",
+      );
+      if (!confirmedVintage) return;
+      setMessage("");
+      setErrorMessage("");
+      await vintage.clearAll();
+      return;
+    }
+
     if (!examinerProfileId || selectedCount === 0 || savingId) {
       return;
     }
@@ -387,19 +410,28 @@ export default function TypeRatingsSettingsPage() {
 
         <p className="mt-2 max-w-3xl text-slate-600">
           Select each FAA aircraft type rating for which you are authorized to
-          administer practical tests and Pilot Proficiency Checks.
+          administer practical tests and Pilot Proficiency Checks. Vintage
+          aircraft authority can be checked by type rating or by whole group.
         </p>
       </div>
 
-      {message ? (
+      {message || (libraryTab === "vintage" && vintage.message) ? (
         <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900">
-          {message}
+          {libraryTab === "vintage" && vintage.message
+            ? vintage.message
+            : message}
         </div>
       ) : null}
 
       {errorMessage ? (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
           {errorMessage}
+        </div>
+      ) : null}
+
+      {libraryTab === "vintage" && vintage.errorMessage ? (
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
+          {vintage.errorMessage}
         </div>
       ) : null}
 
@@ -414,11 +446,15 @@ export default function TypeRatingsSettingsPage() {
           <section className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-slate-200 bg-white p-5">
               <p className="text-sm font-medium text-slate-500">
-                FAA type ratings
+                {libraryTab === "vintage"
+                  ? "Vintage type ratings"
+                  : "FAA type ratings"}
               </p>
 
               <p className="mt-2 text-3xl font-bold text-slate-900">
-                {designations.length}
+                {libraryTab === "vintage"
+                  ? vintage.ratings.length
+                  : designations.length}
               </p>
             </div>
 
@@ -426,7 +462,9 @@ export default function TypeRatingsSettingsPage() {
               <p className="text-sm font-medium text-slate-500">Authorized</p>
 
               <p className="mt-2 text-3xl font-bold text-emerald-700">
-                {selectedCount}
+                {libraryTab === "vintage"
+                  ? vintage.authorizedCount
+                  : selectedCount}
               </p>
             </div>
 
@@ -434,10 +472,16 @@ export default function TypeRatingsSettingsPage() {
               <p className="text-sm font-medium text-slate-500">Source</p>
 
               <p className="mt-2 text-sm font-semibold text-slate-900">
-                FAA Order 8900.1
+                {libraryTab === "vintage"
+                  ? "FAA Vintage Aircraft Examiner Groups"
+                  : "FAA Order 8900.1"}
               </p>
 
-              <p className="mt-1 text-xs text-slate-500">Figure 5-88</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {libraryTab === "vintage"
+                  ? "Last updated 10/13/2022"
+                  : "Figure 5-88"}
+              </p>
             </div>
           </section>
 
@@ -456,7 +500,11 @@ export default function TypeRatingsSettingsPage() {
                   type="search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search A-320, B-737, CE-525S…"
+                  placeholder={
+                    libraryTab === "vintage"
+                      ? "Search DC-3, B-17, Mallard, Group E…"
+                      : "Search A-320, B-737, CE-525S…"
+                  }
                   className="w-full rounded-lg border border-slate-300 px-4 py-3 uppercase outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
                 />
               </div>
@@ -475,109 +523,160 @@ export default function TypeRatingsSettingsPage() {
 
               <button
                 type="button"
-                disabled={selectedCount === 0 || savingId === "clear-all"}
+                disabled={
+                  libraryTab === "vintage"
+                    ? vintage.selectionCount === 0 ||
+                      vintage.savingKey === "clear-all"
+                    : selectedCount === 0 || savingId === "clear-all"
+                }
                 onClick={() => void clearAllSelections()}
                 className="rounded-lg border border-red-300 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {savingId === "clear-all" ? "Clearing…" : "Clear All"}
+                {savingId === "clear-all" || vintage.savingKey === "clear-all"
+                  ? "Clearing…"
+                  : "Clear All"}
               </button>
             </div>
           </section>
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <div>
-                <h3 className="font-bold text-slate-900">
-                  FAA Type-Rating Library
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  {visibleDesignations.length} ratings shown
-                </p>
+          <div
+            role="tablist"
+            aria-label="Type-rating libraries"
+            className="mt-6 flex gap-2 border-b border-slate-200"
+          >
+            {(
+              [
+                ["faa", "FAA Type-Rating Library"],
+                ["vintage", "Vintage Aircraft Type-Rating Library"],
+              ] as [LibraryTab, string][]
+            ).map(([tab, label]) => {
+              const active = libraryTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setLibraryTab(tab);
+                    setMessage("");
+                  }}
+                  className={`-mb-px rounded-t-lg border px-4 py-3 text-sm font-semibold ${
+                    active
+                      ? "border-slate-200 border-b-white bg-white text-slate-900"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {libraryTab === "vintage" ? (
+            <section className="overflow-hidden rounded-b-2xl border border-t-0 border-slate-200 bg-white shadow-sm">
+              <VintageLibraryTable
+                vintage={vintage}
+                search={search}
+                showSelectedOnly={showSelectedOnly}
+              />
+            </section>
+          ) : (
+            <section className="overflow-hidden rounded-b-2xl border border-t-0 border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h3 className="font-bold text-slate-900">
+                    FAA Type-Rating Library
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {visibleDesignations.length} ratings shown
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {visibleDesignations.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px] border-collapse">
-                  <thead className="bg-slate-50">
-                    <tr className="border-b border-slate-200">
-                      <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                        FAA Type Rating
-                      </th>
-                      <th className="w-48 px-5 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Type Rating
-                      </th>
-                      <th className="w-64 px-5 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Pilot Proficiency Check
-                      </th>
-                    </tr>
-                  </thead>
+              {visibleDesignations.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px] border-collapse">
+                    <thead className="bg-slate-50">
+                      <tr className="border-b border-slate-200">
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                          FAA Type Rating
+                        </th>
+                        <th className="w-48 px-5 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
+                          Type Rating
+                        </th>
+                        <th className="w-64 px-5 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
+                          Pilot Proficiency Check
+                        </th>
+                      </tr>
+                    </thead>
 
-                  <tbody className="divide-y divide-slate-100">
-                    {visibleDesignations.map((designation) => {
-                      const authorization = authorizations.get(designation.id);
+                    <tbody className="divide-y divide-slate-100">
+                      {visibleDesignations.map((designation) => {
+                        const authorization = authorizations.get(designation.id);
 
-                      const selected = Boolean(authorization?.is_active);
+                        const selected = Boolean(authorization?.is_active);
 
-                      const ppcSelected = Boolean(
-                        authorization?.pilot_ppc_authorized,
-                      );
+                        const ppcSelected = Boolean(
+                          authorization?.pilot_ppc_authorized,
+                        );
 
-                      const saving = savingId === designation.id;
+                        const saving = savingId === designation.id;
 
-                      const savingPpc = savingPpcId === designation.id;
+                        const savingPpc = savingPpcId === designation.id;
 
-                      return (
-                        <tr key={designation.id} className="hover:bg-slate-50">
-                          <td className="px-5 py-4">
-                            <p className="font-mono text-base font-bold text-slate-900">
-                              {designation.designation}
-                            </p>
-                          </td>
+                        return (
+                          <tr key={designation.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-4">
+                              <p className="font-mono text-base font-bold text-slate-900">
+                                {designation.designation}
+                              </p>
+                            </td>
 
-                          <td className="px-5 py-4 text-center">
-                            <input
-                              type="checkbox"
-                              aria-label={`${designation.designation} type-rating authorization`}
-                              checked={selected}
-                              disabled={
-                                (Boolean(savingId) && !saving) ||
-                                Boolean(savingPpcId)
-                              }
-                              onChange={() =>
-                                void toggleAuthorization(designation)
-                              }
-                              className="h-5 w-5 rounded border-slate-300 accent-emerald-700"
-                            />
-                          </td>
+                            <td className="px-5 py-4 text-center">
+                              <input
+                                type="checkbox"
+                                aria-label={`${designation.designation} type-rating authorization`}
+                                checked={selected}
+                                disabled={
+                                  (Boolean(savingId) && !saving) ||
+                                  Boolean(savingPpcId)
+                                }
+                                onChange={() =>
+                                  void toggleAuthorization(designation)
+                                }
+                                className="h-5 w-5 rounded border-slate-300 accent-emerald-700"
+                              />
+                            </td>
 
-                          <td className="px-5 py-4 text-center">
-                            <input
-                              type="checkbox"
-                              aria-label={`${designation.designation} Pilot Proficiency Check authorization`}
-                              checked={ppcSelected}
-                              disabled={
-                                (Boolean(savingPpcId) && !savingPpc) ||
-                                Boolean(savingId)
-                              }
-                              onChange={() =>
-                                void togglePilotPpcAuthorization(designation)
-                              }
-                              className="h-5 w-5 rounded border-slate-300 accent-sky-700"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-10 text-center text-slate-600">
-                No type ratings match the current search.
-              </div>
-            )}
-          </section>
+                            <td className="px-5 py-4 text-center">
+                              <input
+                                type="checkbox"
+                                aria-label={`${designation.designation} Pilot Proficiency Check authorization`}
+                                checked={ppcSelected}
+                                disabled={
+                                  (Boolean(savingPpcId) && !savingPpc) ||
+                                  Boolean(savingId)
+                                }
+                                onChange={() =>
+                                  void togglePilotPpcAuthorization(designation)
+                                }
+                                className="h-5 w-5 rounded border-slate-300 accent-sky-700"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-10 text-center text-slate-600">
+                  No type ratings match the current search.
+                </div>
+              )}
+            </section>
+          )}
 
           <p className="mt-5 text-xs leading-5 text-slate-500">
             Selecting a type rating records it as an examiner authorization in
