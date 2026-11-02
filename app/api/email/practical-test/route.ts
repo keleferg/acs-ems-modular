@@ -3,6 +3,9 @@ import { Resend } from "resend";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 import {
+  buildAppointmentAndFeesApplicantEmail,
+  buildRevisedAppointmentApplicantEmail,
+  buildRevisedFeesApplicantEmail,
   buildAppointmentAcceptedExaminerEmail,
   buildRequestSubmittedExaminerEmail,
   buildAssignmentProposedApplicantEmail,
@@ -63,7 +66,42 @@ const supportedEvents = new Set([
   "appointment_accepted_examiner",
   "appointment_reschedule_requested_examiner",
   "ppc_completed_applicant",
+  "appointment_scheduled_applicant",
+  "appointment_revised_applicant",
+  "fees_revised_applicant",
 ]);
+
+// What examiner_send_applicant_notice recorded as sent to the applicant.
+type ApplicantNotice = {
+  scheduled_start_at: string;
+  scheduled_end_at: string;
+  scheduled_location: string;
+  flight_airport_code: string | null;
+  flight_airport_name: string | null;
+  fee_amount: number | string | null;
+  travel_fee_amount: number | string | null;
+  examiner_name: string | null;
+  kind?: string;
+};
+
+const NOTICE_EVENT_KIND: Record<string, string> = {
+  appointment_scheduled_applicant: "initial",
+  appointment_revised_applicant: "revised_appointment",
+  fees_revised_applicant: "revised_fees",
+};
+
+function noticeFlightLocation(notice: ApplicantNotice) {
+  const code = notice.flight_airport_code?.trim();
+  const name = notice.flight_airport_name?.trim();
+  if (code && name) return `${code} — ${name}`;
+  return code || name || null;
+}
+
+function noticeNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
 
 function getOrigin(request: Request) {
   return new URL(request.url).origin;
@@ -217,7 +255,10 @@ async function handlePost(request: Request): Promise<Response> {
       scheduled_location,
       appointment_response_status,
       appointment_responded_at,
-      appointment_response_notes
+      appointment_response_notes,
+      applicant_notified_at,
+      applicant_notice,
+      previous_applicant_notice
       `,
     )
     .eq("id", requestId)
@@ -282,6 +323,7 @@ async function handlePost(request: Request): Promise<Response> {
   let examinerAuthorized = false;
   let administratorAuthorized = false;
   let examinerReplyToEmail: string | undefined;
+  let examinerDisplayName: string | null = null;
 
   if (
     eventType === "request_accepted_applicant" ||
@@ -289,7 +331,8 @@ async function handlePost(request: Request): Promise<Response> {
     eventType === "request_scheduled_applicant" ||
     eventType === "request_fees_finalized_applicant" ||
     eventType === "assignment_proposed_applicant" ||
-    eventType === "ppc_completed_applicant"
+    eventType === "ppc_completed_applicant" ||
+    eventType in NOTICE_EVENT_KIND
   ) {
     const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
@@ -307,7 +350,7 @@ async function handlePost(request: Request): Promise<Response> {
     if (examinerAuthorized) {
       const { data: designeeProfile, error: designeeError } = await supabase
         .from("examiner_designee_profiles")
-        .select("reply_to_email, email")
+        .select("reply_to_email, email, designee_name")
         .eq("profile_id", user.id)
         .maybeSingle();
 
@@ -318,6 +361,7 @@ async function handlePost(request: Request): Promise<Response> {
           designeeProfile?.reply_to_email?.trim() ||
           designeeProfile?.email?.trim() ||
           undefined;
+        examinerDisplayName = designeeProfile?.designee_name?.trim() || null;
       }
     }
   }
@@ -423,6 +467,37 @@ async function handlePost(request: Request): Promise<Response> {
       },
       { status: 403 },
     );
+  }
+
+  if (eventType in NOTICE_EVENT_KIND) {
+    const notice = practicalTestRequest.applicant_notice as ApplicantNotice | null;
+
+    if (
+      practicalTestRequest.assigned_examiner_profile_id !== user.id &&
+      !administratorAuthorized
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Only the assigned examiner or an administrator may send this email.",
+        },
+        { status: 403 },
+      );
+    }
+
+    if (
+      !practicalTestRequest.applicant_notified_at ||
+      !notice ||
+      notice.kind !== NOTICE_EVENT_KIND[eventType]
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "This notice has not been recorded for the applicant.",
+        },
+        { status: 409 },
+      );
+    }
   }
 
   if (
@@ -705,6 +780,7 @@ async function handlePost(request: Request): Promise<Response> {
 
     email = buildRequestAcceptedApplicantEmail({
       applicantName: practicalTestRequest.applicant_name_snapshot,
+      examinerName: examinerDisplayName,
       requestNumber: practicalTestRequest.request_number,
       certificateSought: practicalTestRequest.certificate_sought,
       ratingSought: practicalTestRequest.rating_sought,
@@ -896,6 +972,7 @@ async function handlePost(request: Request): Promise<Response> {
     replyToEmail = examinerReplyToEmail;
     email = buildFeesFinalizedApplicantEmail({
       applicantName: practicalTestRequest.applicant_name_snapshot,
+      examinerName: examinerDisplayName,
       requestNumber: practicalTestRequest.request_number,
       certificateSought: practicalTestRequest.certificate_sought,
       ratingSought: practicalTestRequest.rating_sought,
@@ -909,6 +986,83 @@ async function handlePost(request: Request): Promise<Response> {
       practicalTestRequest.fees_finalized_at,
       testFee,
       travelFee,
+    ].join(":");
+  } else if (eventType in NOTICE_EVENT_KIND) {
+    recipientEmail = practicalTestRequest.applicant_email_snapshot
+      ?.trim()
+      .toLowerCase();
+
+    if (!recipientEmail) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "The practical-test request does not contain an applicant email address.",
+        },
+        { status: 422 },
+      );
+    }
+
+    const notice = practicalTestRequest.applicant_notice as ApplicantNotice;
+    const previous =
+      practicalTestRequest.previous_applicant_notice as ApplicantNotice | null;
+    const examinerName = notice.examiner_name || examinerDisplayName;
+    const portalUrl = `${portalOrigin}/applicant/requests?request=${encodeURIComponent(
+      practicalTestRequest.id,
+    )}`;
+    const common = {
+      applicantName: practicalTestRequest.applicant_name_snapshot,
+      requestNumber: practicalTestRequest.request_number,
+      certificateSought: practicalTestRequest.certificate_sought,
+      ratingSought: practicalTestRequest.rating_sought,
+      examinerName,
+      portalUrl,
+    };
+
+    recipientRole = "applicant";
+    replyToEmail = examinerReplyToEmail;
+
+    if (eventType === "appointment_scheduled_applicant") {
+      email = buildAppointmentAndFeesApplicantEmail({
+        ...common,
+        scheduledStartAt: notice.scheduled_start_at,
+        scheduledEndAt: notice.scheduled_end_at,
+        scheduledLocation: notice.scheduled_location,
+        flightLocation: noticeFlightLocation(notice),
+        testFee: noticeNumber(notice.fee_amount) ?? 0,
+        travelFee: noticeNumber(notice.travel_fee_amount) ?? 0,
+      });
+    } else if (eventType === "fees_revised_applicant") {
+      email = buildRevisedFeesApplicantEmail({
+        ...common,
+        scheduledStartAt: notice.scheduled_start_at,
+        scheduledEndAt: notice.scheduled_end_at,
+        previousTestFee: noticeNumber(previous?.fee_amount),
+        previousTravelFee: noticeNumber(previous?.travel_fee_amount),
+        testFee: noticeNumber(notice.fee_amount) ?? 0,
+        travelFee: noticeNumber(notice.travel_fee_amount) ?? 0,
+      });
+    } else {
+      const appointment = (value: ApplicantNotice) => ({
+        scheduledStartAt: value.scheduled_start_at,
+        scheduledEndAt: value.scheduled_end_at,
+        scheduledLocation: value.scheduled_location,
+        flightLocation: noticeFlightLocation(value),
+      });
+
+      email = buildRevisedAppointmentApplicantEmail({
+        ...common,
+        previous: appointment(previous ?? notice),
+        revised: appointment(notice),
+        testFee: noticeNumber(notice.fee_amount),
+        travelFee: noticeNumber(notice.travel_fee_amount),
+      });
+    }
+
+    dedupeKey = [
+      eventType,
+      practicalTestRequest.id,
+      practicalTestRequest.applicant_notified_at,
     ].join(":");
   } else if (eventType === "request_scheduled_applicant") {
     recipientEmail = practicalTestRequest.applicant_email_snapshot

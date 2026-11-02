@@ -50,6 +50,8 @@ type PracticalTestRequest = {
 
   fee_amount: number | null;
   travel_fee_amount: number;
+  applicant_notified_at: string | null;
+  applicant_notice: ApplicantNotice | null;
   fees_finalized_at: string | null;
   fee_response_status: string | null;
   fee_responded_at: string | null;
@@ -185,6 +187,35 @@ type AppointmentAirport = {
   icao: string;
   name: string;
 };
+
+/** What the applicant was last sent (recorded by examiner_send_applicant_notice). */
+type ApplicantNotice = {
+  scheduled_start_at: string | null;
+  scheduled_end_at: string | null;
+  scheduled_location: string | null;
+  flight_airport_code: string | null;
+  fee_amount: number | string | null;
+  travel_fee_amount: number | string | null;
+};
+
+type NoticeKind = "initial" | "revised_appointment" | "revised_fees";
+
+const NOTICE_EMAIL_EVENT: Record<NoticeKind, string> = {
+  initial: "appointment_scheduled_applicant",
+  revised_appointment: "appointment_revised_applicant",
+  revised_fees: "fees_revised_applicant",
+};
+
+function sameInstant(first: string | null | undefined, second: string | null | undefined) {
+  if (!first || !second) return !first && !second;
+  return new Date(first).getTime() === new Date(second).getTime();
+}
+
+function sameMoney(first: number | string | null | undefined, second: number | null) {
+  if (first === null || first === undefined || first === "") return second === null;
+  if (second === null) return false;
+  return Math.abs(Number(first) - second) < 0.005;
+}
 
 function airportLabel(airport: AppointmentAirport | null | undefined) {
   if (!airport?.code) return "";
@@ -1026,6 +1057,8 @@ export default function ExaminerRequestsPage() {
 
         fee_amount,
         travel_fee_amount,
+        applicant_notified_at,
+        applicant_notice,
         fees_finalized_at,
         fee_response_status,
         fee_responded_at,
@@ -2263,16 +2296,23 @@ export default function ExaminerRequestsPage() {
     setMessage(`History entry added to ${request.request_number}.`);
   }
 
-  async function saveFeeAmount(request: PracticalTestRequest) {
+  /**
+   * Save & Notify Applicant / Send Revised Appointment / Send Revised Fee Information
+   * (Kele, Nov 2 2026): finalizes the fees, records what the applicant is sent and emails it.
+   */
+  async function sendApplicantNotice(
+    request: PracticalTestRequest,
+    kind: NoticeKind,
+  ) {
     if (savingFeeRequestId) return;
 
     const rawFee = (feeDrafts[request.id] ?? "").trim();
     const feeAmount = Number(rawFee);
-    const rawTravelFee = (travelFeeDrafts[request.id] ?? "").trim();
+    const rawTravelFee = (travelFeeDrafts[request.id] ?? "0").trim();
     const travelFeeAmount = Number(rawTravelFee);
 
     if (!rawFee || !Number.isFinite(feeAmount) || feeAmount < 0) {
-      setPageError("Enter a valid fee amount of zero or greater.");
+      setPageError("Enter a valid test fee of zero or greater.");
       return;
     }
 
@@ -2291,9 +2331,10 @@ export default function ExaminerRequestsPage() {
 
     const supabase = createClient();
     const { data, error } = await supabase.rpc(
-      "examiner_finalize_practical_test_request_fees",
+      "examiner_send_applicant_notice",
       {
         p_request_id: request.id,
+        p_kind: kind,
         p_fee_amount: feeAmount,
         p_travel_fee_amount: travelFeeAmount,
       },
@@ -2301,7 +2342,7 @@ export default function ExaminerRequestsPage() {
 
     if (error) {
       setPageError(
-        `The fee for ${request.request_number} could not be saved: ${error.message}`,
+        `${request.request_number} could not be sent to the applicant: ${error.message}`,
       );
       setSavingFeeRequestId(null);
       return;
@@ -2311,7 +2352,7 @@ export default function ExaminerRequestsPage() {
 
     if (!updatedRequest) {
       setPageError(
-        "The fee update completed without returning the updated request.",
+        "The applicant notice completed without returning the updated request.",
       );
       setSavingFeeRequestId(null);
       return;
@@ -2327,6 +2368,13 @@ export default function ExaminerRequestsPage() {
               fees_finalized_at: updatedRequest.fees_finalized_at,
               fee_response_status: updatedRequest.fee_response_status,
               fee_responded_at: updatedRequest.fee_responded_at,
+              applicant_notified_at: updatedRequest.applicant_notified_at,
+              applicant_notice: updatedRequest.applicant_notice,
+              appointment_response_status:
+                updatedRequest.appointment_response_status,
+              appointment_responded_at: updatedRequest.appointment_responded_at,
+              appointment_response_notes:
+                updatedRequest.appointment_response_notes,
               status: updatedRequest.status,
               status_reason: updatedRequest.status_reason,
               updated_at: updatedRequest.updated_at,
@@ -2345,39 +2393,51 @@ export default function ExaminerRequestsPage() {
       [request.id]: String(updatedRequest.travel_fee_amount),
     }));
 
+    if (updatedRequest.status !== request.status) {
+      appendAuditEntry(
+        request.id,
+        request.status,
+        updatedRequest.status,
+        updatedRequest.status_reason,
+      );
+    }
+
+    const sentLabel =
+      kind === "initial"
+        ? "Appointment and fees sent"
+        : kind === "revised_appointment"
+          ? "Revised appointment sent"
+          : "Revised fees sent";
+
     try {
       const emailResponse = await fetch("/api/email/practical-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventType: "request_fees_finalized_applicant",
+          eventType: NOTICE_EMAIL_EVENT[kind],
           requestId: request.id,
         }),
       });
 
       if (!emailResponse.ok) {
-        console.warn("Fees were saved, but the applicant email was not sent.");
+        const emailResult = await emailResponse.json().catch(() => null);
+        console.warn("The applicant email was not sent:", emailResult);
         setMessage(
-          `Fees saved for ${request.request_number}, but the applicant email could not be sent.`,
+          `${sentLabel} for ${request.request_number} and shown in the applicant portal, but the email could not be sent.`,
         );
         setSavingFeeRequestId(null);
         return;
       }
     } catch (emailError) {
-      console.warn(
-        "Fees were saved, but the email request failed:",
-        emailError,
-      );
+      console.warn("The applicant email request failed:", emailError);
       setMessage(
-        `Fees saved for ${request.request_number}, but the applicant email could not be sent.`,
+        `${sentLabel} for ${request.request_number} and shown in the applicant portal, but the email could not be sent.`,
       );
       setSavingFeeRequestId(null);
       return;
     }
 
-    setMessage(
-      `Fees finalized for ${request.request_number}. The applicant was emailed for acceptance.`,
-    );
+    setMessage(`${sentLabel} to the applicant for ${request.request_number}.`);
     setSavingFeeRequestId(null);
   }
 
@@ -2572,39 +2632,10 @@ export default function ExaminerRequestsPage() {
       updatedRequest.status_reason,
     );
 
-    if (updatedRequest.status === "scheduled") {
-      try {
-        const emailResponse = await fetch("/api/email/practical-test", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            eventType: "request_scheduled_applicant",
-            requestId: request.id,
-          }),
-        });
-
-        if (!emailResponse.ok) {
-          const emailResult = await emailResponse.json().catch(() => null);
-
-          console.warn(
-            "Appointment was saved, but the applicant scheduling email was not sent:",
-            emailResult,
-          );
-        }
-      } catch (emailError) {
-        console.warn(
-          "Appointment was saved, but the applicant scheduling email request failed:",
-          emailError,
-        );
-      }
-    }
-
     setMessage(
-      request.status === "reschedule_required"
-        ? `Revised appointment sent for ${request.request_number}.`
-        : `Complete appointment saved for ${request.request_number}.`,
+      request.applicant_notified_at
+        ? `Appointment saved for ${request.request_number}. Click Send Revised Appointment to send it to the applicant.`
+        : `Appointment saved for ${request.request_number}. Click Save & Notify Applicant to send the appointment and fees.`,
     );
     let qualificationMessage = "";
 
@@ -3248,6 +3279,69 @@ export default function ExaminerRequestsPage() {
                   Math.abs(parsedFeeDraft - standardFee) > 0.004;
                 const savingAppointment =
                   savingAppointmentRequestId === request.id;
+                const appointmentSaved = Boolean(
+                  request.scheduled_start_at &&
+                    request.scheduled_end_at &&
+                    request.scheduled_location?.trim(),
+                );
+                const appointmentDraftUnsaved =
+                  appointmentSaved &&
+                  ((appointmentDrafts[request.id] ?? "") !==
+                    toDateTimeLocalValue(request.scheduled_start_at) ||
+                    (appointmentDurationDrafts[request.id] ?? "") !==
+                      String(
+                        minutesBetween(
+                          request.scheduled_start_at,
+                          request.scheduled_end_at,
+                        ) ?? "",
+                      ) ||
+                    (appointmentLocationDrafts[request.id] ?? "").trim() !==
+                      (request.scheduled_location ?? "").trim() ||
+                    (appointmentAirportDrafts[request.id]?.id ?? null) !==
+                      (request.flight_airport_id ?? null));
+                const notice = request.applicant_notice;
+                const appointmentChangedSinceNotice = Boolean(
+                  request.applicant_notified_at &&
+                    notice &&
+                    (!sameInstant(
+                      notice.scheduled_start_at,
+                      request.scheduled_start_at,
+                    ) ||
+                      !sameInstant(
+                        notice.scheduled_end_at,
+                        request.scheduled_end_at,
+                      ) ||
+                      (notice.scheduled_location ?? "") !==
+                        (request.scheduled_location ?? "") ||
+                      (notice.flight_airport_code ?? "") !==
+                        (request.flight_airport_code ?? "")),
+                );
+                const feesChangedSinceNotice = Boolean(
+                  request.applicant_notified_at &&
+                    notice &&
+                    (!sameMoney(notice.fee_amount, parsedFeeDraft) ||
+                      !sameMoney(
+                        notice.travel_fee_amount,
+                        parsedTravelFeeDraft,
+                      )),
+                );
+                const noticeKind: NoticeKind | null =
+                  !request.applicant_notified_at
+                    ? "initial"
+                    : appointmentChangedSinceNotice
+                      ? "revised_appointment"
+                      : feesChangedSinceNotice
+                        ? "revised_fees"
+                        : null;
+                const noticeButtonLabel =
+                  noticeKind === "initial"
+                    ? "Save & Notify Applicant"
+                    : noticeKind === "revised_appointment"
+                      ? "Send Revised Appointment"
+                      : notice?.fee_amount === null ||
+                          notice?.fee_amount === undefined
+                        ? "Send Fee Information"
+                        : "Send Revised Fee Information";
 
                 return (
                   <Fragment key={request.id}>
@@ -4760,8 +4854,8 @@ export default function ExaminerRequestsPage() {
                             <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
                               <span>
                                 {isRescheduleRequired
-                                  ? "Revised Appointment"
-                                  : "Appointment Scheduling"}
+                                  ? "Revised Appointment & Fees"
+                                  : "Appointment & Fees"}
                               </span>
                               <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
                                 ⌄
@@ -4778,8 +4872,8 @@ export default function ExaminerRequestsPage() {
                                     </h3>
                                     <p className="mt-1 text-sm text-slate-600">
                                       {isRescheduleRequired
-                                        ? "Update the appointment date, time, duration, and location, then send the revised appointment to the applicant."
-                                        : "Save the proposed appointment for applicant review. The appointment becomes confirmed only after the applicant accepts it."}
+                                        ? "Update the appointment date, time, duration, and location, save it, then send the revised appointment to the applicant."
+                                        : "Save Appointment only saves. Save & Notify Applicant emails the appointment and fees together; the appointment is confirmed once the applicant accepts both."}
                                     </p>
                                   </div>
 
@@ -5028,14 +5122,8 @@ export default function ExaminerRequestsPage() {
                                         className="rounded-lg border border-amber-700 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
                                       >
                                         {savingAppointment
-                                          ? request.status ===
-                                            "reschedule_required"
-                                            ? "Sending…"
-                                            : "Saving…"
-                                          : request.status ===
-                                              "reschedule_required"
-                                            ? "Send Revised Appointment"
-                                            : "Save Appointment"}
+                                          ? "Saving…"
+                                          : "Save Appointment"}
                                       </button>
                                     </div>
 
@@ -5116,32 +5204,17 @@ export default function ExaminerRequestsPage() {
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="bg-slate-50 px-6 py-5 text-sm text-slate-600">
-                                Appointment confirmation becomes available after
-                                this request is moved to Accepted.
-                              </div>
-                            )}
-                          </details>
 
-                          <details className="group border-t border-slate-200">
-                            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                              <span>Fees</span>
-                              <span className="text-lg text-slate-500 transition-transform group-open:rotate-180">
-                                ⌄
-                              </span>
-                            </summary>
-
-                            <div className="bg-slate-50 px-6 py-5">
-                              {showAppointmentRow ? (
-                                <div className="space-y-5">
-                                  <p className="text-sm leading-6 text-slate-600">
-                                    Finalizing fees emails the applicant and
-                                    requires their acceptance. Saving a revised
-                                    amount resets any previous fee acceptance.
+                                <div className="mt-6 border-t border-amber-200 pt-5">
+                                  <h4 className="font-bold text-slate-900">
+                                    Fees
+                                  </h4>
+                                  <p className="mt-1 text-sm text-slate-600">
+                                    Filled in from your standard fee. They are
+                                    sent to the applicant with the appointment.
                                   </p>
 
+                                  <div className="mt-4">
                                   <div className="grid gap-4 md:grid-cols-2">
                                     <div>
                                       <div className="mb-2 flex items-center justify-between gap-3">
@@ -5216,7 +5289,9 @@ export default function ExaminerRequestsPage() {
                                     </div>
                                   </div>
 
-                                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+                                  </div>
+
+                                  <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                         Grand Total
@@ -5235,35 +5310,67 @@ export default function ExaminerRequestsPage() {
                                         )}
                                       </p>
                                       <p className="mt-1 text-xs text-slate-500">
-                                        {request.fee_response_status ===
-                                        "accepted"
-                                          ? `Accepted${request.fee_responded_at ? ` ${formatDateTime(request.fee_responded_at)}` : ""}`
-                                          : request.fees_finalized_at
-                                            ? "Awaiting applicant acceptance"
-                                            : "Not yet finalized"}
+                                        {!request.applicant_notified_at
+                                          ? appointmentSaved
+                                            ? "Not sent to the applicant yet"
+                                            : "Save the appointment, then notify the applicant"
+                                          : noticeKind === "revised_appointment"
+                                            ? "The saved appointment differs from what the applicant was sent"
+                                            : noticeKind === "revised_fees"
+                                              ? "The fees differ from what the applicant was sent"
+                                              : `Applicant notified ${formatDateTime(request.applicant_notified_at)} · Appointment ${
+                                                  request.appointment_response_status ===
+                                                  "accepted"
+                                                    ? "accepted"
+                                                    : "awaiting acceptance"
+                                                } · Fees ${
+                                                  request.fee_response_status ===
+                                                  "accepted"
+                                                    ? "accepted"
+                                                    : "awaiting acceptance"
+                                                }`}
                                       </p>
+                                      {noticeKind && appointmentDraftUnsaved ? (
+                                        <p className="mt-1 text-xs font-semibold text-amber-800">
+                                          You have appointment changes that are
+                                          not saved. Click Save Appointment
+                                          first.
+                                        </p>
+                                      ) : null}
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        void saveFeeAmount(request)
-                                      }
-                                      disabled={Boolean(savingFeeRequestId)}
-                                      className="rounded-lg bg-amber-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      {savingFee
-                                        ? "Finalizing…"
-                                        : "Save & Notify Applicant"}
-                                    </button>
+
+                                    {noticeKind ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void sendApplicantNotice(
+                                            request,
+                                            noticeKind,
+                                          )
+                                        }
+                                        disabled={
+                                          Boolean(savingFeeRequestId) ||
+                                          !appointmentSaved ||
+                                          appointmentDraftUnsaved
+                                        }
+                                        className="rounded-lg bg-amber-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {savingFee ? "Sending…" : noticeButtonLabel}
+                                      </button>
+                                    ) : (
+                                      <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                        Applicant notified
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-                              ) : (
-                                <p className="text-sm text-slate-600">
-                                  Fees become available after this request is
-                                  moved to Accepted.
-                                </p>
-                              )}
-                            </div>
+                              </div>
+                            ) : (
+                              <div className="bg-slate-50 px-6 py-5 text-sm text-slate-600">
+                                Appointment confirmation becomes available after
+                                this request is moved to Accepted.
+                              </div>
+                            )}
                           </details>
 
                           {/* Kele, Oct 31 2026: only whether the applicant is qualified here; the full

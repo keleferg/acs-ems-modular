@@ -50,6 +50,7 @@ type RequestScheduledApplicantEmailInput = {
 };
 
 type FeesFinalizedApplicantEmailInput = {
+  examinerName?: string | null;
   applicantName: string;
   requestNumber: string;
   certificateSought: string;
@@ -61,6 +62,7 @@ type FeesFinalizedApplicantEmailInput = {
 
 type RequestAcceptedApplicantEmailInput = {
   applicantName: string;
+  examinerName?: string | null;
   requestNumber: string;
   certificateSought: string;
   ratingSought: string;
@@ -106,6 +108,12 @@ function escapeHtml(value: string) {
 /** Requested dates as MM/dd/yyyy (Kele, Oct 31 2026): "2026-11-20, 2026-11-21" → "11/20/2026, 11/21/2026". */
 function formatRequestedDates(value: string) {
   return value.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, "$2/$3/$1");
+}
+
+/** "Your examiner, Kele Fergerstrom," — or just "Your examiner" when no name is known. */
+function yourExaminer(name: string | null | undefined) {
+  const cleaned = name?.trim();
+  return cleaned ? `Your examiner, ${cleaned},` : "Your examiner";
 }
 
 function firstName(value: string) {
@@ -723,7 +731,7 @@ export function buildRequestAcceptedApplicantEmail(
                   font-size:14px;
                   line-height:1.6;
                 ">
-                  Your examiner will finalize the appointment date,
+                  ${escapeHtml(yourExaminer(input.examinerName))} will finalize the appointment date,
                   time, location, and fee. Once the appointment is
                   scheduled, you will receive another notification
                   and will be asked to accept the appointment.
@@ -765,11 +773,11 @@ export function buildRequestAcceptedApplicantEmail(
     `Certificate: ${input.certificateSought}`,
     `Rating: ${input.ratingSought}`,
     "",
-    "Your examiner will finalize the appointment date, time, location, and fee.",
+    `${yourExaminer(input.examinerName)} will finalize the appointment date, time, location, and fee.`,
     "Once the appointment is scheduled, you will receive another notification and will be asked to accept the appointment.",
     "",
     `View your request: ${input.portalUrl}`,
-  ].join("\\n");
+  ].join("\n");
 
   return {
     subject,
@@ -832,7 +840,7 @@ export function buildFeesFinalizedApplicantEmail(
           </td></tr>
           <tr><td style="padding:28px;">
             <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
-            <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;">Your examiner has finalized the fees for your practical test. Review the breakdown below and accept the fees in your applicant portal to finalize your appointment.</p>
+            <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(yourExaminer(input.examinerName))} has finalized the fees for your practical test. Review the breakdown below and accept the fees in your applicant portal to finalize your appointment.</p>
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
               <tr><td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;width:160px;">Request Number</td><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;font-weight:700;">${escapeHtml(input.requestNumber)}</td></tr>
               <tr><td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#475569;">Practical Test</td><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;">${escapeHtml(input.certificateSought)} — ${escapeHtml(input.ratingSought)}</td></tr>
@@ -851,7 +859,7 @@ export function buildFeesFinalizedApplicantEmail(
   const text = [
     `Aloha ${applicantFirstName},`,
     "",
-    "Your examiner has finalized the fees for your practical test.",
+    `${yourExaminer(input.examinerName)} has finalized the fees for your practical test.`,
     `Request Number: ${input.requestNumber}`,
     `Practical Test: ${input.certificateSought} — ${input.ratingSought}`,
     `Test Fee: ${testFee}`,
@@ -1965,7 +1973,7 @@ export function buildAppointmentRescheduleRequestedExaminerEmail(
     input.rescheduleReason,
     "",
     `Review the request: ${input.examinerPortalUrl}`,
-  ].join("\\n");
+  ].join("\n");
 
   return {
     subject,
@@ -2672,6 +2680,349 @@ export function buildOpenAssignmentAlertEmail(input: OpenAssignmentAlertEmailInp
     `View Open Assignments: ${input.openAssignmentsUrl}`,
     "",
     `You get these because of your areas in Settings → Locations. Change them or turn off these emails: ${input.locationsUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Combined appointment + fees email, and the revised-fees email (Kele, Nov 2 2026).
+// "Save & Notify Applicant" sends one email with the appointment and the fees; if the examiner
+// later changes the fees, "Send Revised Fee Information" sends only the revised fees.
+
+type AppointmentAndFeesApplicantEmailInput = {
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
+  scheduledLocation: string;
+  flightLocation: string | null;
+  examinerName: string | null;
+  testFee: number;
+  travelFee: number;
+  portalUrl: string;
+};
+
+type RevisedFeesApplicantEmailInput = {
+  applicantName: string;
+  examinerName: string | null;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
+  previousTestFee: number | null;
+  previousTravelFee: number | null;
+  testFee: number;
+  travelFee: number;
+  portalUrl: string;
+};
+
+type AppointmentDetails = {
+  scheduledStartAt: string;
+  scheduledEndAt: string;
+  scheduledLocation: string;
+  flightLocation: string | null;
+};
+
+type RevisedAppointmentApplicantEmailInput = {
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  examinerName: string | null;
+  previous: AppointmentDetails;
+  revised: AppointmentDetails;
+  testFee: number | null;
+  travelFee: number | null;
+  portalUrl: string;
+};
+
+function emailShell(title: string, body: string) {
+  return `
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f8fafc;padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+          <tr><td style="background:#0f172a;padding:24px 28px;color:#ffffff;">
+            <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fbbf24;">Aviation Training Solutions</div>
+            <div style="margin-top:7px;font-size:24px;line-height:1.25;font-weight:700;">${escapeHtml(title)}</div>
+          </td></tr>
+          <tr><td style="padding:28px;">${body}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`.trim();
+}
+
+function emailSectionHeading(text: string) {
+  return `<div style="margin:26px 0 10px;font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#b45309;">${escapeHtml(text)}</div>`;
+}
+
+function emailRow(label: string, value: string, options: { last?: boolean; strong?: boolean } = {}) {
+  const border = options.last ? "" : "border-bottom:1px solid #e2e8f0;";
+  return `<tr><td style="padding:12px 16px;background:#f8fafc;${border}font-size:13px;font-weight:700;color:#475569;width:160px;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:12px 16px;${border}font-size:14px;${options.strong ? "font-weight:700;" : ""}">${escapeHtml(value)}</td></tr>`;
+}
+
+function emailTotalRow(label: string, value: string) {
+  return `<tr><td style="padding:14px 16px;background:#fffbeb;font-size:14px;font-weight:700;color:#78350f;">${escapeHtml(label)}</td><td style="padding:14px 16px;background:#fffbeb;font-size:17px;font-weight:700;color:#78350f;">${escapeHtml(value)}</td></tr>`;
+}
+
+function emailTable(rows: string) {
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">${rows}</table>`;
+}
+
+function emailButton(href: string, label: string) {
+  return `<div style="margin-top:26px;"><a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 18px;background:#d97706;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${escapeHtml(label)}</a></div>`;
+}
+
+function emailNote(html: string) {
+  return `<div style="margin-top:22px;padding:16px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:14px;line-height:1.6;">${html}</div>`;
+}
+
+export function buildAppointmentAndFeesApplicantEmail(
+  input: AppointmentAndFeesApplicantEmailInput,
+) {
+  const applicantFirstName = firstName(input.applicantName);
+  const date = formatScheduledAppointmentDate(input.scheduledStartAt);
+  const time = `${formatScheduledAppointmentTime(input.scheduledStartAt)} – ${formatScheduledAppointmentTime(input.scheduledEndAt)}`;
+  const testFee = formatScheduledAppointmentFee(input.testFee);
+  const travelFee = formatScheduledAppointmentFee(input.travelFee);
+  const total = formatScheduledAppointmentFee(input.testFee + input.travelFee);
+  const practicalTest = `${input.certificateSought} — ${input.ratingSought}`;
+  const subject = `Practical Test Scheduled — ${input.requestNumber}`;
+
+  const appointmentRows = [
+    emailRow("Request Number", input.requestNumber, { strong: true }),
+    emailRow("Practical Test", practicalTest),
+    emailRow("Date", date),
+    emailRow("Time", time),
+    emailRow("Oral Test Location", input.scheduledLocation, {
+      last: !input.flightLocation && !input.examinerName,
+    }),
+    input.flightLocation
+      ? emailRow("Flight Location", input.flightLocation, { last: !input.examinerName })
+      : "",
+    input.examinerName ? emailRow("Examiner", input.examinerName, { last: true }) : "",
+  ].join("");
+
+  const feeRows = [
+    emailRow("Test Fee", testFee),
+    emailRow("Travel Fee", travelFee),
+    emailTotalRow("Grand Total", total),
+  ].join("");
+
+  const html = emailShell(
+    "Your Practical Test Is Scheduled",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+      <p style="margin:0;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(yourExaminer(input.examinerName))} has scheduled your practical test. Please review the appointment and the fees below.</p>
+      ${emailSectionHeading("Appointment")}
+      ${emailTable(appointmentRows)}
+      ${emailSectionHeading("Fees")}
+      ${emailTable(feeRows)}
+      ${emailNote("Sign in to your applicant portal to <strong>accept the appointment</strong> and <strong>accept the fees</strong>. Your appointment is confirmed once both are accepted. If the date or time does not work for you, you can request a different time there.")}
+      ${emailButton(input.portalUrl, "Review and Accept")}
+    `,
+  );
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    `${yourExaminer(input.examinerName)} has scheduled your practical test. Please review the appointment and the fees below.`,
+    "",
+    "APPOINTMENT",
+    `Request Number: ${input.requestNumber}`,
+    `Practical Test: ${practicalTest}`,
+    `Date: ${date}`,
+    `Time: ${time}`,
+    `Oral Test Location: ${input.scheduledLocation}`,
+    ...(input.flightLocation ? [`Flight Location: ${input.flightLocation}`] : []),
+    ...(input.examinerName ? [`Examiner: ${input.examinerName}`] : []),
+    "",
+    "FEES",
+    `Test Fee: ${testFee}`,
+    `Travel Fee: ${travelFee}`,
+    `Grand Total: ${total}`,
+    "",
+    "Sign in to your applicant portal to accept the appointment and accept the fees. Your appointment is confirmed once both are accepted. If the date or time does not work for you, you can request a different time there.",
+    "",
+    `Review and accept: ${input.portalUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+export function buildRevisedFeesApplicantEmail(input: RevisedFeesApplicantEmailInput) {
+  const applicantFirstName = firstName(input.applicantName);
+  const testFee = formatScheduledAppointmentFee(input.testFee);
+  const travelFee = formatScheduledAppointmentFee(input.travelFee);
+  const total = formatScheduledAppointmentFee(input.testFee + input.travelFee);
+  const previousTotal =
+    input.previousTestFee === null
+      ? null
+      : formatScheduledAppointmentFee(
+          input.previousTestFee + Number(input.previousTravelFee ?? 0),
+        );
+  const subject = `Revised Practical Test Fees — ${input.requestNumber}`;
+  const date = formatScheduledAppointmentDate(input.scheduledStartAt);
+  const time = `${formatScheduledAppointmentTime(input.scheduledStartAt)} – ${formatScheduledAppointmentTime(input.scheduledEndAt)}`;
+
+  const rows = [
+    emailRow("Request Number", input.requestNumber, { strong: true }),
+    emailRow("Practical Test", `${input.certificateSought} — ${input.ratingSought}`),
+    emailRow("Appointment Date", date),
+    emailRow("Appointment Time", time),
+    emailRow("Test Fee", testFee),
+    emailRow("Travel Fee", travelFee),
+    previousTotal ? emailRow("Previous Total", previousTotal) : "",
+    emailTotalRow("Revised Grand Total", total),
+  ].join("");
+
+  const html = emailShell(
+    "Revised Practical Test Fees",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+      <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(yourExaminer(input.examinerName))} has revised the fees for your practical test. Your appointment has not changed.</p>
+      ${emailTable(rows)}
+      ${emailNote("Please sign in to your applicant portal to <strong>accept the revised fees</strong>.")}
+      ${emailButton(input.portalUrl, "Review and Accept Fees")}
+    `,
+  );
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    `${yourExaminer(input.examinerName)} has revised the fees for your practical test. Your appointment has not changed.`,
+    "",
+    `Request Number: ${input.requestNumber}`,
+    `Practical Test: ${input.certificateSought} — ${input.ratingSought}`,
+    `Appointment Date: ${date}`,
+    `Appointment Time: ${time}`,
+    `Test Fee: ${testFee}`,
+    `Travel Fee: ${travelFee}`,
+    ...(previousTotal ? [`Previous Total: ${previousTotal}`] : []),
+    `Revised Grand Total: ${total}`,
+    "",
+    "Please sign in to your applicant portal to accept the revised fees.",
+    "",
+    `Review and accept fees: ${input.portalUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+function appointmentRows(details: AppointmentDetails) {
+  const date = formatScheduledAppointmentDate(details.scheduledStartAt);
+  const time = `${formatScheduledAppointmentTime(details.scheduledStartAt)} – ${formatScheduledAppointmentTime(details.scheduledEndAt)}`;
+  const rows: { label: string; value: string }[] = [
+    { label: "Date", value: date },
+    { label: "Time", value: time },
+    { label: "Oral Test Location", value: details.scheduledLocation },
+  ];
+  if (details.flightLocation) {
+    rows.push({ label: "Flight Location", value: details.flightLocation });
+  }
+  return rows;
+}
+
+function changedValue(value: string, previous: string | undefined) {
+  return previous !== undefined && previous !== value;
+}
+
+export function buildRevisedAppointmentApplicantEmail(
+  input: RevisedAppointmentApplicantEmailInput,
+) {
+  const applicantFirstName = firstName(input.applicantName);
+  const practicalTest = `${input.certificateSought} — ${input.ratingSought}`;
+  const subject = `Revised Practical Test Appointment — ${input.requestNumber}`;
+
+  const previousRows = appointmentRows(input.previous);
+  const revisedRows = appointmentRows(input.revised);
+  const previousByLabel = new Map(previousRows.map((row) => [row.label, row.value]));
+
+  const previousTable = emailTable(
+    previousRows
+      .map((row, index) =>
+        `<tr><td style="padding:12px 16px;background:#f8fafc;${index === previousRows.length - 1 ? "" : "border-bottom:1px solid #e2e8f0;"}font-size:13px;font-weight:700;color:#94a3b8;width:160px;vertical-align:top;">${escapeHtml(row.label)}</td><td style="padding:12px 16px;${index === previousRows.length - 1 ? "" : "border-bottom:1px solid #e2e8f0;"}font-size:14px;color:#94a3b8;text-decoration:line-through;">${escapeHtml(row.value)}</td></tr>`,
+      )
+      .join(""),
+  );
+
+  const revisedTable = emailTable(
+    [
+      emailRow("Request Number", input.requestNumber, { strong: true }),
+      emailRow("Practical Test", practicalTest),
+      ...revisedRows.map((row, index) => {
+        const last = index === revisedRows.length - 1 && !input.examinerName;
+        const border = last ? "" : "border-bottom:1px solid #e2e8f0;";
+        const isChanged = changedValue(row.value, previousByLabel.get(row.label));
+        return `<tr><td style="padding:12px 16px;background:#f8fafc;${border}font-size:13px;font-weight:700;color:#475569;width:160px;vertical-align:top;">${escapeHtml(row.label)}</td><td style="padding:12px 16px;${border}font-size:14px;${isChanged ? "font-weight:700;color:#b45309;" : ""}">${escapeHtml(row.value)}${isChanged ? ' <span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;">CHANGED</span>' : ""}</td></tr>`;
+      }),
+      input.examinerName ? emailRow("Examiner", input.examinerName, { last: true }) : "",
+    ].join(""),
+  );
+
+  const hasFees = input.testFee !== null;
+  const testFee = formatScheduledAppointmentFee(input.testFee);
+  const travelFee = formatScheduledAppointmentFee(input.travelFee ?? 0);
+  const total = formatScheduledAppointmentFee(
+    hasFees ? Number(input.testFee) + Number(input.travelFee ?? 0) : null,
+  );
+
+  const html = emailShell(
+    "Revised Practical Test Appointment",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+      <p style="margin:0;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(yourExaminer(input.examinerName))} has revised your practical test appointment. Please review the new appointment below.</p>
+      ${emailSectionHeading("New Appointment")}
+      ${revisedTable}
+      ${emailSectionHeading("Previous Appointment")}
+      ${previousTable}
+      ${
+        hasFees
+          ? `${emailSectionHeading("Fees")}${emailTable(
+              [
+                emailRow("Test Fee", testFee),
+                emailRow("Travel Fee", travelFee),
+                emailTotalRow("Grand Total", total),
+              ].join(""),
+            )}`
+          : ""
+      }
+      ${emailNote("Sign in to your applicant portal to <strong>accept the new appointment</strong>. If the new date or time does not work for you, you can request a different time there.")}
+      ${emailButton(input.portalUrl, "Review and Accept")}
+    `,
+  );
+
+  const line = (rows: { label: string; value: string }[]) =>
+    rows.map((row) => `${row.label}: ${row.value}`);
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    `${yourExaminer(input.examinerName)} has revised your practical test appointment. Please review the new appointment below.`,
+    "",
+    "NEW APPOINTMENT",
+    `Request Number: ${input.requestNumber}`,
+    `Practical Test: ${practicalTest}`,
+    ...line(revisedRows),
+    ...(input.examinerName ? [`Examiner: ${input.examinerName}`] : []),
+    "",
+    "PREVIOUS APPOINTMENT (no longer valid)",
+    ...line(previousRows),
+    ...(hasFees
+      ? ["", "FEES", `Test Fee: ${testFee}`, `Travel Fee: ${travelFee}`, `Grand Total: ${total}`]
+      : []),
+    "",
+    "Sign in to your applicant portal to accept the new appointment. If the new date or time does not work for you, you can request a different time there.",
+    "",
+    `Review and accept: ${input.portalUrl}`,
   ].join("\n");
 
   return { subject, html, text };

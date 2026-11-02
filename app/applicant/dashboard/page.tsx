@@ -91,6 +91,22 @@ const QUALIFICATION_ACTION_STATUSES: Record<string, string> = {
     "Your examiner found items in your pretest qualification that need attention.",
 };
 
+/**
+ * An appointment the examiner saved but has not sent yet (request still accepted or scheduling)
+ * is not shown to the applicant (Kele, Nov 2 2026). It appears once the examiner notifies them.
+ */
+function hideUnsentAppointment(request: ApplicantRequest): ApplicantRequest {
+  if (request.status !== "accepted" && request.status !== "scheduling") {
+    return request;
+  }
+  return {
+    ...request,
+    scheduled_start_at: null,
+    scheduled_end_at: null,
+    scheduled_location: null,
+  };
+}
+
 const closedStatuses = new Set([
   "completed",
   "declined",
@@ -443,7 +459,9 @@ export default function ApplicantDashboardPage() {
       );
       setRequests([]);
     } else {
-      const loaded = (data ?? []) as ApplicantRequest[];
+      const loaded = ((data ?? []) as ApplicantRequest[]).map(
+        hideUnsentAppointment,
+      );
       setRequests(loaded);
 
       const openIds = loaded
