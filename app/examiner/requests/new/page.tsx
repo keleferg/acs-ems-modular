@@ -432,6 +432,7 @@ export default function ExaminerCreateRequestPage() {
                 <FlightSchoolSelector
                   includePart142={
                     test.certificateSought === "Aircraft Type Rating" ||
+                    test.certificateSought === "Pilot Proficiency Check (61.58)" ||
                     test.certificateSought === "Airline Transport Pilot" ||
                     test.certificateType === "Flight Engineer"
                   }
@@ -452,7 +453,7 @@ export default function ExaminerCreateRequestPage() {
                   }}
                 />
                 <p className="mt-2 text-xs text-slate-500">
-                  Search FAA Part 141 pilot schools (and Part 142 training centers for type rating, ATP and flight engineer tests) by name, city, or certificate number, or add one that isn’t listed.
+                  Search FAA Part 141 pilot schools (and Part 142 training centers for type rating, ATP, 61.58 PPC and flight engineer tests) by name, city, or certificate number, or add one that isn’t listed.
                 </p>
               </div>
             ) : null}

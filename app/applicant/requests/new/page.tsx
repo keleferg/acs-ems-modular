@@ -715,9 +715,10 @@ export default function NewRequestPage() {
     formData.certificateSought === "Pilot Proficiency Check (61.58)" ||
     formData.certificateSought === "Flight Engineer Proficiency Check (91.529)";
 
-  // Part 142 training centers are offered for type rating, ATP and flight engineer tests.
+  // Part 142 training centers are offered for type rating, ATP, 61.58 PPC and flight engineer tests.
   const includePart142 =
     formData.certificateSought === "Aircraft Type Rating" ||
+    formData.certificateSought === "Pilot Proficiency Check (61.58)" ||
     formData.certificateSought === "Airline Transport Pilot" ||
     formData.certificateType === "Flight Engineer";
 
