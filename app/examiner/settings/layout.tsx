@@ -30,6 +30,11 @@ const settingsLinks = [
     description: "Authorized aircraft type ratings",
   },
   {
+    href: "/examiner/settings/experimental-aircraft",
+    label: "Authorized Experimental Aircraft",
+    description: "FAA experimental aircraft designations",
+  },
+  {
     href: "/examiner/settings/qualification",
     label: "Pretest Qualification",
     description: "Reading uploaded pictures automatically",
