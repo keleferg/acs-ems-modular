@@ -221,7 +221,7 @@ export default async (request: Request) => {
 
     const description = isRemain
       ? `Your request will remain active and the
-           15-day follow-up clock will restart today.`
+           14-day follow-up clock will restart today.`
       : `Your request will be changed to
            Cancelled by Applicant.`;
 
@@ -343,7 +343,7 @@ export default async (request: Request) => {
 
         <p style="line-height:1.7;color:#334155;">
           We will continue working to find an
-          appointment, and the 15-day follow-up clock
+          appointment, and the 14-day follow-up clock
           has been restarted.
         </p>
       `,

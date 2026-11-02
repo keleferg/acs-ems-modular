@@ -1992,6 +1992,10 @@ export type RequestFollowupApplicantEmailInput = {
   submittedDateText: string;
   remainActiveUrl: string;
   cancelRequestUrl: string;
+  /** 1 = first follow-up (14 days), 2 = second notice (3 days later). */
+  noticeNumber?: 1 | 2;
+  /** Date the applicant should answer by, e.g. "Thursday, November 5, 2026". */
+  respondByText?: string;
 };
 
 export function buildRequestFollowupApplicantEmail(
@@ -1999,7 +2003,18 @@ export function buildRequestFollowupApplicantEmail(
 ) {
   const applicantFirstName = firstName(input.applicantName);
 
-  const subject = `Action Requested — Practical Test Request ${input.requestNumber}`;
+  const secondNotice = input.noticeNumber === 2;
+  const subject = secondNotice
+    ? `Second Notice: Action Requested — Practical Test Request ${input.requestNumber}`
+    : `Action Requested — Practical Test Request ${input.requestNumber}`;
+  const introText = secondNotice
+    ? "We have not heard back from you about the practical test request below. We have not yet been able to find an appointment time for it."
+    : "Your practical test request below is still waiting for an appointment. We have not yet been able to find an appointment time for it.";
+  const deadlineText = input.respondByText
+    ? secondNotice
+      ? `Please respond by ${input.respondByText}. If we do not hear from you by then, your request will be cancelled automatically.`
+      : `Please respond by ${input.respondByText}. If we do not hear from you, we will send one more reminder, and the request will be cancelled 3 days after that.`
+    : null;
 
   const html = `
 <!doctype html>
@@ -2057,7 +2072,7 @@ export function buildRequestFollowupApplicantEmail(
                   line-height:1.25;
                   font-weight:700;
                 ">
-                  Practical Test Request Follow-Up
+                  ${secondNotice ? "Second Notice: Practical Test Request Follow-Up" : "Practical Test Request Follow-Up"}
                 </div>
               </td>
             </tr>
@@ -2078,9 +2093,7 @@ export function buildRequestFollowupApplicantEmail(
                   line-height:1.7;
                   color:#334155;
                 ">
-                  You submitted the practical test request below
-                  approximately 15 days ago. We have not yet been
-                  able to find an appointment time for your request.
+                  ${escapeHtml(introText)}
                 </p>
 
                 <p style="
@@ -2222,11 +2235,15 @@ export function buildRequestFollowupApplicantEmail(
                   <strong>Action Requested</strong><br><br>
                   If you still need the practical test, select
                   <strong>Remain Active</strong>. Your request will
-                  stay in the queue and the 15-day follow-up period
+                  stay in the queue and the 14-day follow-up period
                   will restart.<br><br>
 
                   If you no longer need the request, select
-                  <strong>Cancel Request</strong>.
+                  <strong>Cancel Request</strong>.${
+                    deadlineText
+                      ? `<br><br><strong>${escapeHtml(deadlineText)}</strong>`
+                      : ""
+                  }
                 </div>
 
                 <table
@@ -2299,8 +2316,7 @@ export function buildRequestFollowupApplicantEmail(
   const text = [
     `Aloha ${applicantFirstName},`,
     "",
-    "You submitted the practical test request below approximately 15 days ago.",
-    "We have not yet been able to find an appointment time.",
+    introText,
     "",
     `Request Number: ${input.requestNumber}`,
     `Practical Test: ${input.certificateSought} — ${input.ratingSought}`,
@@ -2309,6 +2325,7 @@ export function buildRequestFollowupApplicantEmail(
     `Submitted: ${input.submittedDateText}`,
     "",
     "Please tell us whether you would like your request to remain active or be cancelled.",
+    ...(deadlineText ? ["", deadlineText] : []),
     "",
     `Remain Active: ${input.remainActiveUrl}`,
     `Cancel Request: ${input.cancelRequestUrl}`,
@@ -3023,6 +3040,59 @@ export function buildRevisedAppointmentApplicantEmail(
     "Sign in to your applicant portal to accept the new appointment. If the new date or time does not work for you, you can request a different time there.",
     "",
     `Review and accept: ${input.portalUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// Sent when a request is cancelled automatically after two unanswered follow-ups (Kele, Nov 2 2026).
+type RequestAutoCancelledApplicantEmailInput = {
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  submittedDateText: string;
+  newRequestUrl: string;
+};
+
+export function buildRequestAutoCancelledApplicantEmail(
+  input: RequestAutoCancelledApplicantEmailInput,
+) {
+  const applicantFirstName = firstName(input.applicantName);
+  const subject = `Practical Test Request Cancelled — ${input.requestNumber}`;
+  const practicalTest = `${input.certificateSought} — ${input.ratingSought}`;
+
+  const html = emailShell(
+    "Practical Test Request Cancelled",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+      <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;">Your practical test request below has been cancelled because we have not heard from you. We sent two follow-up emails asking whether you would like to keep the request active and did not receive a response.</p>
+      ${emailTable(
+        [
+          emailRow("Request Number", input.requestNumber, { strong: true }),
+          emailRow("Practical Test", practicalTest),
+          emailRow("Submitted", input.submittedDateText),
+          emailRow("Status", "Cancelled — no response", { last: true }),
+        ].join(""),
+      )}
+      ${emailNote("If you would still like a practical test appointment, please <strong>submit a new request</strong>.")}
+      ${emailButton(input.newRequestUrl, "Submit a New Request")}
+    `,
+  );
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    "Your practical test request below has been cancelled because we have not heard from you. We sent two follow-up emails asking whether you would like to keep the request active and did not receive a response.",
+    "",
+    `Request Number: ${input.requestNumber}`,
+    `Practical Test: ${practicalTest}`,
+    `Submitted: ${input.submittedDateText}`,
+    "Status: Cancelled — no response",
+    "",
+    "If you would still like a practical test appointment, please submit a new request.",
+    "",
+    `Submit a new request: ${input.newRequestUrl}`,
   ].join("\n");
 
   return { subject, html, text };

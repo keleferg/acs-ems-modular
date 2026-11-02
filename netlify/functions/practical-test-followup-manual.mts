@@ -190,7 +190,7 @@ export default async (request: Request) => {
      * A manual send starts a fresh follow-up cycle.
      *
      * Updating the anchor before transmission also prevents the
-     * scheduled 15-day job from sending another email while this
+     * scheduled 14-day job from sending another email while this
      * manual email is being processed.
      */
     const { error: anchorError } = await supabase
@@ -224,6 +224,9 @@ export default async (request: Request) => {
         practical_test_request_id: practicalRequest.id,
 
         cycle_anchor_at: cycleAnchor,
+        // attempt 0 = manual status email. It does not count as the first automatic follow-up,
+        // so the 14-day first notice, second notice and cancellation still follow normally.
+        attempt: 0,
         token_hash: tokenHash,
         token_expires_at: expiresAt,
 
@@ -300,15 +303,13 @@ export default async (request: Request) => {
       cancelRequestUrl: `${commonUrl}&action=cancel_request`,
     });
 
-    const manualEmailHtml = email.html.replace(
-      /You submitted the practical test request below\s+approximately 15 days ago\.\s+We have not yet been\s+able to find an appointment time for your request\./,
-      `You submitted the practical test request below recently. We have not yet been able to find an appointment time for your request, but we are working on finding you an appointment time as soon as we can.`,
-    );
+    const automaticIntro =
+      "Your practical test request below is still waiting for an appointment. We have not yet been able to find an appointment time for it.";
+    const manualIntro =
+      "You submitted the practical test request below recently. We have not yet been able to find an appointment time for your request, but we are working on finding you an appointment time as soon as we can.";
 
-    const manualEmailText = email.text.replace(
-      /You submitted the practical test request below approximately 15 days ago\.\nWe have not yet been able to find an appointment time\./,
-      `You submitted the practical test request below recently. We have not yet been able to find an appointment time for your request, but we are working on finding you an appointment time as soon as we can.`,
-    );
+    const manualEmailHtml = email.html.replace(automaticIntro, manualIntro);
+    const manualEmailText = email.text.replace(automaticIntro, manualIntro);
 
     const { data: resendData, error: resendError } = await resend.emails.send({
       from: fromEmail,
@@ -372,6 +373,23 @@ export default async (request: Request) => {
       console.error(
         `Could not record status-update email history for ${practicalRequest.request_number}:`,
         historyError,
+      );
+    }
+
+    const { error: requestHistoryError } = await supabase
+      .from("practical_test_request_history")
+      .insert({
+        practical_test_request_id: practicalRequest.id,
+        entry_text: `Request status email sent to ${emailAddress} asking the applicant to keep the request active or cancel it.`,
+        entry_type: "email",
+        created_by_profile_id: user.id,
+        created_by_label: "Examiner",
+      });
+
+    if (requestHistoryError) {
+      console.error(
+        `Could not write request history for ${practicalRequest.request_number}:`,
+        requestHistoryError,
       );
     }
 
