@@ -68,6 +68,10 @@ type FormData = {
   aircraftIsTaa: boolean;
 
   instructorName: string;
+  /** Picked from the instructor directory (Kele, Nov 2 2026); contact details are filled in by the database. */
+  instructorProfileId: string;
+  instructorMaskedEmail: string;
+  instructorMaskedPhone: string;
   instructorPhone: string;
   instructorEmail: string;
   instructorCertificateNumber: string;
@@ -136,6 +140,9 @@ const initialFormData: FormData = {
   aircraftIsTaa: false,
 
   instructorName: "",
+  instructorProfileId: "",
+  instructorMaskedEmail: "",
+  instructorMaskedPhone: "",
   instructorPhone: "",
   instructorEmail: "",
   instructorCertificateNumber: "",
@@ -167,6 +174,17 @@ function formatCurrency(value: number) {
     currency: "USD",
   }).format(value);
 }
+
+// Recommending instructor search (Kele, Nov 2 2026): contact details come back masked.
+type InstructorMatch = {
+  instructor_profile_id: string;
+  full_name: string;
+  masked_email: string | null;
+  masked_phone: string | null;
+  has_certificate_number: boolean;
+  flight_schools: string | null;
+  used_before: boolean;
+};
 
 function FieldLabel({
   children,
@@ -262,6 +280,8 @@ type AvailabilitySlot = {
 export default function NewRequestPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [instructorMatches, setInstructorMatches] = useState<InstructorMatch[]>([]);
+  const [instructorSearchOpen, setInstructorSearchOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [loaded, setLoaded] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -405,6 +425,30 @@ export default function NewRequestPage() {
     formData.examinerProfileId,
     formData.practicalTestTypeId,
   ]);
+
+  // Search the instructor directory as the name is typed (3+ characters).
+  useEffect(() => {
+    const term = formData.instructorName.trim();
+    if (currentStep !== 3 || formData.instructorProfileId || term.length < 3) {
+      setInstructorMatches([]);
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      const { data, error } = await createClient().rpc("applicant_search_instructors", { p_search: term });
+      if (cancelled) return;
+      if (error) {
+        console.error("Instructor search failed:", error);
+        setInstructorMatches([]);
+        return;
+      }
+      setInstructorMatches((data ?? []) as InstructorMatch[]);
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [currentStep, formData.instructorName, formData.instructorProfileId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -737,8 +781,9 @@ export default function NewRequestPage() {
 
       return Boolean(
         formData.instructorName.trim() &&
-        formData.instructorPhone.trim() &&
-        formData.instructorEmail.trim() &&
+        (formData.instructorProfileId
+          ? Boolean(formData.instructorMaskedPhone || formData.instructorPhone.trim())
+          : formData.instructorPhone.trim() && formData.instructorEmail.trim()) &&
         formData.instructorAssociatedWithSchool,
       );
     }
@@ -1005,6 +1050,10 @@ export default function NewRequestPage() {
           aircraft_notes: formData.aircraftNotes.trim() || null,
           aircraft_is_taa: isPpcRequest ? false : formData.aircraftIsTaa,
 
+          instructor_profile_id:
+            isPpcRequest && formData.isRetest === "No"
+              ? null
+              : formData.instructorProfileId || null,
           instructor_name:
             isPpcRequest && formData.isRetest === "No"
               ? null
@@ -1791,43 +1840,156 @@ export default function NewRequestPage() {
               </p>
 
               <div className="mt-7 grid gap-6 sm:grid-cols-2">
-                <div className="sm:col-span-2">
+                <div className="relative sm:col-span-2">
                   <FieldLabel required>Instructor&apos;s full name</FieldLabel>
 
                   <TextInput
                     value={formData.instructorName}
-                    onChange={(value) => updateField("instructorName", value)}
+                    onChange={(value) => {
+                      setFormData((current) => ({
+                        ...current,
+                        instructorName: value,
+                        ...(current.instructorProfileId
+                          ? {
+                              instructorProfileId: "",
+                              instructorMaskedEmail: "",
+                              instructorMaskedPhone: "",
+                              instructorEmail: "",
+                              instructorPhone: "",
+                              instructorCertificateNumber: "",
+                            }
+                          : {}),
+                      }));
+                      setInstructorSearchOpen(true);
+                    }}
+                    placeholder="Start typing your instructor's name"
                   />
+
+                  {formData.instructorProfileId ? (
+                    <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">
+                        Instructor found in the system
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((current) => ({
+                            ...current,
+                            instructorProfileId: "",
+                            instructorMaskedEmail: "",
+                            instructorMaskedPhone: "",
+                            instructorName: "",
+                            instructorEmail: "",
+                            instructorPhone: "",
+                            instructorCertificateNumber: "",
+                          }))
+                        }
+                        className="font-semibold text-sky-700 hover:text-sky-900"
+                      >
+                        Change
+                      </button>
+                    </p>
+                  ) : instructorSearchOpen && instructorMatches.length > 0 ? (
+                    <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                      <p className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Instructors in the system — pick yours, or keep typing to enter a new one
+                      </p>
+                      {instructorMatches.map((match) => (
+                        <button
+                          key={match.instructor_profile_id}
+                          type="button"
+                          onClick={() => {
+                            setFormData((current) => ({
+                              ...current,
+                              instructorProfileId: match.instructor_profile_id,
+                              instructorName: match.full_name,
+                              instructorMaskedEmail: match.masked_email ?? "",
+                              instructorMaskedPhone: match.masked_phone ?? "",
+                              instructorEmail: "",
+                              instructorPhone: "",
+                              instructorCertificateNumber: "",
+                            }));
+                            setInstructorSearchOpen(false);
+                          }}
+                          className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-sky-50"
+                        >
+                          <span className="block font-semibold text-slate-900">
+                            {match.full_name}
+                            {match.used_before ? (
+                              <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                                Used before
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-slate-500">
+                            {[match.masked_email, match.masked_phone, match.flight_schools].filter(Boolean).join(" · ")}
+                          </span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setInstructorSearchOpen(false)}
+                        className="block w-full bg-slate-50 px-4 py-2.5 text-left text-sm font-semibold text-sky-700 hover:bg-sky-50"
+                      >
+                        My instructor isn&apos;t listed — I&apos;ll type the details
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
 
-                <div>
-                  <FieldLabel required>
-                    Instructor&apos;s phone number
-                  </FieldLabel>
+                {formData.instructorProfileId ? (
+                  <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    {!formData.instructorMaskedPhone ? (
+                      <div className="mb-3">
+                        <FieldLabel required>Instructor&apos;s phone number</FieldLabel>
+                        <TextInput
+                          value={formData.instructorPhone}
+                          onChange={(value) => updateField("instructorPhone", value)}
+                          type="tel"
+                        />
+                      </div>
+                    ) : null}
+                    <p>
+                      {formData.instructorMaskedPhone ? "Phone and email are" : "Email is"} on file
+                      {formData.instructorMaskedPhone || formData.instructorMaskedEmail
+                        ? ` (${[formData.instructorMaskedPhone, formData.instructorMaskedEmail].filter(Boolean).join(" · ")})`
+                        : ""}
+                      . They&apos;re added to your request automatically.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <FieldLabel required>
+                        Instructor&apos;s phone number
+                      </FieldLabel>
 
-                  <TextInput
-                    value={formData.instructorPhone}
-                    onChange={(value) => updateField("instructorPhone", value)}
-                    type="tel"
-                  />
-                </div>
+                      <TextInput
+                        value={formData.instructorPhone}
+                        onChange={(value) => updateField("instructorPhone", value)}
+                        type="tel"
+                      />
+                    </div>
 
-                <div>
-                  <FieldLabel required>
-                    Instructor&apos;s email address
-                  </FieldLabel>
+                    <div>
+                      <FieldLabel required>
+                        Instructor&apos;s email address
+                      </FieldLabel>
 
-                  <TextInput
-                    value={formData.instructorEmail}
-                    onChange={(value) => updateField("instructorEmail", value)}
-                    type="email"
-                  />
-                </div>
+                      <TextInput
+                        value={formData.instructorEmail}
+                        onChange={(value) => updateField("instructorEmail", value)}
+                        type="email"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <FieldLabel>Instructor certificate number</FieldLabel>
 
                   <TextInput
+                    placeholder={formData.instructorProfileId ? "On file if the system has it" : undefined}
                     value={formData.instructorCertificateNumber}
                     onChange={(value) =>
                       updateField("instructorCertificateNumber", value)
