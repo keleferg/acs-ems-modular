@@ -211,7 +211,7 @@ export default function ApplicantSetupPage() {
       form.flightSchoolId === "other" &&
       !form.otherFlightSchool.trim()
     ) {
-      setErrorMessage("Please enter the flight school name.");
+      setErrorMessage("Please enter the flight training provider name.");
       return;
     }
 
@@ -389,7 +389,7 @@ export default function ApplicantSetupPage() {
               htmlFor="flightSchool"
               className="mb-2 block text-sm font-semibold text-slate-800"
             >
-              Flight school
+              Flight training provider
               <span className="ml-2 font-normal text-slate-500">
                 Optional
               </span>

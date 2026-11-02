@@ -58,6 +58,8 @@ type Props = {
 
 const PILOT_PPC = "Pilot Proficiency Check (61.58)";
 const FE_PPC = "Flight Engineer Proficiency Check (91.529)";
+// Aircraft Type Rating (Kele, Nov 2 2026): picked from the FAA type ratings instead of an issuance type.
+export const TYPE_RATING = "Aircraft Type Rating";
 
 const certificateTypeOrder = [
   "Pilot",
@@ -73,6 +75,7 @@ const pilotCertificateOrder = [
   "Instrument Rating",
   "Commercial Pilot",
   "Airline Transport Pilot",
+  TYPE_RATING,
   PILOT_PPC,
 ];
 
@@ -202,6 +205,13 @@ export default function PracticalTestTypeSelector({
       "FLIGHT_ENGINEER_PPC_91529" ||
     selectedPracticalTestType?.issuance_code === "PPC";
 
+  const isTypeRating =
+    selection.certificateSought === TYPE_RATING ||
+    selectedPracticalTestType?.certificate_code === "PILOT_TYPE_RATING";
+
+  // Proficiency checks and type ratings pick an FAA type-rated aircraft instead of an issuance.
+  const usesAircraftSearch = isPpc || isTypeRating;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -251,7 +261,7 @@ export default function PracticalTestTypeSelector({
   useEffect(() => {
     let cancelled = false;
 
-    if (!isPpc) {
+    if (!usesAircraftSearch) {
       setPpcAircraft([]);
       setPpcAircraftLoading(false);
       setPpcAircraftError("");
@@ -279,7 +289,9 @@ export default function PracticalTestTypeSelector({
               ? "PILOT_PPC_6158"
               : selection.certificateSought === FE_PPC
                 ? "FLIGHT_ENGINEER_PPC_91529"
-                : null),
+                : selection.certificateSought === TYPE_RATING
+                  ? "PILOT_TYPE_RATING"
+                  : null),
         },
       );
 
@@ -302,7 +314,7 @@ export default function PracticalTestTypeSelector({
       window.clearTimeout(timer);
     };
   }, [
-    isPpc,
+    usesAircraftSearch,
     ppcSearch,
     examinerProfileId,
     selectedPracticalTestType?.certificate_code,
@@ -320,7 +332,9 @@ export default function PracticalTestTypeSelector({
     if (!testType) return;
 
     const certificateType = getCertificateType(testType);
+    const typeRating = testType.certificate_code === "PILOT_TYPE_RATING";
     const ppc =
+      typeRating ||
       testType.issuance_code === "PPC" ||
       testType.certificate_code === "PILOT_PPC_6158" ||
       testType.certificate_code === "FLIGHT_ENGINEER_PPC_91529";
@@ -336,7 +350,7 @@ export default function PracticalTestTypeSelector({
       ...selection,
       certificateType,
       certificateSought: testType.certificate_name,
-      issuanceType: ppc ? "Proficiency Check" : testType.issuance_name,
+      issuanceType: typeRating ? testType.issuance_name : ppc ? "Proficiency Check" : testType.issuance_name,
       categorySought: categoryBased ? (testType.category_name ?? "") : "",
       classSought:
         !categoryBased || testType.certificate_name === "Sport Pilot"
@@ -429,14 +443,14 @@ export default function PracticalTestTypeSelector({
   const isFlightInstructor = selection.certificateType === "Flight Instructor";
 
   const usesRating =
-    !isPpc &&
+    !usesAircraftSearch &&
     (isInstrumentRating ||
       selection.certificateType === "Flight Engineer" ||
       selection.certificateType === "Mechanic" ||
       selection.certificateType === "Ground Instructor");
 
   const usesCategory =
-    !isPpc &&
+    !usesAircraftSearch &&
     (isSportPilot ||
       isFlightInstructor ||
       (selection.certificateType === "Pilot" &&
@@ -508,7 +522,10 @@ export default function PracticalTestTypeSelector({
     certificateType: string,
     certificateName: string,
   ) {
-    const ppc = certificateName === PILOT_PPC || certificateName === FE_PPC;
+    const ppc =
+      certificateName === PILOT_PPC ||
+      certificateName === FE_PPC ||
+      certificateName === TYPE_RATING;
 
     const ppcTestType = ppc
       ? testTypes.find((item) => item.certificate_name === certificateName)
@@ -518,7 +535,11 @@ export default function PracticalTestTypeSelector({
       certificateType,
       certificateSought: certificateName,
       practicalTestTypeId: ppcTestType?.id ?? "",
-      issuanceType: ppcTestType ? "Proficiency Check" : "",
+      issuanceType: ppcTestType
+        ? certificateName === TYPE_RATING
+          ? ppcTestType.issuance_name
+          : "Proficiency Check"
+        : "",
     });
   }
 
@@ -739,7 +760,7 @@ export default function PracticalTestTypeSelector({
         </div>
       ) : null}
 
-      {!isPpc ? (
+      {!usesAircraftSearch ? (
         <SelectField
           label="Issuance Type"
           value={selection.issuanceType}
@@ -830,15 +851,17 @@ export default function PracticalTestTypeSelector({
         </SelectField>
       ) : null}
 
-      {isPpc ? (
+      {usesAircraftSearch ? (
         <div className="sm:col-span-2 rounded-xl border border-sky-200 bg-sky-50/50 p-5">
           <label className="mb-2 block text-sm font-semibold text-slate-800">
-            Aircraft Type
+            {isTypeRating ? "Aircraft Type Rating" : "Aircraft Type"}
             <span className="ml-1 text-red-600">*</span>
           </label>
 
           <p className="mb-4 text-sm text-slate-600">
-            Select the FAA type-rated aircraft/model for this proficiency check.
+            {isTypeRating
+              ? "Type the type rating, manufacturer or model (e.g. B-737, CE-525, Embraer), then pick it from the FAA type ratings."
+              : "Select the FAA type-rated aircraft/model for this proficiency check."}
           </p>
 
           <input

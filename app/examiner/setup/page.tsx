@@ -188,7 +188,8 @@ export default function ExaminerSetupPage() {
       testTypes.filter(
         (testType) =>
           testType.is_active &&
-          testType.display_name !== "Pilot Proficiency Check (61.58)",
+          testType.display_name !== "Pilot Proficiency Check (61.58)" &&
+          testType.display_name !== "Aircraft Type Rating",
       ),
     [testTypes],
   );

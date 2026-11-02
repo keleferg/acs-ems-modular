@@ -220,8 +220,8 @@ export default function InstructorProfilePage() {
         </div>
 
         <fieldset className="border-t border-slate-200 pt-6">
-          <legend className="text-lg font-bold text-slate-900">Flight schools</legend>
-          <p className="mt-1 text-sm text-slate-600">Check the flight schools you instruct for. Search to add any FAA Part 141/142 school, or add one that isn&apos;t listed.</p>
+          <legend className="text-lg font-bold text-slate-900">Flight training providers</legend>
+          <p className="mt-1 text-sm text-slate-600">Check the flight training providers you instruct for. Search to add any FAA Part 141 school or Part 142 training center, or add one that isn&apos;t listed.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
               <input type="checkbox" checked={form.freelance} onChange={() => update("freelance", !form.freelance)} className="h-4 w-4" />

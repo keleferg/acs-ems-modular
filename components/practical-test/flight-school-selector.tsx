@@ -38,6 +38,8 @@ type Props = {
   disabled?: boolean;
   /** Empty the box after a pick (for "add another school" lists). */
   clearOnSelect?: boolean;
+  /** Include FAA Part 142 training centers (type rating, ATP and flight engineer tests). */
+  includePart142?: boolean;
 };
 
 const inputClass =
@@ -75,11 +77,12 @@ function toPick(row: SearchRow | FlightSchoolPick): FlightSchoolPick {
 export default function FlightSchoolSelector({
   value,
   onChange,
-  placeholder = "Search school name, city, or FAA certificate…",
+  placeholder = "Search training provider name, city, or FAA certificate…",
   allowAdd = true,
   id,
   disabled,
   clearOnSelect = false,
+  includePart142 = true,
 }: Props) {
   const selectedLabel = value?.name ?? "";
   const [query, setQuery] = useState(selectedLabel);
@@ -123,6 +126,7 @@ export default function FlightSchoolSelector({
       const { data, error } = await createClient().rpc("search_flight_schools", {
         p_search: term,
         p_limit: 30,
+        p_include_part_142: includePart142,
       });
       if (cancelled) return;
       if (error) {
@@ -137,7 +141,7 @@ export default function FlightSchoolSelector({
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [open, query, selectedLabel]);
+  }, [open, query, selectedLabel, includePart142]);
 
   function updateQuery(next: string) {
     setQuery(next);
@@ -156,7 +160,7 @@ export default function FlightSchoolSelector({
   async function addSchool() {
     const name = query.trim();
     if (name.length < 2) {
-      setAddError("Enter the school name.");
+      setAddError("Enter the training provider name.");
       return;
     }
     setSaving(true);
@@ -169,7 +173,7 @@ export default function FlightSchoolSelector({
     });
     if (error || !data?.[0]) {
       setSaving(false);
-      setAddError(error?.message ?? "The school could not be added.");
+      setAddError(error?.message ?? "The training provider could not be added.");
       return;
     }
     const added = data[0] as { id: string; name: string };
@@ -215,10 +219,10 @@ export default function FlightSchoolSelector({
       {value?.name ? (
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           {value.id ? (
-            <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">School selected</span>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">Provider selected</span>
           ) : (
             <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-800">
-              Typed name — not on the school list yet
+              Typed name — not on the provider list yet
             </span>
           )}
           {!disabled ? (
@@ -242,18 +246,18 @@ export default function FlightSchoolSelector({
         <div className="absolute z-30 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
           {showingFeatured && results.length > 0 ? (
             <p className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Local schools — type to search all FAA schools
+              Local training providers — type to search all FAA providers
             </p>
           ) : null}
 
-          {loading ? <p className="px-4 py-4 text-sm text-slate-600">Searching flight schools…</p> : null}
+          {loading ? <p className="px-4 py-4 text-sm text-slate-600">Searching flight training providers…</p> : null}
 
           {!loading && term.length === 1 && !showingFeatured ? (
             <p className="px-4 py-4 text-sm text-slate-600">Keep typing to search…</p>
           ) : null}
 
           {!loading && !showingFeatured && term.length >= 2 && results.length === 0 ? (
-            <p className="px-4 py-4 text-sm text-slate-600">No school on the list matches “{term}”.</p>
+            <p className="px-4 py-4 text-sm text-slate-600">No training provider on the list matches “{term}”.</p>
           ) : null}
 
           {!loading
@@ -286,7 +290,7 @@ export default function FlightSchoolSelector({
           {allowAdd && !loading && term.length >= 2 && !showingFeatured && !exactMatch ? (
             adding ? (
               <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-900">Add “{term}” to the school list</p>
+                <p className="text-sm font-semibold text-slate-900">Add “{term}” to the training provider list</p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_6rem]">
                   <input
                     value={addCity}
@@ -326,7 +330,7 @@ export default function FlightSchoolSelector({
                 onClick={() => setAdding(true)}
                 className="block w-full border-t border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-sky-700 hover:bg-sky-50"
               >
-                + Add “{term}” as a school that isn’t on the FAA list
+                + Add “{term}” as a training provider that isn’t on the FAA list
               </button>
             )
           ) : null}

@@ -715,6 +715,15 @@ export default function NewRequestPage() {
     formData.certificateSought === "Pilot Proficiency Check (61.58)" ||
     formData.certificateSought === "Flight Engineer Proficiency Check (91.529)";
 
+  // Part 142 training centers are offered for type rating, ATP and flight engineer tests.
+  const includePart142 =
+    formData.certificateSought === "Aircraft Type Rating" ||
+    formData.certificateSought === "Airline Transport Pilot" ||
+    formData.certificateType === "Flight Engineer";
+
+  // Aircraft Type Rating also needs the FAA type-rated aircraft (Kele, Nov 2 2026).
+  const isTypeRatingRequest = formData.certificateSought === "Aircraft Type Rating";
+
   const allAcknowledgmentsComplete =
     (formData.examinerProfileId === "__ANY__" ||
       formData.feeAcknowledged) &&
@@ -749,7 +758,7 @@ export default function NewRequestPage() {
         formData.practicalTestTypeId &&
         formData.certificateSought &&
         (isPpcRequest || formData.issuanceType) &&
-        (!isPpcRequest || formData.ppcTypeRatingAircraftId) &&
+        (!(isPpcRequest || isTypeRatingRequest) || formData.ppcTypeRatingAircraftId) &&
         formData.isRetest &&
         (isPpcRequest || formData.part141Graduate) &&
         priorFailureComplete,
@@ -1608,7 +1617,7 @@ export default function NewRequestPage() {
 
                   <div className="mb-3 flex flex-wrap gap-2">
                     {[
-                      { label: "Flight school", independent: false },
+                      { label: "Flight training provider", independent: false },
                       { label: "Self / Independent", independent: true },
                     ].map((option) => {
                       const active =
@@ -1647,6 +1656,7 @@ export default function NewRequestPage() {
                   {formData.flightSchool !== "Self / Independent" ? (
                     <>
                       <FlightSchoolSelector
+                        includePart142={includePart142}
                         value={
                           formData.flightSchool === "Other"
                             ? formData.otherFlightSchool
@@ -1682,9 +1692,11 @@ export default function NewRequestPage() {
                       />
 
                       <p className="mt-2 text-sm text-slate-500">
-                        Search FAA Part 141 and 142 schools by name, city, or
-                        certificate number. If yours isn’t listed, type its
-                        name and choose “Add”.
+                        {includePart142
+                          ? "Search FAA Part 141 pilot schools and Part 142 training centers"
+                          : "Search FAA Part 141 pilot schools"}{" "}
+                        by name, city, or certificate number. If yours isn’t
+                        listed, type its name and choose “Add”.
                         {flightSchoolsLoading ? " Loading local schools…" : ""}
                       </p>
                     </>
@@ -2000,7 +2012,7 @@ export default function NewRequestPage() {
                 <div>
                   <FieldLabel required>
                     Is this instructor associated with the selected flight
-                    school?
+                    training provider?
                   </FieldLabel>
 
                   <SelectInput
@@ -2479,7 +2491,7 @@ export default function NewRequestPage() {
                   </h3>
                   <dl className="mt-3 space-y-2 text-sm">
                     <div>
-                      <dt className="text-slate-500">Flight school</dt>
+                      <dt className="text-slate-500">Flight training provider</dt>
                       <dd className="font-medium text-slate-900">
                         {formData.flightSchool === "Other"
                           ? formData.otherFlightSchool

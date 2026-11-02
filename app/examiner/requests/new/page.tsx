@@ -403,7 +403,7 @@ export default function ExaminerCreateRequestPage() {
             Flight training location <span className="text-red-600">*</span>
             <div className="mt-2 flex flex-wrap gap-2">
               {[
-                { label: "Flight school", value: "" },
+                { label: "Flight training provider", value: "" },
                 { label: "Self / Independent", value: "independent" },
               ].map((option) => {
                 const active = (flightSchoolId === "independent") === (option.value === "independent");
@@ -430,6 +430,11 @@ export default function ExaminerCreateRequestPage() {
             {flightSchoolId !== "independent" ? (
               <div className="mt-3 font-normal">
                 <FlightSchoolSelector
+                  includePart142={
+                    test.certificateSought === "Aircraft Type Rating" ||
+                    test.certificateSought === "Airline Transport Pilot" ||
+                    test.certificateType === "Flight Engineer"
+                  }
                   value={
                     flightSchoolId === "other"
                       ? otherFlightSchool
@@ -447,7 +452,7 @@ export default function ExaminerCreateRequestPage() {
                   }}
                 />
                 <p className="mt-2 text-xs text-slate-500">
-                  Search FAA Part 141 and 142 schools by name, city, or certificate number, or add one that isn’t listed.
+                  Search FAA Part 141 pilot schools (and Part 142 training centers for type rating, ATP and flight engineer tests) by name, city, or certificate number, or add one that isn’t listed.
                 </p>
               </div>
             ) : null}
@@ -593,7 +598,7 @@ export default function ExaminerCreateRequestPage() {
               />
             </label>
             <label className="text-sm font-semibold text-slate-800">
-              Associated with selected flight school? <span className="text-red-600">*</span>
+              Associated with selected flight training provider? <span className="text-red-600">*</span>
               <select
                 required
                 value={instructorAssociatedWithSchool}

@@ -62,7 +62,8 @@ export default function PracticalTestsSettingsPage() {
           testTypes
             .filter(
               (testType) =>
-                testType.display_name !== "Pilot Proficiency Check (61.58)",
+                testType.display_name !== "Pilot Proficiency Check (61.58)" &&
+          testType.display_name !== "Aircraft Type Rating",
             )
             .map((testType) =>
               testType.display_name ===
@@ -81,7 +82,10 @@ export default function PracticalTestsSettingsPage() {
     return testTypes.filter((testType) => {
       // Pilot PPC is controlled exclusively from
       // Type Ratings Authorized.
-      if (testType.display_name === "Pilot Proficiency Check (61.58)") {
+      if (
+        testType.display_name === "Pilot Proficiency Check (61.58)" ||
+        testType.display_name === "Aircraft Type Rating"
+      ) {
         return false;
       }
 
@@ -187,7 +191,8 @@ export default function PracticalTestsSettingsPage() {
     (testType) =>
       testType.is_active &&
       testType.is_offered &&
-      testType.display_name !== "Pilot Proficiency Check (61.58)",
+      testType.display_name !== "Pilot Proficiency Check (61.58)" &&
+          testType.display_name !== "Aircraft Type Rating",
   ).length;
 
   return (
