@@ -62,6 +62,11 @@
   * {
     @apply border-border;
   }
+  /* Light mode only: keep the browser from drawing dark form fields when the computer is in
+     dark mode. */
+  html {
+    color-scheme: light;
+  }
   body {
     @apply bg-background text-foreground;
   }
