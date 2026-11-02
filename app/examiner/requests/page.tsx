@@ -327,6 +327,9 @@ const statusOptions = [
   },
 ];
 
+// Requests stay on this page for this many days after they're completed or cancelled.
+const REQUEST_ARCHIVE_DAYS = 15;
+
 const closedStatuses = new Set([
   "completed",
   "declined",
@@ -1090,6 +1093,8 @@ export default function ExaminerRequestsPage() {
       `,
       )
       .eq("assigned_examiner_profile_id", user.id)
+      // Closed 15+ days ago: moved to Historical Records → Request Archive (Kele, Nov 2 2026).
+      .or(`closed_at.is.null,closed_at.gt.${new Date(Date.now() - REQUEST_ARCHIVE_DAYS * 86_400_000).toISOString()}`)
       .order("submitted_at", {
         ascending: false,
         nullsFirst: false,

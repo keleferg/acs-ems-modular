@@ -22,6 +22,7 @@ import {
 } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import RequestArchive from "./RequestArchive";
 import { downloadQualificationReportPdf } from "@/lib/qualification/report-pdf";
 import { loadQualificationReport } from "@/lib/qualification/report";
 
@@ -738,6 +739,9 @@ function DetailField({
 }
 
 export default function ExaminerHistoricalRecordsPage() {
+  // Two views (Kele, Nov 2 2026): completed tests (this page as it was) and the Request Archive.
+  const [view, setView] = useState<"tests" | "archive">("tests");
+
   const [loading, setLoading] =
     useState(true);
 
@@ -2055,6 +2059,7 @@ export default function ExaminerHistoricalRecordsPage() {
           </div>
         </div>
 
+        {view === "tests" ? (
         <button
           type="button"
           onClick={() =>
@@ -2073,8 +2078,31 @@ export default function ExaminerHistoricalRecordsPage() {
 
           Refresh
         </button>
+        ) : null}
       </div>
 
+      <div className="mt-6 inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
+        {([
+          ["tests", "Completed Tests"],
+          ["archive", "Request Archive"],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              view === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "archive" ? (
+        <RequestArchive />
+      ) : (
+        <>
       {pageError ? (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
           {pageError}
@@ -3184,6 +3212,8 @@ export default function ExaminerHistoricalRecordsPage() {
           </div>
         )}
       </section>
+        </>
+      )}
     </main>
   );
 }
