@@ -14,6 +14,7 @@ import { type QualificationWizardSummary } from "./QualificationReviewPanel";
 import QualificationSummarySection from "./QualificationSummarySection";
 
 import OpenAssignmentsPanel from "@/components/portal/OpenAssignmentsPanel";
+import OpenOffersPanel from "@/components/portal/OpenOffersPanel";
 import PracticalTestTypeSelector, {
   type PracticalTestTypeSelection,
 } from "@/components/practical-test/practical-test-type-selector";
@@ -859,7 +860,7 @@ function DetailSection({
 
 export default function ExaminerRequestsPage() {
   const [activeRequestsTab, setActiveRequestsTab] = useState<
-    "assigned" | "open"
+    "assigned" | "open" | "offers"
   >("assigned");
 
   const [requests, setRequests] = useState<PracticalTestRequest[]>([]);
@@ -1432,6 +1433,8 @@ export default function ExaminerRequestsPage() {
     // ?tab=open opens Open Assignments (link in the open assignment alert email).
     if (parameters.get("tab") === "open") {
       setActiveRequestsTab("open");
+    } else if (parameters.get("tab") === "offers") {
+      setActiveRequestsTab("offers");
     }
 
     if (requestId) {
@@ -3033,6 +3036,26 @@ export default function ExaminerRequestsPage() {
             <span>Open Assignments</span>
 
             {activeRequestsTab === "open" ? (
+              <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
+            ) : null}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveRequestsTab("offers")}
+            className={`relative inline-flex min-h-[76px] items-center gap-3 rounded-t-xl border border-b-0 px-6 py-4 text-base font-bold shadow-sm transition ${
+              activeRequestsTab === "offers"
+                ? "border-slate-300 bg-white text-emerald-800"
+                : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:text-slate-800"
+            }`}
+          >
+            <span aria-hidden="true" className="text-2xl leading-none">
+              ◷
+            </span>
+
+            <span>Open Offers</span>
+
+            {activeRequestsTab === "offers" ? (
               <span className="absolute inset-x-0 bottom-0 h-[3px] bg-amber-700" />
             ) : null}
           </button>
@@ -5659,8 +5682,10 @@ export default function ExaminerRequestsPage() {
             </div>
           ) : null}
         </>
-      ) : (
+      ) : activeRequestsTab === "open" ? (
         <OpenAssignmentsPanel />
+      ) : (
+        <OpenOffersPanel />
       )}
       {declineRequestTarget ? (
         <div

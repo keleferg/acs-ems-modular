@@ -3097,3 +3097,218 @@ export function buildRequestAutoCancelledApplicantEmail(
 
   return { subject, html, text };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Open Offers (Kele, Nov 7 2026). The examiner pushes an open appointment slot to matching
+// applicants; each gets one-click Request / Decline buttons. The applicant the examiner accepts gets
+// a confirmation; the others who requested the time are told it has been filled.
+
+type OpenOfferSlot = {
+  startAt: string;
+  endAt: string;
+  airportLabel: string | null;
+};
+
+/** "Friday, December 4, 2026, 9:00 AM HST – 12:00 PM HST" */
+function openOfferWhen(startAt: string, endAt: string) {
+  return `${formatScheduledAppointmentDate(startAt)}, ${formatScheduledAppointmentTime(startAt)} – ${formatScheduledAppointmentTime(endAt)}`;
+}
+
+function openOfferRows(input: OpenOfferSlot & { requestNumber: string; testName: string }) {
+  const rows = [
+    emailRow("Date", formatScheduledAppointmentDate(input.startAt), { strong: true }),
+    emailRow("Time", `${formatScheduledAppointmentTime(input.startAt)} – ${formatScheduledAppointmentTime(input.endAt)}`, { strong: true }),
+    emailRow("Airport", input.airportLabel?.trim() || "—"),
+    emailRow("Practical Test", input.testName || "—"),
+    emailRow("Request Number", input.requestNumber, { last: true }),
+  ];
+  return rows.join("");
+}
+
+function openOfferTextRows(input: OpenOfferSlot & { requestNumber: string; testName: string }) {
+  return [
+    `Date: ${formatScheduledAppointmentDate(input.startAt)}`,
+    `Time: ${formatScheduledAppointmentTime(input.startAt)} – ${formatScheduledAppointmentTime(input.endAt)}`,
+    `Airport: ${input.airportLabel?.trim() || "—"}`,
+    `Practical Test: ${input.testName || "—"}`,
+    `Request Number: ${input.requestNumber}`,
+  ];
+}
+
+type OpenOfferInvitationEmailInput = OpenOfferSlot & {
+  applicantName: string;
+  examinerName: string | null;
+  requestNumber: string;
+  testName: string;
+  notes: string | null;
+  /** Set when the applicant already has an appointment (the offer is a sooner opening). */
+  currentStartAt?: string | null;
+  currentEndAt?: string | null;
+  requestUrl: string;
+  declineUrl: string;
+};
+
+export function buildOpenOfferInvitationEmail(input: OpenOfferInvitationEmailInput) {
+  const applicantFirstName = firstName(input.applicantName);
+  const date = formatScheduledAppointmentDate(input.startAt);
+  const subject = `Open Appointment Time Available — ${date}`;
+  const examiner = yourExaminer(input.examinerName);
+  const notes = input.notes?.trim();
+  const current = input.currentStartAt && input.currentEndAt ? openOfferWhen(input.currentStartAt, input.currentEndAt) : null;
+  const intro = current
+    ? `${examiner} has an open appointment time that is earlier than your current appointment (${current}). If you would like to move to this time, click`
+    : `${examiner} has an open appointment time that matches your practical test request. If you would like this time, click`;
+  const closing = current
+    ? "This time has been offered to more than one applicant, and your examiner will choose from those who request it. If your request is accepted, your appointment moves to this time and you will receive a confirmation email. Otherwise, your current appointment stays exactly as it is."
+    : "This time has been offered to more than one applicant, and your examiner will choose from those who request it. The appointment is not yours until you receive a confirmation email. If you decline, or if the time goes to someone else, your request stays active.";
+
+  const html = emailShell(
+    "Open Appointment Time Available",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+      <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(intro)} <strong>Request This Appointment Time</strong>.</p>
+      ${emailTable(openOfferRows(input))}
+      ${notes ? emailNote(escapeHtml(notes).replace(/\n/g, "<br>")) : ""}
+      <div style="margin-top:26px;">
+        <a href="${escapeHtml(input.requestUrl)}" style="display:inline-block;margin:0 10px 10px 0;padding:12px 18px;background:#15803d;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">Request This Appointment Time</a>
+        <a href="${escapeHtml(input.declineUrl)}" style="display:inline-block;margin:0 10px 10px 0;padding:12px 18px;background:#ffffff;color:#334155;text-decoration:none;border-radius:8px;border:1px solid #cbd5e1;font-size:14px;font-weight:700;">Decline Appointment Time</a>
+      </div>
+      <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#64748b;">${escapeHtml(closing)}</p>
+    `,
+  );
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    `${intro} Request This Appointment Time.`,
+    "",
+    ...openOfferTextRows(input),
+    ...(notes ? ["", notes] : []),
+    "",
+    `Request This Appointment Time: ${input.requestUrl}`,
+    `Decline Appointment Time: ${input.declineUrl}`,
+    "",
+    closing,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+type OpenOfferAcceptedApplicantEmailInput = OpenOfferSlot & {
+  applicantName: string;
+  examinerName: string | null;
+  requestNumber: string;
+  testName: string;
+  scheduledLocation: string;
+  /** Set when an existing appointment was moved to this time. */
+  previousStartAt?: string | null;
+  previousEndAt?: string | null;
+  portalUrl: string;
+};
+
+export function buildOpenOfferAcceptedApplicantEmail(input: OpenOfferAcceptedApplicantEmailInput) {
+  const applicantFirstName = firstName(input.applicantName);
+  const date = formatScheduledAppointmentDate(input.startAt);
+  const examiner = yourExaminer(input.examinerName);
+  const previous = input.previousStartAt && input.previousEndAt ? openOfferWhen(input.previousStartAt, input.previousEndAt) : null;
+  const subject = previous
+    ? `Appointment Moved Earlier — ${date} (${input.requestNumber})`
+    : `Appointment Confirmed — ${date} (${input.requestNumber})`;
+  const intro = previous
+    ? `Good news! ${examiner} has accepted your request for the earlier appointment time below. Your appointment has been moved from ${previous} to this time.`
+    : `Good news! ${examiner} has accepted your request for the open appointment time below. Your practical test is now scheduled.`;
+  const nextSteps = previous
+    ? "Everything else about your request stays the same. You can follow your request in the applicant portal."
+    : "Your examiner will send the fee information and your pretest qualification steps. You can follow your request in the applicant portal.";
+
+  const html = emailShell(
+    previous ? "Your Appointment Has Been Moved" : "Your Appointment Time Is Confirmed",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+      <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(intro)}</p>
+      ${emailTable(
+        [
+          emailRow("Date", date, { strong: true }),
+          emailRow("Time", `${formatScheduledAppointmentTime(input.startAt)} – ${formatScheduledAppointmentTime(input.endAt)}`, { strong: true }),
+          emailRow("Location", input.scheduledLocation || "—"),
+          emailRow("Airport", input.airportLabel?.trim() || "—"),
+          emailRow("Practical Test", input.testName || "—"),
+          emailRow("Request Number", input.requestNumber, { last: true }),
+        ].join(""),
+      )}
+      ${emailNote(escapeHtml(nextSteps))}
+      ${emailButton(input.portalUrl, "View My Request")}
+    `,
+  );
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    intro,
+    "",
+    `Date: ${date}`,
+    `Time: ${formatScheduledAppointmentTime(input.startAt)} – ${formatScheduledAppointmentTime(input.endAt)}`,
+    `Location: ${input.scheduledLocation || "—"}`,
+    `Airport: ${input.airportLabel?.trim() || "—"}`,
+    `Practical Test: ${input.testName || "—"}`,
+    `Request Number: ${input.requestNumber}`,
+    "",
+    nextSteps,
+    "",
+    `View my request: ${input.portalUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+type OpenOfferFilledApplicantEmailInput = OpenOfferSlot & {
+  applicantName: string;
+  requestNumber: string;
+  testName: string;
+  /** true when the examiner withdrew the time instead of giving it to another applicant. */
+  withdrawn?: boolean;
+  /** Set when the applicant already has an appointment, which stays as it is. */
+  currentStartAt?: string | null;
+  currentEndAt?: string | null;
+  portalUrl: string;
+};
+
+export function buildOpenOfferFilledApplicantEmail(input: OpenOfferFilledApplicantEmailInput) {
+  const applicantFirstName = firstName(input.applicantName);
+  const date = formatScheduledAppointmentDate(input.startAt);
+  const subject = input.withdrawn
+    ? `Appointment Time No Longer Available — ${date}`
+    : `Appointment Time Filled — ${date}`;
+  const intro = input.withdrawn
+    ? "Thank you for requesting the open appointment time below. Unfortunately, this time is no longer available."
+    : "Thank you for requesting the open appointment time below. Unfortunately, this slot has been filled.";
+  const current = input.currentStartAt && input.currentEndAt ? openOfferWhen(input.currentStartAt, input.currentEndAt) : null;
+  const reassurance = current
+    ? `Your current appointment (${current}) has not changed, and we will notify you of any sooner openings.`
+    : "Your practical test request is still active, and we will notify you of any sooner openings.";
+
+  const html = emailShell(
+    input.withdrawn ? "Appointment Time No Longer Available" : "Appointment Time Filled",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+      <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;">${escapeHtml(intro)}</p>
+      ${emailTable(openOfferRows(input))}
+      ${emailNote(escapeHtml(reassurance))}
+      ${emailButton(input.portalUrl, "View My Request")}
+    `,
+  );
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    intro,
+    "",
+    ...openOfferTextRows(input),
+    "",
+    reassurance,
+    "",
+    `View my request: ${input.portalUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
