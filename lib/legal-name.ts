@@ -50,6 +50,11 @@ export function legalNameFromRecord(
   return withSuffixInLastName(splitLegalName(record?.full_legal_name || fallback));
 }
 
+/** A full name needs at least a first and a last name (Kele, Nov 7 2026: PTR-2026-00072 had only "Benjamin"). */
+export function hasFirstAndLastName(full: string | null | undefined) {
+  return String(full ?? "").trim().split(/\s+/).filter(Boolean).length >= 2;
+}
+
 export function legalNameColumns(name: LegalName) {
   return {
     legal_first_name: name.first.trim(),

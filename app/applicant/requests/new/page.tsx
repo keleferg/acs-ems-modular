@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { hasFirstAndLastName } from "@/lib/legal-name";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import AircraftTypeSelector, {
@@ -284,6 +285,9 @@ export default function NewRequestPage() {
   const [instructorSearchOpen, setInstructorSearchOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [loaded, setLoaded] = useState(false);
+  // The legal name on the applicant's account. When present, the request always uses it and the
+  // name box is read-only (changes go through My Profile).
+  const [accountName, setAccountName] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -668,6 +672,13 @@ export default function NewRequestPage() {
         }
       }
 
+      // The account's full legal name always wins over a saved draft (a draft could hold a partial name).
+      const accountLegalName = typeof profileDefaults.applicantName === "string" ? profileDefaults.applicantName.trim() : "";
+      if (hasFirstAndLastName(accountLegalName)) {
+        mergedFormData.applicantName = accountLegalName;
+        setAccountName(accountLegalName);
+      }
+
       setFormData(mergedFormData);
       setCurrentStep(savedCurrentStep);
       setLoaded(true);
@@ -742,7 +753,7 @@ export default function NewRequestPage() {
   function validateCurrentStep() {
     if (currentStep === 0) {
       return Boolean(
-        formData.applicantName.trim() &&
+        hasFirstAndLastName(formData.applicantName) &&
         formData.ftnNumber.trim() &&
         formData.applicantPhone.trim() &&
         formData.applicantEmail.trim(),
@@ -829,7 +840,9 @@ export default function NewRequestPage() {
 
     if (!validateCurrentStep()) {
       setSubmitMessage(
-        "Please complete all required fields before continuing.",
+        currentStep === 0 && !hasFirstAndLastName(formData.applicantName)
+          ? "Please enter your full legal name: at least your first and last name."
+          : "Please complete all required fields before continuing.",
       );
       return;
     }
@@ -883,6 +896,11 @@ export default function NewRequestPage() {
     }
 
     if (isSubmitting) return;
+
+    if (!hasFirstAndLastName(accountName || formData.applicantName)) {
+      setSubmitMessage("Please enter your full legal name (at least your first and last name) on the first step.");
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitMessage("Submitting practical test request…");
@@ -992,7 +1010,7 @@ export default function NewRequestPage() {
           applicant_profile_id: applicantProfile.id,
           status: "under_review",
 
-          applicant_name_snapshot: formData.applicantName.trim(),
+          applicant_name_snapshot: (accountName || formData.applicantName).trim().replace(/\s+/g, " "),
           applicant_email_snapshot: formData.applicantEmail
             .trim()
             .toLowerCase(),
@@ -1385,11 +1403,35 @@ export default function NewRequestPage() {
               <div className="mt-7 grid gap-6 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <FieldLabel required>Full legal name</FieldLabel>
-                  <TextInput
-                    value={formData.applicantName}
-                    onChange={(value) => updateField("applicantName", value)}
-                    placeholder="First, middle, and last name"
-                  />
+                  {accountName ? (
+                    <>
+                      <input
+                        type="text"
+                        value={accountName}
+                        readOnly
+                        aria-readonly="true"
+                        className="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700"
+                      />
+                      <p className="mt-1.5 text-sm text-slate-500">
+                        This is the legal name on your account. To correct it, update{" "}
+                        <a href="/applicant/profile" className="font-semibold text-sky-700 hover:underline">
+                          My Profile
+                        </a>
+                        .
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <TextInput
+                        value={formData.applicantName}
+                        onChange={(value) => updateField("applicantName", value)}
+                        placeholder="First, middle, and last name"
+                      />
+                      {formData.applicantName.trim() && !hasFirstAndLastName(formData.applicantName) ? (
+                        <p className="mt-1.5 text-sm font-semibold text-red-700">Enter at least your first and last name.</p>
+                      ) : null}
+                    </>
+                  )}
                 </div>
 
                 <div>
