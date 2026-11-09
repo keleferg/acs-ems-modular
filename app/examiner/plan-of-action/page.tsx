@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChevronRight,
   FileCheck2,
   FileUp,
   Loader2,
@@ -29,6 +30,23 @@ type PracticalTestType = {
   is_active: boolean;
   is_offered: boolean;
   sort_order: number;
+};
+
+// Certificate groups on the POA page, in this order; any other certificate
+// follows, ordered by its practical tests' sort_order.
+const CERTIFICATE_ORDER = [
+  "Sport Pilot",
+  "Private Pilot",
+  "Instrument Rating",
+  "Commercial Pilot",
+  "Flight Instructor",
+  "Flight Engineer",
+  "Airline Transport Pilot",
+];
+
+type CertificateGroup = {
+  certificate: string;
+  testTypes: PracticalTestType[];
 };
 
 type PlanOfAction = {
@@ -249,6 +267,37 @@ export default function ExaminerPlanOfActionPage() {
 
     return result;
   }, [plans]);
+
+  const certificateGroups = useMemo(() => {
+    const groups = new Map<string, CertificateGroup>();
+
+    for (const testType of testTypes) {
+      const certificate =
+        testType.certificate_name?.trim() || "Other";
+      const group = groups.get(certificate) ?? {
+        certificate,
+        testTypes: [],
+      };
+      group.testTypes.push(testType);
+      groups.set(certificate, group);
+    }
+
+    const rank = (certificate: string) => {
+      const index = CERTIFICATE_ORDER.indexOf(certificate);
+      return index === -1 ? CERTIFICATE_ORDER.length : index;
+    };
+
+    const firstSort = (group: CertificateGroup) =>
+      Math.min(
+        ...group.testTypes.map((testType) => testType.sort_order),
+      );
+
+    return [...groups.values()].sort(
+      (a, b) =>
+        rank(a.certificate) - rank(b.certificate) ||
+        firstSort(a) - firstSort(b),
+    );
+  }, [testTypes]);
 
   async function deletePlan(
     plan: PlanOfAction,
@@ -592,8 +641,46 @@ export default function ExaminerPlanOfActionPage() {
           </p>
         </div>
       ) : (
-        <div className="mt-8 space-y-6">
-          {testTypes.map((testType) => {
+        <div className="mt-8 space-y-4">
+          {certificateGroups.map((group) => {
+            const groupPlans = group.testTypes.flatMap(
+              (testType) => plansByTest.get(testType.id) ?? [],
+            );
+
+            const groupReady = groupPlans.filter((plan) =>
+              plan.source_kind === "generated"
+                ? plan.status === "ready"
+                : plan.parse_status === "ready",
+            ).length;
+
+            return (
+              <details
+                key={group.certificate}
+                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-3">
+                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open:rotate-90" />
+                    <span className="text-lg font-bold text-slate-900">
+                      {group.certificate}
+                    </span>
+                  </span>
+
+                  <span className="text-sm font-semibold text-slate-600">
+                    {group.testTypes.length}{" "}
+                    {group.testTypes.length === 1
+                      ? "practical test"
+                      : "practical tests"}
+                    {" • "}
+                    {groupPlans.length}{" "}
+                    {groupPlans.length === 1 ? "POA" : "POAs"}
+                    {" • "}
+                    {groupReady} ready
+                  </span>
+                </summary>
+
+                <div className="space-y-6 border-t border-slate-200 bg-slate-50/50 p-4 sm:p-6">
+          {group.testTypes.map((testType) => {
             const testPlans =
               plansByTest.get(testType.id) ?? [];
 
@@ -832,6 +919,10 @@ export default function ExaminerPlanOfActionPage() {
                   )}
                 </div>
               </section>
+            );
+          })}
+                </div>
+              </details>
             );
           })}
         </div>
