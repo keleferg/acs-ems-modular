@@ -1485,9 +1485,17 @@ export default function GeneratePoaPage() {
           ascending: true,
         });
 
-      if (mappedIds.length > 0) {
-        scenarioQuery = scenarioQuery.in("id", mappedIds);
+      // Only scenarios assigned to this practical test. (It used to fall back
+      // to every scenario when none were assigned, so a Flight Instructor test
+      // offered Private and Commercial scenarios.)
+      if (mappingError || mappedIds.length === 0) {
+        setScenarioOptions([]);
+        setSelectedScenarioId("");
+        setLoadingScenarios(false);
+        return;
       }
+
+      scenarioQuery = scenarioQuery.in("id", mappedIds);
 
       const { data: scenarios, error: scenarioError } = await scenarioQuery;
 
@@ -2767,7 +2775,7 @@ export default function GeneratePoaPage() {
                     {loadingScenarios
                       ? "Loading scenarios…"
                       : scenarioOptions.length === 0
-                        ? "No active scenarios available"
+                        ? "No scenarios assigned to this practical test"
                         : "Select a scenario…"}
                   </option>
 

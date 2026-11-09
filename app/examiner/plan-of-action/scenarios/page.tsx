@@ -198,6 +198,33 @@ function normalizeEventSet(
   return value;
 }
 
+// Certificate groups in the Scenario Library, in this order; any other
+// certificate follows in practical test order, and scenarios not assigned to
+// any practical test come last.
+const CERTIFICATE_ORDER = [
+  "Sport Pilot",
+  "Private Pilot",
+  "Instrument Rating",
+  "Commercial Pilot",
+  "Flight Instructor",
+  "Flight Engineer",
+  "Airline Transport Pilot",
+];
+
+const UNASSIGNED_CERTIFICATE = "Not assigned to a certificate";
+
+function scenarioCertificates(scenario: ScenarioRecord) {
+  return [
+    ...new Set(
+      scenario.poa_scenario_practical_test_types
+        .map((join) =>
+          normalizeTestType(join.practical_test_types)?.certificate_name?.trim(),
+        )
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+}
+
 function questionCapForEventSet(eventSet: EventSetRecord) {
   return eventSet.code === "PREFLIGHT_PREPARATION" ? 60 : 15;
 }
@@ -548,6 +575,46 @@ export default function ScenarioLibraryPage() {
       scenarios,
       searchText,
     ]);
+
+
+  // A scenario appears under every certificate it is assigned to.
+  const scenarioGroups = useMemo(() => {
+    const groups = new Map<string, ScenarioRecord[]>();
+
+    for (const scenario of filteredScenarios) {
+      const certificates = scenarioCertificates(scenario);
+      const targets = certificateFilter
+        ? [certificateFilter]
+        : certificates.length > 0
+          ? certificates
+          : [UNASSIGNED_CERTIFICATE];
+
+      for (const certificate of targets) {
+        const list = groups.get(certificate) ?? [];
+        list.push(scenario);
+        groups.set(certificate, list);
+      }
+    }
+
+    const typeOrder = practicalTestTypes.map(
+      (testType) => testType.certificate_name,
+    );
+
+    const rank = (certificate: string) => {
+      if (certificate === UNASSIGNED_CERTIFICATE) return 10_000;
+      const index = CERTIFICATE_ORDER.indexOf(certificate);
+      if (index !== -1) return index;
+      const typeIndex = typeOrder.indexOf(certificate);
+      return CERTIFICATE_ORDER.length + (typeIndex === -1 ? 5_000 : typeIndex);
+    };
+
+    return [...groups.entries()]
+      .map(([certificate, list]) => ({ certificate, scenarios: list }))
+      .sort((a, b) => rank(a.certificate) - rank(b.certificate));
+  }, [certificateFilter, filteredScenarios, practicalTestTypes]);
+
+  // Open every group while searching or filtering so matches are visible.
+  const filtering = Boolean(searchText.trim() || certificateFilter);
 
 
   function openNewScenario() {
@@ -1320,7 +1387,38 @@ export default function ScenarioLibraryPage() {
 
         <section className="mt-6 space-y-4">
 
-          {filteredScenarios.map(
+          {scenarioGroups.map((group) => (
+            <details
+              key={group.certificate}
+              open={filtering || undefined}
+              className="group/certificate overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-3">
+                  <ChevronRight
+                    aria-hidden
+                    className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open/certificate:rotate-90"
+                  />
+                  <span
+                    className={`text-lg font-bold ${
+                      group.certificate === UNASSIGNED_CERTIFICATE
+                        ? "text-amber-800"
+                        : "text-slate-900"
+                    }`}
+                  >
+                    {group.certificate}
+                  </span>
+                </span>
+
+                <span className="text-sm font-semibold text-slate-600">
+                  {group.scenarios.length} scenario
+                  {group.scenarios.length === 1 ? "" : "s"}
+                </span>
+              </summary>
+
+              <div className="space-y-4 border-t border-slate-200 bg-slate-50/50 p-4 sm:p-6">
+
+          {group.scenarios.map(
             (scenario) => {
 
               const expanded =
@@ -1667,6 +1765,10 @@ export default function ScenarioLibraryPage() {
               );
             },
           )}
+
+              </div>
+            </details>
+          ))}
 
         </section>
 
