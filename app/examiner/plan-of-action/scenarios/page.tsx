@@ -49,6 +49,7 @@ type TriggerRecord = {
   id: string;
   category: TriggerCategory;
   trigger_text: string;
+  trigger_narrative?: string | null;
 };
 
 type EventSetRecord = {
@@ -317,7 +318,8 @@ export default function ScenarioLibraryPage() {
             poa_triggers (
               id,
               category,
-              trigger_text
+              trigger_text,
+              trigger_narrative
             )
           ),
 
@@ -1440,6 +1442,16 @@ export default function ScenarioLibraryPage() {
                       Boolean(value),
                   );
 
+              const scenarioTriggers = (scenario.poa_scenario_triggers ?? [])
+                .slice()
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map((join) =>
+                  Array.isArray(join.poa_triggers)
+                    ? join.poa_triggers[0] ?? null
+                    : join.poa_triggers,
+                )
+                .filter((value): value is TriggerRecord => Boolean(value));
+
               const scenarioEvents =
                 scenario
                   .poa_scenario_event_sets
@@ -1754,6 +1766,34 @@ export default function ScenarioLibraryPage() {
                           </div>
 
                         )}
+
+                        {scenarioTriggers.length > 0 ? (
+                          <div className="mt-6">
+                            <h3 className="font-bold text-slate-900">
+                              Scenario Triggers
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Used in place of the general triggers for their event set when this scenario is generated.
+                            </p>
+                            <ul className="mt-3 space-y-2">
+                              {scenarioTriggers.map((trigger) => (
+                                <li
+                                  key={trigger.id}
+                                  className="rounded-lg bg-slate-50 px-4 py-3"
+                                >
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {trigger.trigger_text}
+                                  </p>
+                                  {trigger.trigger_narrative ? (
+                                    <p className="mt-1 text-sm text-slate-600">
+                                      {trigger.trigger_narrative}
+                                    </p>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
 
                       </div>
 

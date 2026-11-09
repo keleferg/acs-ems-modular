@@ -1592,7 +1592,7 @@ export default function GeneratePoaPage() {
       // no list = any.
       const poaClass = (testType?.class_code ?? "").trim().toUpperCase();
       const poaCertificate = (testType?.certificate_code ?? "").trim().toUpperCase();
-      const choices = (optionRows ?? []).filter((row) => {
+      const allChoices = (optionRows ?? []).filter((row) => {
         const { class_codes: classes, certificate_codes: certificates, aircraft_equipment: equipment } =
           row as { class_codes?: string[] | null; certificate_codes?: string[] | null; aircraft_equipment?: string | null };
         return (!classes || classes.length === 0 || classes.includes(poaClass)) &&
@@ -1613,6 +1613,30 @@ export default function GeneratePoaPage() {
           sequenceOrder: row.sequence_order ?? 500,
         };
       }).filter((choice) => choice.id);
+
+      // Triggers written for a scenario (poa_scenario_triggers) are used only
+      // with that scenario, and fill their event-set slots in place of the
+      // general triggers there.
+      const { data: scenarioTriggerRows } = await supabase
+        .from("poa_scenario_triggers")
+        .select("scenario_id, trigger_id");
+      if (cancelled) return;
+      const ownTriggerIds = new Set<string>();
+      const linkedTriggerIds = new Set<string>();
+      for (const row of scenarioTriggerRows ?? []) {
+        const triggerId = String(row.trigger_id || "");
+        linkedTriggerIds.add(triggerId);
+        if (String(row.scenario_id) === selectedScenarioId) ownTriggerIds.add(triggerId);
+      }
+      const ownSlots = new Set(
+        allChoices
+          .filter((choice) => ownTriggerIds.has(choice.id))
+          .map((choice) => `${choice.eventSetId}:${choice.slot}`),
+      );
+      const choices = allChoices.filter((choice) =>
+        ownTriggerIds.has(choice.id) ||
+        (!linkedTriggerIds.has(choice.id) && !ownSlots.has(`${choice.eventSetId}:${choice.slot}`)),
+      );
 
       // The examiner's previous POA for this practical test: its triggers are
       // avoided so this POA rotates to different ones.
