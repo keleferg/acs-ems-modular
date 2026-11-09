@@ -201,6 +201,84 @@ function acsReference(
   return `Reference: Applicable FAA ACS - ${first.split(".")[0]}`;
 }
 
+// Briefings from the Evaluator's Checklist for FAA Practical Test
+// (ACS Working Group sample; Kele, Nov 9 2026). The print used to stop after
+// "Temporary certificate". [indent, text]
+const PRE_TEST_BRIEFING: Array<[number, string]> = [
+  [0, "Current navigational charts and/or current NavData on Electronic Flight Bag"],
+  [0, "Advise applicant that"],
+  [1, "The test will be done in accordance with the FAA ACS(s) and FAA Order 8900.2"],
+  [1, "Also will use Plan of Action (describe what it is)"],
+  [1, "Will be taking notes during test for debriefing"],
+  [1, "Note that perfection is not the standard"],
+  [1, "Oral questioning will be continued throughout all portions of the test"],
+  [1, "Three possible outcomes"],
+  [2, "Temporary certificate"],
+  [2, "Letter of Discontinuance, and the conditions that lead to it"],
+  [2, "Notice of Disapproval, and the conditions that lead to it"],
+  [1, "There is no recording of the oral or flight examination; failure to comply will result in a discontinuance and referral to the FSDO"],
+  [0, "Ask for any questions"],
+  [0, "Announce - THE TEST HAS BEGUN"],
+];
+
+const PRE_FLIGHT_BRIEFING: Array<[number, string]> = [
+  [0, "Brief the flight profile (overall scenario)"],
+  [0, "If in an FSTD, proceed in real time as if in the aircraft"],
+  [0, "Applicant remains PIC under 14 CFR 61.47 for the entire flight; discuss actual instrument conditions"],
+  [0, "Simulated emergencies"],
+  [1, "DPE action / announcement"],
+  [1, "Engine failure at takeoff and landing"],
+  [1, "Other emergencies"],
+  [1, "Feathering"],
+  [0, "Actual emergencies"],
+  [1, "Engine failure"],
+  [1, "Other emergencies"],
+  [0, "Transfer of controls (applicant explains how)"],
+  [0, "Collision avoidance (air and ground)"],
+  [1, "Look for reported and unreported traffic"],
+  [1, "Clear before maneuvering"],
+  [0, "Primary responsibility"],
+  [0, "Preflight duties"],
+  [1, "Weight and balance"],
+  [1, "Performance"],
+  [1, "First flight of the day"],
+  [1, "VFR/IFR requirements"],
+  [1, "Aircraft systems"],
+  [1, "MEL"],
+  [0, "Oral questions continue throughout"],
+  [0, "Focus on normal operations"],
+  [0, "Exercise PIC authority at all times"],
+  [0, "Testing with the Plan of Action continues per the ACS"],
+  [0, "Evaluator continues taking notes"],
+  [0, "Continue or discontinue if a Task is unsatisfactory"],
+  [0, "Any questions? Ready for the flight evaluation?"],
+  [0, "Return aircraft documents to the aircraft"],
+  [0, "Observe the entire preflight preparation and inspection (refer to scenario and triggers)"],
+];
+
+const POST_TEST_BRIEFING: Array<[number, string]> = [
+  [0, "Debrief in private (encourage the recommending instructor to attend)"],
+  [0, "Reaffirm the outcome"],
+  [0, "Use notes; highlight areas above the standard"],
+  [0, "Satisfactory outcome"],
+  [1, "Complete paperwork"],
+  [1, "Applicant signs temporary certificate"],
+  [1, "Temporary certificate is valid for 120 days"],
+  [1, "What to do if the certificate is not received"],
+  [1, "Offer to sign logbook"],
+  [0, "Unsatisfactory outcome"],
+  [1, "Give applicant time alone while paperwork is completed"],
+  [1, "Explain the disapproval using the ACS"],
+  [1, "Advise retest timeframe; applicant keeps the Notice of Disapproval"],
+  [1, "Return knowledge test report (if applicable)"],
+  [1, "Offer to sign logbook (not required)"],
+  [0, "Letter of Discontinuance"],
+  [1, "Review the items still to be completed"],
+  [1, "Return knowledge test report (if applicable)"],
+  [1, "Advise retest timeframe; applicant keeps the letter"],
+  [1, "Offer to sign logbook"],
+];
+
 function PoaHeader({
   title,
   reference,
@@ -922,7 +1000,7 @@ function GeneratedPoaPrintContent() {
             </CheckboxLine>
 
             <CheckboxLine indent={1}>
-              Review maintenance records per Order 8900.1
+              Review maintenance records per Order 8900.2
             </CheckboxLine>
 
             <CheckboxLine indent={2}>
@@ -937,43 +1015,18 @@ function GeneratedPoaPrintContent() {
               Pre-Test Briefing
             </h2>
 
-            <CheckboxLine>
-              Current navigational charts and/or current NavData on Electronic Flight Bag
-            </CheckboxLine>
+            {PRE_TEST_BRIEFING.map(([indent, text], index) => (
+              <CheckboxLine key={`pretest-${index}`} indent={indent}>
+                {text}
+              </CheckboxLine>
+            ))}
 
-            <CheckboxLine>
-              Advise applicant that
-            </CheckboxLine>
-
-            <CheckboxLine indent={1}>
-              The test will be done in accordance with the FAA ACS(s) and FAA Order 8900.1
-            </CheckboxLine>
-
-            <CheckboxLine indent={1}>
-              Also will use Plan of Action (describe what it is)
-            </CheckboxLine>
-
-            <CheckboxLine indent={1}>
-              Will be taking notes during test for debriefing
-            </CheckboxLine>
-
-            <CheckboxLine indent={1}>
-              Note that perfection is not the standard
-            </CheckboxLine>
-
-            <CheckboxLine indent={1}>
-              Oral questioning will be continued throughout all portions of the test
-            </CheckboxLine>
-
-            <CheckboxLine indent={1}>
-              Three possible outcomes
-            </CheckboxLine>
-
-            <CheckboxLine indent={2}>
-              Temporary certificate
-            </CheckboxLine>
+            <div className="start-time-line">
+              Test start time: __________
+            </div>
           </div>
         </section>
+
 
         {/* ==================================================
             PAGE 3+ - GENERATED FROZEN POA CONTENT
@@ -1207,7 +1260,19 @@ function GeneratedPoaPrintContent() {
             ),
           )}
 
-          <section className="postflight-block">
+          <section className="briefing-page">
+            <h2 className="section-title">
+              PRE-FLIGHT BRIEFING
+            </h2>
+
+            {PRE_FLIGHT_BRIEFING.map(([indent, text], index) => (
+              <CheckboxLine key={`preflight-${index}`} indent={indent}>
+                {text}
+              </CheckboxLine>
+            ))}
+          </section>
+
+          <section className="postflight-block flight-portion">
             <h2 className="section-title">
               SECTION II — FLIGHT PORTION
             </h2>
@@ -1376,10 +1441,24 @@ function GeneratedPoaPrintContent() {
             )}
           </section>
 
-          <section className="postflight-block">
+          <section className="postflight-block debrief-page">
             <h2 className="section-title">
               SECTION III — POSTFLIGHT / DEBRIEF
             </h2>
+
+            <h3 className="blue-heading">
+              Post-Test Briefing (Debriefing)
+            </h3>
+
+            {POST_TEST_BRIEFING.map(([indent, text], index) => (
+              <CheckboxLine key={`posttest-${index}`} indent={indent}>
+                {text}
+              </CheckboxLine>
+            ))}
+
+            <h3 className="blue-heading">
+              Administrative
+            </h3>
 
             <CheckboxLine>
               Review unresolved ACS items and any AKTR deficiency items.
@@ -1527,11 +1606,16 @@ function GeneratedPoaPrintContent() {
         }
 
         .page-two-content {
-          padding: 1.05in 5px 0;
+          padding: 0.15in 5px 0;
+        }
+
+        .start-time-line {
+          margin-top: 8px;
+          font-size: 11.2pt;
         }
 
         .briefing {
-          margin-top: 28px;
+          margin-top: 12px;
         }
 
         .check-line {
@@ -1622,6 +1706,19 @@ function GeneratedPoaPrintContent() {
 
         .postflight-block {
           margin-top: 28px;
+        }
+
+        /* Pre-flight briefing gets its own page between the oral and flight
+           portions; the flight portion and the debrief each start a new page. */
+        .briefing-page,
+        .flight-portion,
+        .debrief-page {
+          break-before: page;
+          page-break-before: always;
+        }
+
+        .briefing-page {
+          padding-top: 0.1in;
         }
 
         @media screen {
