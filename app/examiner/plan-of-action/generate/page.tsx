@@ -1188,6 +1188,13 @@ export default function GeneratePoaPage() {
     return faaAcsPrefixesForTestType(testType);
   }, [testType]);
 
+  // Additional Rating Task Tables list Tasks by Area (II_C…). For flight instructor tests the
+  // Areas after I use the AI./HI. codes, not FI. (Fundamentals of Instructing), so the map codes
+  // take the first prefix that isn't FI.
+  const additionalMapPrefix =
+    complianceAcsPrefixes.find((prefix) => prefix !== "FI") ?? complianceAcsPrefixes[0] ?? "";
+
+
   const complianceCodes = useMemo(() => {
     if (complianceAcsPrefixes.length === 0) {
       return [];
@@ -1258,7 +1265,7 @@ export default function GeneratePoaPage() {
 
         const parentCodes = normalizeAdditionalMapCodes(
           certificateMaps[mapKey],
-          complianceAcsPrefixes[0] ?? "",
+          additionalMapPrefix,
         );
 
         if (parentCodes.length === 0) return [];
@@ -1333,7 +1340,7 @@ export default function GeneratePoaPage() {
       const requiredParents = new Set(
         normalizeAdditionalMapCodes(
           certificateMaps[mapKey],
-          complianceAcsPrefixes[0] ?? "",
+          additionalMapPrefix,
         ),
       );
 
@@ -1936,7 +1943,7 @@ export default function GeneratePoaPage() {
 
         const requiredParents = normalizeAdditionalMapCodes(
           certificateMaps[mapKey],
-          complianceAcsPrefixes[0] ?? "",
+          additionalMapPrefix,
         );
 
         if (requiredParents.length === 0) {
