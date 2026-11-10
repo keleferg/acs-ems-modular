@@ -68,7 +68,12 @@ export async function updateSession(request: NextRequest) {
     // EMS Examiner iPhone app: API calls carry a bearer token instead of a cookie; each route checks it.
     !(request.nextUrl.pathname.startsWith("/api/") && /^Bearer\s+\S+/i.test(request.headers.get("authorization") ?? "")) &&
     // Universal Links: Apple fetches this file without signing in.
-    !request.nextUrl.pathname.startsWith("/.well-known/")
+    !request.nextUrl.pathname.startsWith("/.well-known/") &&
+    // Netlify functions reached without a session: push-dispatch is called by the database (it only
+    // works through the push queue), and the request follow-up email's one-click links carry their
+    // own token, which the function checks.
+    !request.nextUrl.pathname.startsWith("/.netlify/functions/push-dispatch") &&
+    !request.nextUrl.pathname.startsWith("/request-follow-up")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
