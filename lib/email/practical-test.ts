@@ -3312,3 +3312,81 @@ export function buildOpenOfferFilledApplicantEmail(input: OpenOfferFilledApplica
 
   return { subject, html, text };
 }
+
+type OpenOfferRequestedExaminerEmailInput = OpenOfferSlot & {
+  examinerName: string | null;
+  applicantName: string;
+  applicantEmail: string | null;
+  requestNumber: string;
+  testName: string;
+  requestedAt: string;
+  priority: number;
+  requestedCount: number;
+  /** Set when the applicant already has a (later) appointment and wants to move up. */
+  currentStartAt?: string | null;
+  currentEndAt?: string | null;
+  reviewUrl: string;
+};
+
+/** To the examiner when an applicant clicks "Request This Appointment Time" (Kele, Nov 9 2026). */
+export function buildOpenOfferRequestedExaminerEmail(input: OpenOfferRequestedExaminerEmailInput) {
+  const date = formatScheduledAppointmentDate(input.startAt);
+  const applicant = input.applicantName.trim() || "An applicant";
+  const subject = `Open Offer Requested — ${applicant} (${input.requestNumber}) for ${date}`;
+  const greeting = input.examinerName?.trim() ? `Aloha ${firstName(input.examinerName)},` : "Aloha,";
+  const current = input.currentStartAt && input.currentEndAt ? openOfferWhen(input.currentStartAt, input.currentEndAt) : null;
+  const priorityText = `#${input.priority} of ${input.requestedCount} applicant${input.requestedCount === 1 ? "" : "s"} who requested this time`;
+  const requestedAt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Pacific/Honolulu",
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(input.requestedAt));
+
+  const html = emailShell(
+    "Open Offer Requested",
+    `
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">${escapeHtml(greeting)}</p>
+      <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;"><strong>${escapeHtml(applicant)}</strong> requested your open appointment time.</p>
+      ${emailTable(
+        [
+          emailRow("Date", date, { strong: true }),
+          emailRow("Time", `${formatScheduledAppointmentTime(input.startAt)} – ${formatScheduledAppointmentTime(input.endAt)}`, { strong: true }),
+          emailRow("Applicant", applicant),
+          emailRow("Request Number", input.requestNumber),
+          emailRow("Practical Test", input.testName || "—"),
+          emailRow("Airport", input.airportLabel?.trim() || "—"),
+          ...(current ? [emailRow("Current Appointment", `${current} (wants to move up)`)] : []),
+          emailRow("Requested", requestedAt),
+          emailRow("Priority", priorityText, { last: true }),
+        ].join(""),
+      )}
+      ${emailNote("Choose who gets the time on the Open Offers tab and click Accept Request. Nothing is scheduled until you do.")}
+      ${emailButton(input.reviewUrl, "Review Open Offers")}
+    `,
+  );
+
+  const text = [
+    greeting,
+    "",
+    `${applicant} requested your open appointment time.`,
+    "",
+    `Date: ${date}`,
+    `Time: ${formatScheduledAppointmentTime(input.startAt)} – ${formatScheduledAppointmentTime(input.endAt)}`,
+    `Applicant: ${applicant}`,
+    `Request Number: ${input.requestNumber}`,
+    `Practical Test: ${input.testName || "—"}`,
+    `Airport: ${input.airportLabel?.trim() || "—"}`,
+    ...(current ? [`Current Appointment: ${current} (wants to move up)`] : []),
+    `Requested: ${requestedAt}`,
+    `Priority: ${priorityText}`,
+    "",
+    "Choose who gets the time on the Open Offers tab and click Accept Request. Nothing is scheduled until you do.",
+    "",
+    `Review Open Offers: ${input.reviewUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}

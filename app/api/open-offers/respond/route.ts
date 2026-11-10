@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { addHistory, hashToken, isTokenShape, serviceClient, slotText } from "@/lib/open-offers/server";
+import { addHistory, hashToken, isTokenShape, sendOpenOfferRequestedNotice, serviceClient, slotText } from "@/lib/open-offers/server";
 
 // The applicant's one-click answer to an Open Offer email (no sign-in; Kele, Nov 7 2026).
 // The emailed token is checked against open_offer_recipients.token_hash with the service key.
@@ -85,6 +85,9 @@ export async function POST(request: Request) {
             : `Applicant declined the Open Offer time ${slotText(after.start_at, after.end_at)}.`,
           { label: "Applicant" },
         );
+      }
+      if (after.response === "requested") {
+        await sendOpenOfferRequestedNotice(service, after.recipient_id, new URL(request.url).origin);
       }
     }
     return NextResponse.json({ ok: true, offer: publicView(after) });

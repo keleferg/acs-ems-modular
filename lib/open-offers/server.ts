@@ -6,7 +6,9 @@ import {
   buildOpenOfferAcceptedApplicantEmail,
   buildOpenOfferFilledApplicantEmail,
   buildOpenOfferInvitationEmail,
+  buildOpenOfferRequestedExaminerEmail,
 } from "@/lib/email/practical-test";
+import { orderByPriority } from "@/lib/open-offers/priority";
 
 // Server-only helpers for Open Offers (Kele, Nov 7 2026).
 // The applicant answers from a one-click emailed link with no sign-in: a random token whose SHA-256
@@ -58,7 +60,7 @@ async function examinerContact(service: Service, examinerProfileId: string) {
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
     null;
   const email = designee?.email?.trim() || profile?.email?.trim() || undefined;
-  return { name, replyTo: designee?.reply_to_email?.trim() || email };
+  return { name, email, replyTo: designee?.reply_to_email?.trim() || email };
 }
 
 type RecipientRow = {
@@ -107,13 +109,24 @@ async function recipientDetails(service: Service, tokenOrRecipient: { recipientI
 
 async function logEmail(
   service: Service,
-  input: { requestId: string; type: string; email: string; subject: string; dedupeKey: string; ok: boolean; error?: string; messageId?: string; actorId?: string | null },
+  input: {
+    requestId: string;
+    type: string;
+    email: string;
+    subject: string;
+    dedupeKey: string;
+    ok: boolean;
+    error?: string;
+    messageId?: string;
+    actorId?: string | null;
+    role?: "applicant" | "examiner";
+  },
 ) {
   const now = new Date().toISOString();
   const { error } = await service.from("practical_test_email_log").insert({
     practical_test_request_id: input.requestId,
     email_type: input.type,
-    recipient_role: "applicant",
+    recipient_role: input.role ?? "applicant",
     recipient_email: input.email,
     subject: input.subject,
     dedupe_key: input.dedupeKey,
@@ -314,4 +327,101 @@ export async function sendOpenOfferOutcomeEmails(
   }
 
   return { failed };
+}
+
+/**
+ * Tells the examiner that an applicant requested the Open Offer time (Kele, Nov 9 2026), with the
+ * applicant's priority among everyone who has requested it. Only for "request", not "decline".
+ * Never throws: the applicant's answer is already saved.
+ */
+export async function sendOpenOfferRequestedNotice(service: Service, recipientId: string, origin: string) {
+  try {
+    const { data: recipient } = await service
+      .from("open_offer_recipients")
+      .select("id, open_offer_id, practical_test_request_id, recipient_email, responded_at, response, current_start_at, current_end_at, token_hash")
+      .eq("id", recipientId)
+      .maybeSingle();
+    if (!recipient || recipient.response !== "requested" || !recipient.responded_at) return;
+
+    const offer = await loadOffer(service, recipient.open_offer_id);
+    const examiner = await examinerContact(service, offer.examiner_profile_id);
+    if (!examiner.email) return;
+
+    // Priority among everyone who has requested this time (same order as the Open Offers tab).
+    const { data: requestedRows } = await service
+      .from("open_offer_recipients")
+      .select("id, responded_at, practical_test_request_id")
+      .eq("open_offer_id", offer.id)
+      .eq("response", "requested");
+    type RequestedRow = { id: string; responded_at: string | null; practical_test_request_id: string };
+    type RequestInfo = { id: string; request_number: string; applicant_name_snapshot: string | null; submitted_at: string | null; created_at: string | null };
+    const requested = (requestedRows ?? []) as RequestedRow[];
+    const requestIds = requested.map((row) => row.practical_test_request_id);
+    const { data: requestRows } = await service
+      .from("practical_test_requests")
+      .select("id, request_number, applicant_name_snapshot, submitted_at, created_at")
+      .in("id", requestIds.length ? requestIds : [recipient.practical_test_request_id]);
+    const requestById = new Map<string, RequestInfo>(((requestRows ?? []) as RequestInfo[]).map((row) => [row.id, row]));
+    const ranked = orderByPriority<{ id: string; responded_at: string | null; request_submitted_at: string | null }>(
+      requested.map((row) => {
+        const info = requestById.get(row.practical_test_request_id);
+        return {
+          id: row.id,
+          responded_at: row.responded_at,
+          request_submitted_at: info?.submitted_at ?? info?.created_at ?? null,
+        };
+      }),
+    );
+    const priority = Math.max(1, ranked.findIndex((row) => row.id === recipient.id) + 1);
+
+    const request = requestById.get(recipient.practical_test_request_id as string);
+    if (!request) return;
+    const { data: details } = await service.rpc("open_offer_token_details", { p_token_hash: recipient.token_hash });
+    const info = details as { test_name: string | null; airport: string | null } | null;
+
+    const message = buildOpenOfferRequestedExaminerEmail({
+      examinerName: examiner.name,
+      applicantName: request.applicant_name_snapshot ?? "",
+      applicantEmail: recipient.recipient_email,
+      requestNumber: request.request_number,
+      testName: info?.test_name ?? "",
+      airportLabel: info?.airport ?? null,
+      startAt: offer.start_at,
+      endAt: offer.end_at,
+      requestedAt: recipient.responded_at,
+      priority,
+      requestedCount: Math.max(ranked.length, 1),
+      currentStartAt: recipient.current_start_at,
+      currentEndAt: recipient.current_end_at,
+      reviewUrl: `${origin.replace(/\/$/, "")}/examiner/requests?tab=offers`,
+    });
+
+    const { resend, from } = mailer();
+    const { data, error } = await resend.emails.send({
+      from,
+      to: [examiner.email],
+      ...(recipient.recipient_email ? { replyTo: recipient.recipient_email } : {}),
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+    });
+    await logEmail(service, {
+      requestId: request.id,
+      type: "open_offer_requested_examiner",
+      email: examiner.email,
+      subject: message.subject,
+      dedupeKey: `open_offer_requested_examiner:${recipient.id}:${recipient.responded_at}`,
+      ok: !error,
+      error: error?.message,
+      messageId: data?.id,
+      role: "examiner",
+    });
+    if (!error) {
+      await addHistory(service, request.id, `Examiner emailed at ${examiner.email}: applicant requested the Open Offer time ${slotText(offer.start_at, offer.end_at)} (priority #${priority}).`, {
+        label: "EMS (automatic)",
+      });
+    }
+  } catch (cause) {
+    console.error("Open offer examiner notice failed:", cause);
+  }
 }
