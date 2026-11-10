@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
+import { routeClient } from "@/lib/supabase/route-client";
 import { addHistory, sendOpenOfferOutcomeEmails, serviceClient, slotText } from "@/lib/open-offers/server";
 
 // Open Offers → "Accept Request" (Kele, Nov 7 2026). Schedules the chosen applicant's request,
@@ -15,9 +15,9 @@ export async function POST(request: Request) {
   }
   if (!recipientId) return NextResponse.json({ ok: false, error: "Missing response." }, { status: 400 });
 
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return NextResponse.json({ ok: false, error: "You must be signed in." }, { status: 401 });
+  // Website login cookie or the EMS Examiner app's bearer token.
+  const { supabase, user } = await routeClient(request);
+  if (!user) return NextResponse.json({ ok: false, error: "You must be signed in." }, { status: 401 });
 
   const { data, error } = await supabase.rpc("examiner_accept_open_offer_response", { p_recipient_id: recipientId });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
           : `Appointment scheduled from an Open Offer: ${slotText(offer.start_at, offer.end_at)}.`;
       await addHistory(service, result.request_id, text, {
         type: "appointment_change",
-        actorId: auth.user.id,
+        actorId: user.id,
       });
     }
     const emails = await sendOpenOfferOutcomeEmails(
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       result.offer_id,
       { acceptedRecipientId: result.accepted_recipient_id, otherRecipientIds: result.not_selected ?? [] },
       new URL(request.url).origin,
-      auth.user.id,
+      user.id,
     );
     return NextResponse.json({ ok: true, requestId: result.request_id, moved: Boolean(result.previous_start_at), notified: (result.not_selected ?? []).length, failed: emails.failed });
   } catch (cause) {

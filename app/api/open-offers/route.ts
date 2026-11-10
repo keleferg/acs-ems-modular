@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
+import { routeClient } from "@/lib/supabase/route-client";
 import { sendOpenOfferInvitations, serviceClient } from "@/lib/open-offers/server";
 
 // Requests page → Open Offers → "Initiate Open Offer" (Kele, Nov 7 2026).
@@ -25,9 +25,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid request." }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return NextResponse.json({ ok: false, error: "You must be signed in." }, { status: 401 });
+  // Website login cookie or the EMS Examiner app's bearer token.
+  const { supabase, user } = await routeClient(request);
+  if (!user) return NextResponse.json({ ok: false, error: "You must be signed in." }, { status: 401 });
 
   const { data, error } = await supabase.rpc("examiner_create_open_offer", {
     p_slot_date: body.date ?? null,
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const recipientIds = (created.recipients ?? []).map((r) => r.recipient_id);
 
   try {
-    const result = await sendOpenOfferInvitations(serviceClient(), created.offer_id, recipientIds, new URL(request.url).origin, auth.user.id);
+    const result = await sendOpenOfferInvitations(serviceClient(), created.offer_id, recipientIds, new URL(request.url).origin, user.id);
     return NextResponse.json({ ok: true, offerId: created.offer_id, matched: recipientIds.length, sent: result.sent, failed: result.failed });
   } catch (cause) {
     return NextResponse.json({

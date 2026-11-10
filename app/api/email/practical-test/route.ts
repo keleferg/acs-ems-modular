@@ -212,10 +212,12 @@ async function handlePost(request: Request): Promise<Response> {
       )
     : await createServerClient();
 
+  // A bearer token (EMT site, EMS Examiner app) is checked explicitly: the client keeps no session.
+  const bearerToken = /^Bearer\s+(.+)$/i.exec(authorization ?? "")?.[1]?.trim();
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = bearerToken ? await supabase.auth.getUser(bearerToken) : await supabase.auth.getUser();
 
   if (userError || !user) {
     return NextResponse.json(

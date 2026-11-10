@@ -64,7 +64,11 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/open-offer") &&
     !request.nextUrl.pathname.startsWith("/api/open-offers/respond") &&
     // Super user "Return to my account" works after the borrowed session ended; the signed cookie is checked by the API.
-    !request.nextUrl.pathname.startsWith("/api/admin/super-user-return")
+    !request.nextUrl.pathname.startsWith("/api/admin/super-user-return") &&
+    // EMS Examiner iPhone app: API calls carry a bearer token instead of a cookie; each route checks it.
+    !(request.nextUrl.pathname.startsWith("/api/") && /^Bearer\s+\S+/i.test(request.headers.get("authorization") ?? "")) &&
+    // Universal Links: Apple fetches this file without signing in.
+    !request.nextUrl.pathname.startsWith("/.well-known/")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();

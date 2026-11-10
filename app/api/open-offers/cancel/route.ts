@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
+import { routeClient } from "@/lib/supabase/route-client";
 import { sendOpenOfferOutcomeEmails, serviceClient } from "@/lib/open-offers/server";
 
 // Open Offers → "Withdraw Offer" (Kele, Nov 7 2026). Applicants who had requested the time are
@@ -15,16 +15,16 @@ export async function POST(request: Request) {
   }
   if (!offerId) return NextResponse.json({ ok: false, error: "Missing offer." }, { status: 400 });
 
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return NextResponse.json({ ok: false, error: "You must be signed in." }, { status: 401 });
+  // Website login cookie or the EMS Examiner app's bearer token.
+  const { supabase, user } = await routeClient(request);
+  if (!user) return NextResponse.json({ ok: false, error: "You must be signed in." }, { status: 401 });
 
   const { data, error } = await supabase.rpc("examiner_cancel_open_offer", { p_offer_id: offerId });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
 
   const notify = ((data as { notify?: string[] }).notify ?? []) as string[];
   try {
-    const emails = await sendOpenOfferOutcomeEmails(serviceClient(), offerId, { otherRecipientIds: notify, withdrawn: true }, new URL(request.url).origin, auth.user.id);
+    const emails = await sendOpenOfferOutcomeEmails(serviceClient(), offerId, { otherRecipientIds: notify, withdrawn: true }, new URL(request.url).origin, user.id);
     return NextResponse.json({ ok: true, notified: notify.length, failed: emails.failed });
   } catch (cause) {
     return NextResponse.json({ ok: true, notified: 0, warning: cause instanceof Error ? cause.message : "The emails could not be sent." });
