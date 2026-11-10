@@ -95,11 +95,14 @@ function faaAcsPrefixesForTestType(testType: PracticalTestType) {
   }
 
   /*
-   * CFII is intentionally not assigned until
-   * its exact FAA ACS family is verified.
+   * CFII Airplane is still tested to the PTS (FAA-S-8081-9E), which has no
+   * ACS codes. EMS codes its Tasks IF.<Area>.<Task>.K/S (K = objective
+   * elements 1-2 and ground Tasks, S = demonstration and analysis); the
+   * entries are in data/faa-acs-compliance-catalog.json. The prefix must stay
+   * two letters for complianceParentCode.
    */
   if (certificateCode === "FLIGHT_INSTRUCTOR" && ratingCode === "CFII") {
-    return [];
+    return ["IF"];
   }
 
   /*
@@ -1124,6 +1127,15 @@ export default function GeneratePoaPage() {
 
     if (["ASEL", "AMEL", "ASES", "AMES"].includes(classCode)) {
       return classCode;
+    }
+
+    // Instrument instructor tests are named "Instrument Instructor Airplane" (or
+    // Helicopter) in practical_test_types; the FAA table keys them "Instrument Instructor".
+    if (
+      additionalMapCertificateKey === "CFI" &&
+      ratingName.toLowerCase().startsWith("instrument instructor")
+    ) {
+      return "Instrument Instructor";
     }
 
     return ratingName;
