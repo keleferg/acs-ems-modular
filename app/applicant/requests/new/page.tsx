@@ -54,6 +54,8 @@ type FormData = {
   /** "yes" when the school is one of the usual local schools (no oral-test address needed). */
   flightSchoolFeatured: string;
   otherFlightSchool: string;
+  /** "yes" / "no": will the oral exam be at the picked flight school? (Kele, Nov 11 2026) */
+  oralAtSchool: string;
   oralTestLocation: string;
   flightAirportId: string;
   flightAirport: string;
@@ -126,6 +128,7 @@ const initialFormData: FormData = {
   flightSchoolId: "",
   flightSchoolFeatured: "",
   otherFlightSchool: "",
+  oralAtSchool: "",
   oralTestLocation: "",
   flightAirportId: "",
   flightAirport: "",
@@ -292,6 +295,8 @@ export default function NewRequestPage() {
   const [submitMessage, setSubmitMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [flightSchools, setFlightSchools] = useState<FlightSchoolOption[]>([]);
+  /** "School name, address" of the picked school, used when the oral exam is held there. */
+  const [schoolOralAddress, setSchoolOralAddress] = useState("");
   const [flightSchoolsLoading, setFlightSchoolsLoading] = useState(true);
   const [feeInformation, setFeeInformation] =
     useState<ApplicantFeeInformation | null>(null);
@@ -712,15 +717,65 @@ export default function NewRequestPage() {
     return () => window.clearTimeout(timeout);
   }, [formData, currentStep, loaded]);
 
-  // The usual local schools have a known meeting place; anyone else gives the oral-test address.
+  // Oral exam location (Kele, Nov 11 2026): for a school picked from the list the applicant
+  // says whether the oral is at that school (its name and address fill the location) or
+  // gives the address; Self / Independent and typed-in schools always give the address.
   const legacySchool = flightSchools.find(
     (school) => school.name === formData.flightSchool,
   );
+  const pickedSchoolId =
+    formData.flightSchool &&
+    formData.flightSchool !== "Self / Independent" &&
+    formData.flightSchool !== "Other"
+      ? formData.flightSchoolId || legacySchool?.id || ""
+      : "";
+  const askOralAtSchool = Boolean(pickedSchoolId);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!pickedSchoolId) {
+      setSchoolOralAddress("");
+      return;
+    }
+    void (async () => {
+      const { data } = await createClient()
+        .from("flight_schools")
+        .select("name, address_line_1, address_line_2, city, state, postal_code, default_oral_test_location")
+        .eq("id", pickedSchoolId)
+        .maybeSingle();
+      if (cancelled) return;
+      const cityLine = [
+        [data?.city, data?.state].filter(Boolean).join(", "),
+        data?.postal_code,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const address =
+        data?.default_oral_test_location?.trim() ||
+        [data?.address_line_1, data?.address_line_2, cityLine]
+          .map((part) => (part ?? "").trim())
+          .filter(Boolean)
+          .join(", ");
+      const label = address && data?.name ? `${data.name}, ${address}` : "";
+      setSchoolOralAddress(label);
+      // A restored draft that already said "yes" picks up the address.
+      setFormData((current) =>
+        current.oralAtSchool === "yes" && label && current.oralTestLocation !== label
+          ? { ...current, oralTestLocation: label }
+          : current,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pickedSchoolId]);
+  const oralAtSchoolAddressMissing =
+    askOralAtSchool && formData.oralAtSchool === "yes" && !schoolOralAddress;
   const selectedSchoolRequiresLocation =
     Boolean(formData.flightSchool) &&
-    (formData.flightSchool === "Self / Independent" ||
-      formData.flightSchool === "Other" ||
-      !(formData.flightSchoolFeatured === "yes" || legacySchool));
+    (!askOralAtSchool ||
+      formData.oralAtSchool === "no" ||
+      oralAtSchoolAddressMissing);
 
   const isPpcRequest =
     formData.certificateSought === "Pilot Proficiency Check (61.58)" ||
@@ -786,6 +841,7 @@ export default function NewRequestPage() {
         (isPpcRequest || formData.aircraftTypeId) &&
         formData.aircraftMake.trim() &&
         formData.aircraftModel.trim() &&
+        (!askOralAtSchool || formData.oralAtSchool) &&
         (!selectedSchoolRequiresLocation || formData.oralTestLocation.trim()) &&
         (formData.flightSchool !== "Other" ||
           formData.otherFlightSchool.trim()),
@@ -1680,6 +1736,7 @@ export default function NewRequestPage() {
                               flightSchoolId: "",
                               flightSchoolFeatured: "",
                               otherFlightSchool: "",
+                              oralAtSchool: "",
                               oralTestLocation: "",
                               otherFlightAirport: "",
                             }))
@@ -1726,8 +1783,8 @@ export default function NewRequestPage() {
                                 ? "yes"
                                 : "",
                             otherFlightSchool: "",
-                            oralTestLocation:
-                              school?.default_oral_test_location ?? "",
+                            oralAtSchool: "",
+                            oralTestLocation: "",
                             flightAirport: school?.default_airport_code ?? "",
                             otherFlightAirport: "",
                           }))
@@ -1746,9 +1803,62 @@ export default function NewRequestPage() {
                   ) : null}
                 </div>
 
+                {askOralAtSchool ? (
+                  <div className="sm:col-span-2">
+                    <FieldLabel required>
+                      Will the oral exam be conducted at this flight school?
+                    </FieldLabel>
+
+                    <div className="flex flex-wrap gap-4" role="radiogroup" aria-label="Will the oral exam be conducted at this flight school?">
+                      {[
+                        { value: "yes", label: "Yes" },
+                        { value: "no", label: "No" },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700"
+                        >
+                          <input
+                            type="radio"
+                            name="oral-at-school"
+                            value={option.value}
+                            checked={formData.oralAtSchool === option.value}
+                            onChange={() =>
+                              setFormData((current) => ({
+                                ...current,
+                                oralAtSchool: option.value,
+                                oralTestLocation:
+                                  option.value === "yes" ? schoolOralAddress : "",
+                              }))
+                            }
+                            className="h-4 w-4 border-slate-300"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+
+                    {formData.oralAtSchool === "yes" && schoolOralAddress ? (
+                      <p className="mt-2 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                        Oral exam location: {schoolOralAddress}
+                      </p>
+                    ) : null}
+
+                    {oralAtSchoolAddressMissing ? (
+                      <p className="mt-2 text-sm text-amber-700">
+                        We don&apos;t have this school&apos;s address on file. Enter it below.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 {selectedSchoolRequiresLocation ? (
                   <div className="sm:col-span-2">
-                    <FieldLabel required>Oral-test meeting location</FieldLabel>
+                    <FieldLabel required>
+                      {askOralAtSchool
+                        ? "Address where the oral exam will be conducted"
+                        : "Oral-test meeting location"}
+                    </FieldLabel>
 
                     <textarea
                       value={formData.oralTestLocation}
