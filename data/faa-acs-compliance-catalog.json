@@ -2991,6 +2991,358 @@
         "IF.X.A.S"
       ],
       "code_count": 55
+    },
+    {
+      "title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf",
+      "prefixes": [
+        "PG"
+      ],
+      "codes": [
+        "PG.I.A.K",
+        "PG.I.A.S",
+        "PG.I.B.K",
+        "PG.I.B.S",
+        "PG.I.C.K",
+        "PG.I.C.S",
+        "PG.I.D.K",
+        "PG.I.D.S",
+        "PG.I.E.K",
+        "PG.I.E.S",
+        "PG.II.A.K",
+        "PG.II.A.S",
+        "PG.II.B.K",
+        "PG.II.B.S",
+        "PG.II.C.K",
+        "PG.II.C.S",
+        "PG.II.D.K",
+        "PG.II.D.S",
+        "PG.II.E.K",
+        "PG.II.E.S",
+        "PG.III.A.K",
+        "PG.III.A.S",
+        "PG.III.B.K",
+        "PG.III.B.S",
+        "PG.III.C.K",
+        "PG.III.C.S",
+        "PG.IV.A.K",
+        "PG.IV.A.S",
+        "PG.IV.B.K",
+        "PG.IV.B.S",
+        "PG.IV.C.K",
+        "PG.IV.C.S",
+        "PG.IV.D.K",
+        "PG.IV.D.S",
+        "PG.IV.E.K",
+        "PG.IV.E.S",
+        "PG.IV.F.K",
+        "PG.IV.F.S",
+        "PG.IV.G.K",
+        "PG.IV.G.S",
+        "PG.IV.H.K",
+        "PG.IV.H.S",
+        "PG.IV.I.K",
+        "PG.IV.I.S",
+        "PG.IV.J.K",
+        "PG.IV.J.S",
+        "PG.IV.K.K",
+        "PG.IV.K.S",
+        "PG.IV.L.K",
+        "PG.IV.L.S",
+        "PG.IV.M.K",
+        "PG.IV.M.S",
+        "PG.IV.N.K",
+        "PG.IV.N.S",
+        "PG.IV.O.K",
+        "PG.IV.O.S",
+        "PG.IV.P.K",
+        "PG.IV.P.S",
+        "PG.IV.Q.K",
+        "PG.IV.Q.S",
+        "PG.IV.R.K",
+        "PG.IV.R.S",
+        "PG.IV.S.K",
+        "PG.IV.S.S",
+        "PG.V.A.K",
+        "PG.V.A.S",
+        "PG.V.B.K",
+        "PG.V.B.S",
+        "PG.VI.A.K",
+        "PG.VI.A.S",
+        "PG.VI.B.K",
+        "PG.VI.B.S",
+        "PG.VI.C.K",
+        "PG.VI.C.S",
+        "PG.VII.A.K",
+        "PG.VII.A.S",
+        "PG.VII.B.K",
+        "PG.VII.B.S",
+        "PG.VII.C.K",
+        "PG.VII.C.S",
+        "PG.VIII.A.K",
+        "PG.VIII.A.S",
+        "PG.VIII.B.K",
+        "PG.VIII.B.S",
+        "PG.IX.A.K",
+        "PG.IX.A.S",
+        "PG.IX.B.K",
+        "PG.IX.B.S",
+        "PG.X.A.K",
+        "PG.X.A.S",
+        "PG.X.B.K",
+        "PG.X.B.S",
+        "PG.XI.A.K",
+        "PG.XI.A.S"
+      ],
+      "code_count": 94
+    },
+    {
+      "title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf",
+      "prefixes": [
+        "CG"
+      ],
+      "codes": [
+        "CG.I.A.K",
+        "CG.I.A.S",
+        "CG.I.B.K",
+        "CG.I.B.S",
+        "CG.I.C.K",
+        "CG.I.C.S",
+        "CG.I.D.K",
+        "CG.I.D.S",
+        "CG.I.E.K",
+        "CG.I.E.S",
+        "CG.II.A.K",
+        "CG.II.A.S",
+        "CG.II.B.K",
+        "CG.II.B.S",
+        "CG.II.C.K",
+        "CG.II.C.S",
+        "CG.II.D.K",
+        "CG.II.D.S",
+        "CG.II.E.K",
+        "CG.II.E.S",
+        "CG.III.A.K",
+        "CG.III.A.S",
+        "CG.III.B.K",
+        "CG.III.B.S",
+        "CG.III.C.K",
+        "CG.III.C.S",
+        "CG.IV.A.K",
+        "CG.IV.A.S",
+        "CG.IV.B.K",
+        "CG.IV.B.S",
+        "CG.IV.C.K",
+        "CG.IV.C.S",
+        "CG.IV.D.K",
+        "CG.IV.D.S",
+        "CG.IV.E.K",
+        "CG.IV.E.S",
+        "CG.IV.F.K",
+        "CG.IV.F.S",
+        "CG.IV.G.K",
+        "CG.IV.G.S",
+        "CG.IV.H.K",
+        "CG.IV.H.S",
+        "CG.IV.I.K",
+        "CG.IV.I.S",
+        "CG.IV.J.K",
+        "CG.IV.J.S",
+        "CG.IV.K.K",
+        "CG.IV.K.S",
+        "CG.IV.L.K",
+        "CG.IV.L.S",
+        "CG.IV.M.K",
+        "CG.IV.M.S",
+        "CG.IV.N.K",
+        "CG.IV.N.S",
+        "CG.IV.O.K",
+        "CG.IV.O.S",
+        "CG.IV.P.K",
+        "CG.IV.P.S",
+        "CG.IV.Q.K",
+        "CG.IV.Q.S",
+        "CG.IV.R.K",
+        "CG.IV.R.S",
+        "CG.IV.S.K",
+        "CG.IV.S.S",
+        "CG.V.A.K",
+        "CG.V.A.S",
+        "CG.V.B.K",
+        "CG.V.B.S",
+        "CG.VI.A.K",
+        "CG.VI.A.S",
+        "CG.VI.B.K",
+        "CG.VI.B.S",
+        "CG.VI.C.K",
+        "CG.VI.C.S",
+        "CG.VII.A.K",
+        "CG.VII.A.S",
+        "CG.VII.B.K",
+        "CG.VII.B.S",
+        "CG.VII.C.K",
+        "CG.VII.C.S",
+        "CG.VIII.A.K",
+        "CG.VIII.A.S",
+        "CG.VIII.B.K",
+        "CG.VIII.B.S",
+        "CG.IX.A.K",
+        "CG.IX.A.S",
+        "CG.IX.B.K",
+        "CG.IX.B.S",
+        "CG.X.A.K",
+        "CG.X.A.S",
+        "CG.X.B.K",
+        "CG.X.B.S",
+        "CG.XI.A.K",
+        "CG.XI.A.S",
+        "CG.I.F.K",
+        "CG.I.F.S"
+      ],
+      "code_count": 96
+    },
+    {
+      "title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf",
+      "prefixes": [
+        "FG"
+      ],
+      "codes": [
+        "FG.I.A.K",
+        "FG.I.A.S",
+        "FG.I.B.K",
+        "FG.I.B.S",
+        "FG.I.C.K",
+        "FG.I.C.S",
+        "FG.I.D.K",
+        "FG.I.D.S",
+        "FG.I.E.K",
+        "FG.I.E.S",
+        "FG.I.F.K",
+        "FG.I.F.S",
+        "FG.I.G.K",
+        "FG.I.G.S",
+        "FG.II.A.K",
+        "FG.II.A.S",
+        "FG.II.B.K",
+        "FG.II.B.S",
+        "FG.II.C.K",
+        "FG.II.C.S",
+        "FG.II.D.K",
+        "FG.II.D.S",
+        "FG.II.E.K",
+        "FG.II.E.S",
+        "FG.II.F.K",
+        "FG.II.F.S",
+        "FG.II.G.K",
+        "FG.II.G.S",
+        "FG.II.H.K",
+        "FG.II.H.S",
+        "FG.II.I.K",
+        "FG.II.I.S",
+        "FG.II.J.K",
+        "FG.II.J.S",
+        "FG.II.K.K",
+        "FG.II.K.S",
+        "FG.III.A.K",
+        "FG.III.A.S",
+        "FG.III.B.K",
+        "FG.III.B.S",
+        "FG.III.C.K",
+        "FG.III.C.S",
+        "FG.III.D.K",
+        "FG.III.D.S",
+        "FG.IV.A.K",
+        "FG.IV.A.S",
+        "FG.V.A.K",
+        "FG.V.A.S",
+        "FG.V.B.K",
+        "FG.V.B.S",
+        "FG.V.C.K",
+        "FG.V.C.S",
+        "FG.V.D.K",
+        "FG.V.D.S",
+        "FG.V.E.K",
+        "FG.V.E.S",
+        "FG.VI.A.K",
+        "FG.VI.A.S",
+        "FG.VI.B.K",
+        "FG.VI.B.S",
+        "FG.VI.C.K",
+        "FG.VI.C.S",
+        "FG.VII.A.K",
+        "FG.VII.A.S",
+        "FG.VII.B.K",
+        "FG.VII.B.S",
+        "FG.VII.C.K",
+        "FG.VII.C.S",
+        "FG.VII.D.K",
+        "FG.VII.D.S",
+        "FG.VII.E.K",
+        "FG.VII.E.S",
+        "FG.VII.F.K",
+        "FG.VII.F.S",
+        "FG.VII.G.K",
+        "FG.VII.G.S",
+        "FG.VII.H.K",
+        "FG.VII.H.S",
+        "FG.VII.I.K",
+        "FG.VII.I.S",
+        "FG.VII.J.K",
+        "FG.VII.J.S",
+        "FG.VII.K.K",
+        "FG.VII.K.S",
+        "FG.VII.L.K",
+        "FG.VII.L.S",
+        "FG.VII.M.K",
+        "FG.VII.M.S",
+        "FG.VII.N.K",
+        "FG.VII.N.S",
+        "FG.VII.O.K",
+        "FG.VII.O.S",
+        "FG.VII.P.K",
+        "FG.VII.P.S",
+        "FG.VII.Q.K",
+        "FG.VII.Q.S",
+        "FG.VII.R.K",
+        "FG.VII.R.S",
+        "FG.VII.S.K",
+        "FG.VII.S.S",
+        "FG.VII.T.K",
+        "FG.VII.T.S",
+        "FG.VIII.A.K",
+        "FG.VIII.A.S",
+        "FG.VIII.B.K",
+        "FG.VIII.B.S",
+        "FG.IX.A.K",
+        "FG.IX.A.S",
+        "FG.IX.B.K",
+        "FG.IX.B.S",
+        "FG.X.A.K",
+        "FG.X.A.S",
+        "FG.X.B.K",
+        "FG.X.B.S",
+        "FG.X.C.K",
+        "FG.X.C.S",
+        "FG.XI.A.K",
+        "FG.XI.A.S",
+        "FG.XI.B.K",
+        "FG.XI.B.S",
+        "FG.XII.A.K",
+        "FG.XII.A.S",
+        "FG.XII.B.K",
+        "FG.XII.B.S",
+        "FG.XII.C.K",
+        "FG.XII.C.S",
+        "FG.XIII.A.K",
+        "FG.XIII.A.S",
+        "FG.XIII.B.K",
+        "FG.XIII.B.S",
+        "FG.XIV.A.K",
+        "FG.XIV.A.S"
+      ],
+      "code_count": 132
     }
   ],
   "entries": [
@@ -19698,8 +20050,2262 @@
       "area_name": "X. Postflight Procedures",
       "source_title": "Flight Instructor Instrument Practical Test Standards for Airplane (FAA-S-8081-9E)",
       "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_instrument_pts_9.pdf"
+    },
+    {
+      "code": "PG.I.A.K",
+      "task_name": "Certificates and Documents",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.A.S",
+      "task_name": "Certificates and Documents",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.B.K",
+      "task_name": "Weather Information",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.B.S",
+      "task_name": "Weather Information",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.C.K",
+      "task_name": "Operation of Systems",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.C.S",
+      "task_name": "Operation of Systems",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.D.K",
+      "task_name": "Performance and Limitations",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.D.S",
+      "task_name": "Performance and Limitations",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.E.K",
+      "task_name": "Aeromedical Factors",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.I.E.S",
+      "task_name": "Aeromedical Factors",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.A.K",
+      "task_name": "Assembly",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.A.S",
+      "task_name": "Assembly",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.B.K",
+      "task_name": "Ground Handling",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.B.S",
+      "task_name": "Ground Handling",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.C.K",
+      "task_name": "Preflight Inspection",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.C.S",
+      "task_name": "Preflight Inspection",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.D.K",
+      "task_name": "Flight Deck Management",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.D.S",
+      "task_name": "Flight Deck Management",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.E.K",
+      "task_name": "Visual Signals",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.II.E.S",
+      "task_name": "Visual Signals",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.III.A.K",
+      "task_name": "Radio Communications",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.III.A.S",
+      "task_name": "Radio Communications",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.III.B.K",
+      "task_name": "Traffic Patterns",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.III.B.S",
+      "task_name": "Traffic Patterns",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.III.C.K",
+      "task_name": "Airport, Runway, and Taxiway Signs, Markings, and Lighting",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.III.C.S",
+      "task_name": "Airport, Runway, and Taxiway Signs, Markings, and Lighting",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.A.K",
+      "task_name": "Aero Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.A.S",
+      "task_name": "Aero Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.B.K",
+      "task_name": "Aero Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.B.S",
+      "task_name": "Aero Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.C.K",
+      "task_name": "Aero Tow: Maintaining Tow Positions",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.C.S",
+      "task_name": "Aero Tow: Maintaining Tow Positions",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.D.K",
+      "task_name": "Aero Tow: Slack Line",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.D.S",
+      "task_name": "Aero Tow: Slack Line",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.E.K",
+      "task_name": "Aero Tow: Boxing the Wake",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.E.S",
+      "task_name": "Aero Tow: Boxing the Wake",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.F.K",
+      "task_name": "Aero Tow: Tow Release",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.F.S",
+      "task_name": "Aero Tow: Tow Release",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.G.K",
+      "task_name": "Aero Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.G.S",
+      "task_name": "Aero Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.H.K",
+      "task_name": "Ground Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.H.S",
+      "task_name": "Ground Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.I.K",
+      "task_name": "Ground Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.I.S",
+      "task_name": "Ground Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.J.K",
+      "task_name": "Ground Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.J.S",
+      "task_name": "Ground Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.K.K",
+      "task_name": "Self-Launch: Engine Starting",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.K.S",
+      "task_name": "Self-Launch: Engine Starting",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.L.K",
+      "task_name": "Self-Launch: Taxiing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.L.S",
+      "task_name": "Self-Launch: Taxiing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.M.K",
+      "task_name": "Self-Launch: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.M.S",
+      "task_name": "Self-Launch: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.N.K",
+      "task_name": "Self-Launch: Normal and Crosswind Takeoff and Climb",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.N.S",
+      "task_name": "Self-Launch: Normal and Crosswind Takeoff and Climb",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.O.K",
+      "task_name": "Self-Launch: Engine Shutdown In Flight",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.O.S",
+      "task_name": "Self-Launch: Engine Shutdown In Flight",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.P.K",
+      "task_name": "Self-Launch: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.P.S",
+      "task_name": "Self-Launch: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.Q.K",
+      "task_name": "Normal and Crosswind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.Q.S",
+      "task_name": "Normal and Crosswind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.R.K",
+      "task_name": "Slips to Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.R.S",
+      "task_name": "Slips to Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.S.K",
+      "task_name": "Downwind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IV.S.S",
+      "task_name": "Downwind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.V.A.K",
+      "task_name": "Minimum Sink Airspeed",
+      "area_name": "V. Performance Airspeeds",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.V.A.S",
+      "task_name": "Minimum Sink Airspeed",
+      "area_name": "V. Performance Airspeeds",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.V.B.K",
+      "task_name": "Speed-To-Fly",
+      "area_name": "V. Performance Airspeeds",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.V.B.S",
+      "task_name": "Speed-To-Fly",
+      "area_name": "V. Performance Airspeeds",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VI.A.K",
+      "task_name": "Thermal Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VI.A.S",
+      "task_name": "Thermal Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VI.B.K",
+      "task_name": "Ridge and Slope Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VI.B.S",
+      "task_name": "Ridge and Slope Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VI.C.K",
+      "task_name": "Wave Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VI.C.S",
+      "task_name": "Wave Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VII.A.K",
+      "task_name": "Straight Glides",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VII.A.S",
+      "task_name": "Straight Glides",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VII.B.K",
+      "task_name": "Turns to Headings",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VII.B.S",
+      "task_name": "Turns to Headings",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VII.C.K",
+      "task_name": "Steep Turns",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VII.C.S",
+      "task_name": "Steep Turns",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VIII.A.K",
+      "task_name": "Flight Preparation and Planning",
+      "area_name": "VIII. Navigation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VIII.A.S",
+      "task_name": "Flight Preparation and Planning",
+      "area_name": "VIII. Navigation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VIII.B.K",
+      "task_name": "National Airspace System",
+      "area_name": "VIII. Navigation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.VIII.B.S",
+      "task_name": "National Airspace System",
+      "area_name": "VIII. Navigation",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IX.A.K",
+      "task_name": "Maneuvering at Minimum Control Airspeed",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IX.A.S",
+      "task_name": "Maneuvering at Minimum Control Airspeed",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IX.B.K",
+      "task_name": "Stall Recognition and Recovery",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.IX.B.S",
+      "task_name": "Stall Recognition and Recovery",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.X.A.K",
+      "task_name": "Simulated Off-Airport Landing",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.X.A.S",
+      "task_name": "Simulated Off-Airport Landing",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.X.B.K",
+      "task_name": "Emergency Equipment and Survival Gear",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.X.B.S",
+      "task_name": "Emergency Equipment and Survival Gear",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.XI.A.K",
+      "task_name": "After-Landing and Securing",
+      "area_name": "XI. Postflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "PG.XI.A.S",
+      "task_name": "After-Landing and Securing",
+      "area_name": "XI. Postflight Procedures",
+      "source_title": "Private Pilot Practical Test Standards for Glider Category (FAA-S-8081-22A)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/private_glider_pts_22.pdf"
+    },
+    {
+      "code": "CG.I.A.K",
+      "task_name": "Certificates and Documents",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.A.S",
+      "task_name": "Certificates and Documents",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.B.K",
+      "task_name": "Airworthiness Requirements",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.B.S",
+      "task_name": "Airworthiness Requirements",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.C.K",
+      "task_name": "Weather Information",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.C.S",
+      "task_name": "Weather Information",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.D.K",
+      "task_name": "Operation of Systems",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.D.S",
+      "task_name": "Operation of Systems",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.E.K",
+      "task_name": "Performance and Limitations",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.E.S",
+      "task_name": "Performance and Limitations",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.A.K",
+      "task_name": "Assembly",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.A.S",
+      "task_name": "Assembly",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.B.K",
+      "task_name": "Ground Handling",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.B.S",
+      "task_name": "Ground Handling",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.C.K",
+      "task_name": "Preflight Inspection",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.C.S",
+      "task_name": "Preflight Inspection",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.D.K",
+      "task_name": "Flight Deck Management",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.D.S",
+      "task_name": "Flight Deck Management",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.E.K",
+      "task_name": "Visual Signals",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.II.E.S",
+      "task_name": "Visual Signals",
+      "area_name": "II. Preflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.III.A.K",
+      "task_name": "Radio Communications and ATC Light Signals",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.III.A.S",
+      "task_name": "Radio Communications and ATC Light Signals",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.III.B.K",
+      "task_name": "Traffic Patterns",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.III.B.S",
+      "task_name": "Traffic Patterns",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.III.C.K",
+      "task_name": "Airport, Runway, and Taxiway Signs, Markings, and Lighting",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.III.C.S",
+      "task_name": "Airport, Runway, and Taxiway Signs, Markings, and Lighting",
+      "area_name": "III. Airport and Gliderport Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.A.K",
+      "task_name": "Aero Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.A.S",
+      "task_name": "Aero Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.B.K",
+      "task_name": "Aero Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.B.S",
+      "task_name": "Aero Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.C.K",
+      "task_name": "Aero Tow: Maintaining Tow Positions",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.C.S",
+      "task_name": "Aero Tow: Maintaining Tow Positions",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.D.K",
+      "task_name": "Aero Tow: Slack Line",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.D.S",
+      "task_name": "Aero Tow: Slack Line",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.E.K",
+      "task_name": "Aero Tow: Boxing the Wake",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.E.S",
+      "task_name": "Aero Tow: Boxing the Wake",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.F.K",
+      "task_name": "Aero Tow: Tow Release",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.F.S",
+      "task_name": "Aero Tow: Tow Release",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.G.K",
+      "task_name": "Aero Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.G.S",
+      "task_name": "Aero Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.H.K",
+      "task_name": "Ground Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.H.S",
+      "task_name": "Ground Tow: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.I.K",
+      "task_name": "Ground Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.I.S",
+      "task_name": "Ground Tow: Normal and Crosswind Takeoff",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.J.K",
+      "task_name": "Ground Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.J.S",
+      "task_name": "Ground Tow: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.K.K",
+      "task_name": "Self-Launch: Engine Starting",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.K.S",
+      "task_name": "Self-Launch: Engine Starting",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.L.K",
+      "task_name": "Self-Launch: Taxiing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.L.S",
+      "task_name": "Self-Launch: Taxiing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.M.K",
+      "task_name": "Self-Launch: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.M.S",
+      "task_name": "Self-Launch: Before Takeoff Check",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.N.K",
+      "task_name": "Self-Launch: Normal and Crosswind Takeoff and Climb",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.N.S",
+      "task_name": "Self-Launch: Normal and Crosswind Takeoff and Climb",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.O.K",
+      "task_name": "Self-Launch: Engine Shutdown In Flight",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.O.S",
+      "task_name": "Self-Launch: Engine Shutdown In Flight",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.P.K",
+      "task_name": "Self-Launch: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.P.S",
+      "task_name": "Self-Launch: Abnormal Occurrences",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.Q.K",
+      "task_name": "Normal and Crosswind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.Q.S",
+      "task_name": "Normal and Crosswind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.R.K",
+      "task_name": "Slips to Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.R.S",
+      "task_name": "Slips to Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.S.K",
+      "task_name": "Downwind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IV.S.S",
+      "task_name": "Downwind Landing",
+      "area_name": "IV. Launches and Landings",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.V.A.K",
+      "task_name": "Minimum Sink Airspeed",
+      "area_name": "V. Performance Speeds",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.V.A.S",
+      "task_name": "Minimum Sink Airspeed",
+      "area_name": "V. Performance Speeds",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.V.B.K",
+      "task_name": "Speed-To-Fly",
+      "area_name": "V. Performance Speeds",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.V.B.S",
+      "task_name": "Speed-To-Fly",
+      "area_name": "V. Performance Speeds",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VI.A.K",
+      "task_name": "Thermal Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VI.A.S",
+      "task_name": "Thermal Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VI.B.K",
+      "task_name": "Ridge and Slope Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VI.B.S",
+      "task_name": "Ridge and Slope Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VI.C.K",
+      "task_name": "Wave Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VI.C.S",
+      "task_name": "Wave Soaring",
+      "area_name": "VI. Soaring Techniques",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VII.A.K",
+      "task_name": "Straight Glides",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VII.A.S",
+      "task_name": "Straight Glides",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VII.B.K",
+      "task_name": "Turns to Headings",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VII.B.S",
+      "task_name": "Turns to Headings",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VII.C.K",
+      "task_name": "Steep Turns",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VII.C.S",
+      "task_name": "Steep Turns",
+      "area_name": "VII. Performance Maneuvers",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VIII.A.K",
+      "task_name": "Flight Preparation and Planning",
+      "area_name": "VIII. Navigation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VIII.A.S",
+      "task_name": "Flight Preparation and Planning",
+      "area_name": "VIII. Navigation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VIII.B.K",
+      "task_name": "National Airspace System",
+      "area_name": "VIII. Navigation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.VIII.B.S",
+      "task_name": "National Airspace System",
+      "area_name": "VIII. Navigation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IX.A.K",
+      "task_name": "Maneuvering at Minimum Control Airspeed",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IX.A.S",
+      "task_name": "Maneuvering at Minimum Control Airspeed",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IX.B.K",
+      "task_name": "Stall Recognition and Recovery",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.IX.B.S",
+      "task_name": "Stall Recognition and Recovery",
+      "area_name": "IX. Slow Flight and Stalls",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.X.A.K",
+      "task_name": "Simulated Off-Airport Landing",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.X.A.S",
+      "task_name": "Simulated Off-Airport Landing",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.X.B.K",
+      "task_name": "Emergency Equipment and Survival Gear",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.X.B.S",
+      "task_name": "Emergency Equipment and Survival Gear",
+      "area_name": "X. Emergency Operations",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.XI.A.K",
+      "task_name": "After-Landing and Securing",
+      "area_name": "XI. Postflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.XI.A.S",
+      "task_name": "After-Landing and Securing",
+      "area_name": "XI. Postflight Procedures",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.F.K",
+      "task_name": "Aeromedical Factors",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "CG.I.F.S",
+      "task_name": "Aeromedical Factors",
+      "area_name": "I. Preflight Preparation",
+      "source_title": "Commercial Pilot Practical Test Standards for Glider Category (FAA-S-8081-23B)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/commercial_glider_pts_23.pdf"
+    },
+    {
+      "code": "FG.I.A.K",
+      "task_name": "The Learning Process",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.A.S",
+      "task_name": "The Learning Process",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.B.K",
+      "task_name": "Human Behavior",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.B.S",
+      "task_name": "Human Behavior",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.C.K",
+      "task_name": "The Teaching Process",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.C.S",
+      "task_name": "The Teaching Process",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.D.K",
+      "task_name": "Teaching Methods",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.D.S",
+      "task_name": "Teaching Methods",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.E.K",
+      "task_name": "Critique and Evaluation",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.E.S",
+      "task_name": "Critique and Evaluation",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.F.K",
+      "task_name": "Flight Instructor Characteristics and Responsibilities",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.F.S",
+      "task_name": "Flight Instructor Characteristics and Responsibilities",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.G.K",
+      "task_name": "Planning Instructional Activity",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.I.G.S",
+      "task_name": "Planning Instructional Activity",
+      "area_name": "I. Fundamentals of Instructing",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.A.K",
+      "task_name": "Aeromedical Factors",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.A.S",
+      "task_name": "Aeromedical Factors",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.B.K",
+      "task_name": "Visual Scanning and Collision Avoidance",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.B.S",
+      "task_name": "Visual Scanning and Collision Avoidance",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.C.K",
+      "task_name": "Use of Distractions During Flight Training",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.C.S",
+      "task_name": "Use of Distractions During Flight Training",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.D.K",
+      "task_name": "Principles of Flight",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.D.S",
+      "task_name": "Principles of Flight",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.E.K",
+      "task_name": "Elevators, Ailerons, and Rudder",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.E.S",
+      "task_name": "Elevators, Ailerons, and Rudder",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.F.K",
+      "task_name": "Trim, Lift, and Drag Devices",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.F.S",
+      "task_name": "Trim, Lift, and Drag Devices",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.G.K",
+      "task_name": "Glider Weight and Balance",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.G.S",
+      "task_name": "Glider Weight and Balance",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.H.K",
+      "task_name": "Navigation and Flight Planning",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.H.S",
+      "task_name": "Navigation and Flight Planning",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.I.K",
+      "task_name": "Regulations and Publications",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.I.S",
+      "task_name": "Regulations and Publications",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.J.K",
+      "task_name": "National Airspace System",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.J.S",
+      "task_name": "National Airspace System",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.K.K",
+      "task_name": "Logbook Entries and Certificate Endorsements",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.II.K.S",
+      "task_name": "Logbook Entries and Certificate Endorsements",
+      "area_name": "II. Technical Subject Areas",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.A.K",
+      "task_name": "Certificates and Documents",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.A.S",
+      "task_name": "Certificates and Documents",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.B.K",
+      "task_name": "Weather Information",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.B.S",
+      "task_name": "Weather Information",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.C.K",
+      "task_name": "Operation of Systems",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.C.S",
+      "task_name": "Operation of Systems",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.D.K",
+      "task_name": "Performance and Limitations",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.III.D.S",
+      "task_name": "Performance and Limitations",
+      "area_name": "III. Preflight Preparation",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.IV.A.K",
+      "task_name": "Maneuver Lesson",
+      "area_name": "IV. Preflight Lesson on a Maneuver to Be Performed in Flight",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.IV.A.S",
+      "task_name": "Maneuver Lesson",
+      "area_name": "IV. Preflight Lesson on a Maneuver to Be Performed in Flight",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.A.K",
+      "task_name": "Assembly",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.A.S",
+      "task_name": "Assembly",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.B.K",
+      "task_name": "Ground Handling",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.B.S",
+      "task_name": "Ground Handling",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.C.K",
+      "task_name": "Preflight Inspection",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.C.S",
+      "task_name": "Preflight Inspection",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.D.K",
+      "task_name": "Flight Deck Management",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.D.S",
+      "task_name": "Flight Deck Management",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.E.K",
+      "task_name": "Visual Signals",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.V.E.S",
+      "task_name": "Visual Signals",
+      "area_name": "V. Preflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VI.A.K",
+      "task_name": "Radio Communications",
+      "area_name": "VI. Airport and Gliderport Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VI.A.S",
+      "task_name": "Radio Communications",
+      "area_name": "VI. Airport and Gliderport Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VI.B.K",
+      "task_name": "Traffic Patterns",
+      "area_name": "VI. Airport and Gliderport Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VI.B.S",
+      "task_name": "Traffic Patterns",
+      "area_name": "VI. Airport and Gliderport Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VI.C.K",
+      "task_name": "Airport, Runway, and Taxiway Signs, Markings, and Lighting",
+      "area_name": "VI. Airport and Gliderport Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VI.C.S",
+      "task_name": "Airport, Runway, and Taxiway Signs, Markings, and Lighting",
+      "area_name": "VI. Airport and Gliderport Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.A.K",
+      "task_name": "Aero Tow: Before Takeoff Check",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.A.S",
+      "task_name": "Aero Tow: Before Takeoff Check",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.B.K",
+      "task_name": "Aero Tow: Normal and Crosswind Takeoff",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.B.S",
+      "task_name": "Aero Tow: Normal and Crosswind Takeoff",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.C.K",
+      "task_name": "Aero Tow: Maintaining Tow Positions",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.C.S",
+      "task_name": "Aero Tow: Maintaining Tow Positions",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.D.K",
+      "task_name": "Aero Tow: Slack Line",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.D.S",
+      "task_name": "Aero Tow: Slack Line",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.E.K",
+      "task_name": "Aero Tow: Boxing the Wake",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.E.S",
+      "task_name": "Aero Tow: Boxing the Wake",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.F.K",
+      "task_name": "Aero Tow: Tow Release",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.F.S",
+      "task_name": "Aero Tow: Tow Release",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.G.K",
+      "task_name": "Aero Tow: Abnormal Occurrences",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.G.S",
+      "task_name": "Aero Tow: Abnormal Occurrences",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.H.K",
+      "task_name": "Ground Tow: Before Takeoff Check",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.H.S",
+      "task_name": "Ground Tow: Before Takeoff Check",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.I.K",
+      "task_name": "Ground Tow: Normal and Crosswind Takeoff",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.I.S",
+      "task_name": "Ground Tow: Normal and Crosswind Takeoff",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.J.K",
+      "task_name": "Ground Tow: Abnormal Occurrences",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.J.S",
+      "task_name": "Ground Tow: Abnormal Occurrences",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.K.K",
+      "task_name": "Self-Launch: Engine Starting",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.K.S",
+      "task_name": "Self-Launch: Engine Starting",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.L.K",
+      "task_name": "Self-Launch: Taxiing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.L.S",
+      "task_name": "Self-Launch: Taxiing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.M.K",
+      "task_name": "Self-Launch: Before Takeoff Check",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.M.S",
+      "task_name": "Self-Launch: Before Takeoff Check",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.N.K",
+      "task_name": "Self-Launch: Normal and Crosswind Takeoff and Climb",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.N.S",
+      "task_name": "Self-Launch: Normal and Crosswind Takeoff and Climb",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.O.K",
+      "task_name": "Self-Launch: Engine Shutdown In Flight",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.O.S",
+      "task_name": "Self-Launch: Engine Shutdown In Flight",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.P.K",
+      "task_name": "Self-Launch: Engine Restart In Flight",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.P.S",
+      "task_name": "Self-Launch: Engine Restart In Flight",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.Q.K",
+      "task_name": "Self-Launch: Abnormal Occurrences",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.Q.S",
+      "task_name": "Self-Launch: Abnormal Occurrences",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.R.K",
+      "task_name": "Normal and Crosswind Landing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.R.S",
+      "task_name": "Normal and Crosswind Landing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.S.K",
+      "task_name": "Slips to Landing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.S.S",
+      "task_name": "Slips to Landing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.T.K",
+      "task_name": "Downwind Landing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VII.T.S",
+      "task_name": "Downwind Landing",
+      "area_name": "VII. Launches and Landings",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VIII.A.K",
+      "task_name": "Straight Glides",
+      "area_name": "VIII. Fundamentals of Flight",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VIII.A.S",
+      "task_name": "Straight Glides",
+      "area_name": "VIII. Fundamentals of Flight",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VIII.B.K",
+      "task_name": "Turns To Headings",
+      "area_name": "VIII. Fundamentals of Flight",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.VIII.B.S",
+      "task_name": "Turns To Headings",
+      "area_name": "VIII. Fundamentals of Flight",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.IX.A.K",
+      "task_name": "Minimum Sink Airspeed",
+      "area_name": "IX. Performance Airspeeds",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.IX.A.S",
+      "task_name": "Minimum Sink Airspeed",
+      "area_name": "IX. Performance Airspeeds",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.IX.B.K",
+      "task_name": "Speed-To-Fly",
+      "area_name": "IX. Performance Airspeeds",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.IX.B.S",
+      "task_name": "Speed-To-Fly",
+      "area_name": "IX. Performance Airspeeds",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.X.A.K",
+      "task_name": "Thermal Soaring",
+      "area_name": "X. Soaring Techniques",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.X.A.S",
+      "task_name": "Thermal Soaring",
+      "area_name": "X. Soaring Techniques",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.X.B.K",
+      "task_name": "Ridge and Slope Soaring",
+      "area_name": "X. Soaring Techniques",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.X.B.S",
+      "task_name": "Ridge and Slope Soaring",
+      "area_name": "X. Soaring Techniques",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.X.C.K",
+      "task_name": "Wave Soaring",
+      "area_name": "X. Soaring Techniques",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.X.C.S",
+      "task_name": "Wave Soaring",
+      "area_name": "X. Soaring Techniques",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XI.A.K",
+      "task_name": "Steep Turns",
+      "area_name": "XI. Performance Maneuvers",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XI.A.S",
+      "task_name": "Steep Turns",
+      "area_name": "XI. Performance Maneuvers",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XI.B.K",
+      "task_name": "Recovery From a Spiral Dive",
+      "area_name": "XI. Performance Maneuvers",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XI.B.S",
+      "task_name": "Recovery From a Spiral Dive",
+      "area_name": "XI. Performance Maneuvers",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XII.A.K",
+      "task_name": "Maneuvering at Minimum Control Airspeed",
+      "area_name": "XII. Slow Flight, Stalls, and Spins",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XII.A.S",
+      "task_name": "Maneuvering at Minimum Control Airspeed",
+      "area_name": "XII. Slow Flight, Stalls, and Spins",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XII.B.K",
+      "task_name": "Stall Recognition and Recovery",
+      "area_name": "XII. Slow Flight, Stalls, and Spins",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XII.B.S",
+      "task_name": "Stall Recognition and Recovery",
+      "area_name": "XII. Slow Flight, Stalls, and Spins",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XII.C.K",
+      "task_name": "Spins",
+      "area_name": "XII. Slow Flight, Stalls, and Spins",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XII.C.S",
+      "task_name": "Spins",
+      "area_name": "XII. Slow Flight, Stalls, and Spins",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XIII.A.K",
+      "task_name": "Simulated Off-Airport Landing",
+      "area_name": "XIII. Emergency Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XIII.A.S",
+      "task_name": "Simulated Off-Airport Landing",
+      "area_name": "XIII. Emergency Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XIII.B.K",
+      "task_name": "Emergency Equipment and Survival Gear",
+      "area_name": "XIII. Emergency Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XIII.B.S",
+      "task_name": "Emergency Equipment and Survival Gear",
+      "area_name": "XIII. Emergency Operations",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XIV.A.K",
+      "task_name": "After-Landing and Securing",
+      "area_name": "XIV. Postflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
+    },
+    {
+      "code": "FG.XIV.A.S",
+      "task_name": "After-Landing and Securing",
+      "area_name": "XIV. Postflight Procedures",
+      "source_title": "Flight Instructor Practical Test Standards for Glider Category (FAA-S-8081-8C)",
+      "source_url": "https://www.faa.gov/training_testing/testing/acs/cfi_glider_pts_8.pdf"
     }
   ],
-  "document_count": 21,
-  "entry_count": 2775
+  "document_count": 24,
+  "entry_count": 3097
 }

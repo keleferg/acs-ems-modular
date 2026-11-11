@@ -96,6 +96,30 @@ export function faaAcsPrefixesForTestType(testType: PracticalTestType) {
   }
 
   /*
+   * GLIDER
+   *
+   * Glider practical tests still use PTS (Private FAA-S-8081-22A, Commercial
+   * FAA-S-8081-23B, Flight Instructor FAA-S-8081-8C), which have no ACS
+   * codes. Like the CFII PTS, EMS codes their Tasks <PFX>.<Area>.<Task>.K/S:
+   * PG (private), CG (commercial), FG (flight instructor). The entries are in
+   * data/faa-acs-compliance-catalog.json.
+   */
+  if (categoryCode === "GLIDER" && certificateCode === "PRIVATE") {
+    return ["PG"];
+  }
+
+  if (categoryCode === "GLIDER" && certificateCode === "COMMERCIAL") {
+    return ["CG"];
+  }
+
+  if (
+    certificateCode === "FLIGHT_INSTRUCTOR" &&
+    ratingCode === "CFI_GLIDER"
+  ) {
+    return ["FG"];
+  }
+
+  /*
    * HELICOPTER
    */
 
