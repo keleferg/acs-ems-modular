@@ -21,6 +21,8 @@ import { buildTemplateSequence, fillTemplateText, pickTemplateVariants, slotVari
 import { hasCompleteTaskCoverage } from "@/lib/poa/generation-readiness";
 import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-editor";
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
+import { PoaLocationsPanel } from "@/components/poa/poa-locations-panel";
+import { locationFills, locationSnapshot, parseLegNm, type PoaLocations } from "@/lib/poa/locations";
 
 import { createClient } from "@/lib/supabase/client";
 import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
@@ -242,6 +244,7 @@ type GeneratorScenarioOption = {
   scenario_brief: string | null;
   departure: string | null;
   destination: string | null;
+  leg_nm: number | null;
   aircraft: string | null;
   initial_conditions: string | null;
   examiner_notes: string | null;
@@ -407,6 +410,7 @@ type LinkedRequest = {
   aircraft_model: string | null;
   aircraft_registration: string | null;
   aircraft_is_taa: boolean | null;
+  flight_airport_id: string | null;
 };
 
 type TriggerQuestionLink = {
@@ -651,7 +655,7 @@ export default function GeneratePoaPage() {
     void (async () => {
       const { data } = await createClient()
         .from("practical_test_requests")
-        .select("id, request_number, applicant_name_snapshot, aircraft_make, aircraft_model, aircraft_registration, aircraft_is_taa")
+        .select("id, request_number, applicant_name_snapshot, aircraft_make, aircraft_model, aircraft_registration, aircraft_is_taa, flight_airport_id")
         .eq("id", requestId)
         .maybeSingle();
       if (cancelled || !data) return;
@@ -1492,6 +1496,7 @@ export default function GeneratePoaPage() {
           scenario_brief,
           departure,
           destination,
+          leg_nm,
           aircraft,
           initial_conditions,
           examiner_notes
@@ -1823,6 +1828,40 @@ export default function GeneratePoaPage() {
     [scenarioOptions, selectedScenarioId],
   );
 
+  // Real places for the POA (Kele, Nov 11 2026): picked near the request's test airport.
+  const [poaLocations, setPoaLocations] = useState<PoaLocations | null>(null);
+  const locationNeeds = useMemo(() => {
+    const classCode = (testType?.class_code ?? "").trim().toUpperCase();
+    const ratingCode = (testType?.rating_code ?? "").trim().toUpperCase();
+    return {
+      legNm: selectedScenario?.leg_nm ?? parseLegNm(selectedScenario?.destination),
+      destinationKind: (["ASES", "AMES"].includes(classCode) ? "seaplane" : "airport") as "seaplane" | "airport",
+      instrument:
+        testType?.certificate_code === "INSTRUMENT" ||
+        testType?.certificate_code === "ATP" ||
+        ratingCode.startsWith("CFII"),
+    };
+  }, [testType, selectedScenario]);
+  const aircraftFill = useMemo(() => {
+    const made = [linkedRequest?.aircraft_make, linkedRequest?.aircraft_model].filter(Boolean).join(" ").trim();
+    return made ? `the ${made}` : "the aircraft";
+  }, [linkedRequest]);
+  /** [departure], [destination], [practice area], [aircraft]… for this POA. */
+  const poaFills = useMemo(
+    () => ({
+      ...locationFills(poaLocations, {
+        destination: selectedScenario?.destination ?? null,
+        departure: selectedScenario?.departure ?? null,
+      }),
+      aircraft: selectedScenario?.aircraft || aircraftFill,
+    }),
+    [poaLocations, selectedScenario, aircraftFill],
+  );
+  const fillText = useCallback(
+    (text: string | null | undefined) => (text ? fillTemplateText(text, poaFills) : text ?? null),
+    [poaFills],
+  );
+
   function removeTriggerChoice(eventSetId: string, triggerId: string) {
     setSelectedTriggerIds((current) => ({ ...current, [eventSetId]: (current[eventSetId] ?? []).filter((id) => id !== triggerId) }));
   }
@@ -2139,6 +2178,12 @@ export default function GeneratePoaPage() {
       return;
     }
 
+    if (!poaLocations) {
+      setErrorMessage("Enter the test airport under Locations so the POA gets real places.");
+
+      return;
+    }
+
     if (selectedQuestions.length > 75) {
       const proceed = window.confirm(
         `${selectedQuestions.length} questions are selected. This is unusually large for a practical-test POA. Continue and freeze all ${selectedQuestions.length} questions?`,
@@ -2193,6 +2238,8 @@ export default function GeneratePoaPage() {
           aircraft_equipment: poaEquipment,
 
           practical_test_request_id: linkedRequest?.id ?? null,
+
+          location_snapshot: poaLocations ? locationSnapshot(poaLocations) : null,
 
           status: "ready",
 
@@ -2318,9 +2365,9 @@ export default function GeneratePoaPage() {
 
         acs_references_snapshot: acsReferencesForQuestion(question),
 
-        question_snapshot: question.question,
+        question_snapshot: fillText(question.question),
 
-        answer_snapshot: question.answer,
+        answer_snapshot: fillText(question.answer),
 
         reference_snapshot: question.reference,
 
@@ -2391,8 +2438,8 @@ export default function GeneratePoaPage() {
           timeline_kind: item.kind,
           phase: item.phase,
           category_snapshot: item.category ?? null,
-          trigger_text_snapshot: item.title,
-          trigger_narrative_snapshot: item.narrative ?? item.title,
+          trigger_text_snapshot: fillText(item.title),
+          trigger_narrative_snapshot: fillText(item.narrative ?? item.title),
           branch_worthy: Boolean(item.branch_worthy),
           source_trigger_id: item.source_trigger_id ?? null,
           // Every trigger placed in the sequence is used in this POA.
@@ -2456,6 +2503,10 @@ export default function GeneratePoaPage() {
       setErrorMessage("Select a scenario. It opens the POA with the reason for the flight.");
       return;
     }
+    if (!poaLocations) {
+      setErrorMessage("Enter the test airport under Locations so the POA gets real places.");
+      return;
+    }
     if (equipmentMissing) {
       setErrorMessage("Select the aircraft equipment (six-pack or glass cockpit) before generating.");
       return;
@@ -2479,11 +2530,7 @@ export default function GeneratePoaPage() {
       classCode: testType.class_code,
       requiredTaskParents,
     }) as PoaTemplateRow[];
-    const fills = {
-      destination: selectedScenario.destination,
-      departure: selectedScenario.departure,
-      aircraft: selectedScenario.aircraft,
-    };
+    const fills = poaFills;
 
     const coveredCodes = new Set(
       sequence.flatMap((item) =>
@@ -2523,6 +2570,7 @@ export default function GeneratePoaPage() {
           template_variants: variants,
           aircraft_equipment: poaEquipment,
           practical_test_request_id: linkedRequest?.id ?? null,
+          location_snapshot: poaLocations ? locationSnapshot(poaLocations) : null,
           status: "ready",
           notes: `Built from the ${poaTemplate.name} POA template (v${poaTemplate.version}) for ${testType.display_name}.`,
         })
@@ -2549,7 +2597,7 @@ export default function GeneratePoaPage() {
             placement_section: "oral",
             phase: "preflight",
             trigger_text_snapshot: selectedScenario.scenario_name,
-            trigger_narrative_snapshot: selectedScenario.scenario_brief ?? selectedScenario.scenario_name,
+            trigger_narrative_snapshot: fillTemplateText(selectedScenario.scenario_brief ?? selectedScenario.scenario_name, fills),
             sort_order: position,
             template_item_id: item.id,
           });
@@ -2575,7 +2623,7 @@ export default function GeneratePoaPage() {
             // Element codes, like the rule-based builder stores, so the compliance view can count K and R.
             acs_reference_snapshot: references.join("; ") || question.acs_reference,
             question_snapshot: item.item_kind === "trigger" ? `TRIGGER: ${text}` : text,
-            answer_snapshot: question.answer,
+            answer_snapshot: question.answer ? fillTemplateText(question.answer, fills) : question.answer,
             reference_snapshot: question.reference,
             topic_snapshot: question.topic,
             task_name_snapshot: question.task_name,
@@ -2771,6 +2819,15 @@ export default function GeneratePoaPage() {
               </div>
             </div>
           </section>
+      ) : null}
+
+      {testType ? (
+        <PoaLocationsPanel
+          requestAirportId={linkedRequest?.flight_airport_id ?? null}
+          needs={locationNeeds}
+          scenarioKey={selectedScenarioId}
+          onChange={setPoaLocations}
+        />
       ) : null}
 
       <div className="mt-6 flex gap-1 border-b border-slate-300" role="tablist" aria-label="POA generator views">
