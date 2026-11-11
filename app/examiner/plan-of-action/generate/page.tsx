@@ -23,6 +23,8 @@ import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
 import { PoaLocationsPanel } from "@/components/poa/poa-locations-panel";
 import { locationFills, locationSnapshot, parseLegNm, type PoaLocations } from "@/lib/poa/locations";
+import { buildIfrContext, IFR_FILL_KEYS, type IfrContext } from "@/lib/poa/ifr-context";
+import { loadIfrInputs } from "@/lib/poa/ifr-load";
 
 import { createClient } from "@/lib/supabase/client";
 import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
@@ -1745,7 +1747,7 @@ export default function GeneratePoaPage() {
           .from("poa_template_items")
           .select(`
             id, event_set_id, parent_item_id, sort_order, depth, item_kind, script_text, question_id,
-            is_optional, condition_note, aircraft_equipment, class_codes, rotation_slot, rotation_variant,
+            is_optional, condition_note, aircraft_equipment, class_codes, rotation_slot, rotation_variant, requires_fills,
             poa_questions ( id, question, answer, reference, acs_reference, task_name, topic, question_type,
               poa_question_acs_applicability ( certificate_name, acs_reference ) )
           `)
@@ -1846,7 +1848,19 @@ export default function GeneratePoaPage() {
     const made = [linkedRequest?.aircraft_make, linkedRequest?.aircraft_model].filter(Boolean).join(" ").trim();
     return made ? `the ${made}` : "the aircraft";
   }, [linkedRequest]);
-  /** [departure], [destination], [practice area], [aircraft]… for this POA. */
+  // Real clearance, frequencies, tower hours and approach fixes for instrument POAs (Kele, Nov 11 2026).
+  const [ifrContext, setIfrContext] = useState<IfrContext | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setIfrContext(null);
+    if (!locationNeeds.instrument || !poaLocations?.destination) return;
+    void (async () => {
+      const inputs = await loadIfrInputs(createClient(), poaLocations, poaEquipment === "taa" || poaEquipment === "six_pack" ? poaEquipment : null);
+      if (!cancelled && inputs) setIfrContext(buildIfrContext(inputs));
+    })();
+    return () => { cancelled = true; };
+  }, [poaLocations, poaEquipment, locationNeeds.instrument]);
+  /** [departure], [destination], [practice area], [aircraft], [clearance]… for this POA. */
   const poaFills = useMemo(
     () => ({
       ...locationFills(poaLocations, {
@@ -1854,8 +1868,14 @@ export default function GeneratePoaPage() {
         departure: selectedScenario?.departure ?? null,
       }),
       aircraft: selectedScenario?.aircraft || aircraftFill,
+      ...(ifrContext?.fills ?? {}),
     }),
-    [poaLocations, selectedScenario, aircraftFill],
+    [poaLocations, selectedScenario, aircraftFill, ifrContext],
+  );
+  /** Items needing IFR fill-ins this POA can't supply are skipped (no made-up fixes). */
+  const fillCheck = useMemo(
+    () => ({ keys: IFR_FILL_KEYS, available: new Set(Object.keys(ifrContext?.fills ?? {})) }),
+    [ifrContext],
   );
   const fillText = useCallback(
     (text: string | null | undefined) => (text ? fillTemplateText(text, poaFills) : text ?? null),
@@ -2240,6 +2260,7 @@ export default function GeneratePoaPage() {
           practical_test_request_id: linkedRequest?.id ?? null,
 
           location_snapshot: poaLocations ? locationSnapshot(poaLocations) : null,
+          ifr_snapshot: ifrContext ? { ...ifrContext.snapshot, fills: ifrContext.fills } : null,
 
           status: "ready",
 
@@ -2523,12 +2544,13 @@ export default function GeneratePoaPage() {
             .filter((code): code is string => Boolean(code)),
         )
       : null;
-    const variants = pickTemplateVariants(poaTemplate.items, poaTemplate.previousVariants);
+    const variants = pickTemplateVariants(poaTemplate.items, poaTemplate.previousVariants, Math.random, fillCheck);
     const sequence = buildTemplateSequence(poaTemplate.items, {
       variants,
       equipment: poaEquipment,
       classCode: testType.class_code,
       requiredTaskParents,
+      fillCheck,
     }) as PoaTemplateRow[];
     const fills = poaFills;
 
@@ -2571,6 +2593,7 @@ export default function GeneratePoaPage() {
           aircraft_equipment: poaEquipment,
           practical_test_request_id: linkedRequest?.id ?? null,
           location_snapshot: poaLocations ? locationSnapshot(poaLocations) : null,
+          ifr_snapshot: ifrContext ? { ...ifrContext.snapshot, fills: ifrContext.fills } : null,
           status: "ready",
           notes: `Built from the ${poaTemplate.name} POA template (v${poaTemplate.version}) for ${testType.display_name}.`,
         })

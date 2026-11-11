@@ -30,7 +30,25 @@ export type TemplateItem = {
   rotation_variant: number;
   /** ACS Task parent codes (e.g. "PA.I.H") of the linked question, if any. */
   task_parents?: string[];
+  /** Fill-ins this item needs beyond the ones in its own text (poa_template_items.requires_fills). */
+  requires_fills?: string[] | null;
 };
+
+/**
+ * Fill-ins an item needs (Kele, Nov 11 2026): the IFR fill-ins in its text plus requires_fills.
+ * An item whose needs this POA can't supply is skipped (with its follow-ups), so a POA never
+ * prints a made-up fix or a void time at a 24-hour tower.
+ */
+export function itemNeeds(item: Pick<TemplateItem, "script_text" | "requires_fills">, fillKeys: readonly string[]): string[] {
+  const keys = new Set(fillKeys);
+  const inText = [...item.script_text.matchAll(/\[([a-z ]+)\]/gi)].map((m) => m[1].trim().toLowerCase()).filter((k) => keys.has(k));
+  return [...new Set([...inText, ...(item.requires_fills ?? [])])];
+}
+
+export type FillCheck = { keys: readonly string[]; available: Set<string> };
+
+const satisfied = (item: TemplateItem, check: FillCheck | null | undefined) =>
+  !check || itemNeeds(item, check.keys).every((key) => check.available.has(key));
 
 export type TemplateVariants = Record<string, number>;
 
@@ -54,9 +72,19 @@ export function pickTemplateVariants(
   items: TemplateItem[],
   previous: TemplateVariants | null | undefined,
   random: () => number = Math.random,
+  fillCheck?: FillCheck | null,
 ): TemplateVariants {
   const picks: TemplateVariants = {};
-  for (const [slot, variants] of Object.entries(slotVariants(items))) {
+  // A variant is usable only if its trigger and everything under it have the fill-ins they need.
+  const unusable = new Set<string>();
+  if (fillCheck) {
+    for (const item of items) {
+      if (item.rotation_slot && !satisfied(item, fillCheck)) unusable.add(`${item.rotation_slot}:${item.rotation_variant}`);
+    }
+  }
+  for (const [slot, all] of Object.entries(slotVariants(items))) {
+    const usable = all.filter((variant) => !unusable.has(`${slot}:${variant}`));
+    const variants = usable.length ? usable : all;
     const fresh = variants.filter((variant) => variant !== previous?.[slot]);
     const pool = fresh.length ? fresh : variants;
     picks[slot] = pool[Math.floor(random() * pool.length)] ?? pool[0];
@@ -70,6 +98,8 @@ export type TemplateBuildOptions = {
   classCode?: string | null;
   /** Additional ratings: the required Tasks from the Additional Rating Task Table (e.g. "PA.I.F"). */
   requiredTaskParents?: Set<string> | null;
+  /** Skip items whose IFR fill-ins this POA can't supply. */
+  fillCheck?: FillCheck | null;
 };
 
 /**
@@ -90,6 +120,7 @@ export function buildTemplateSequence(
     if (item.aircraft_equipment && options.equipment && item.aircraft_equipment !== options.equipment) return false;
     if (item.aircraft_equipment && !options.equipment) return false;
     if (item.class_codes?.length && options.classCode && !item.class_codes.includes(options.classCode.toUpperCase())) return false;
+    if (!satisfied(item, options.fillCheck)) return false;
     return true;
   };
 
