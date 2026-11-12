@@ -1,4 +1,5 @@
 import faaAcsComplianceCatalog from "../../data/faa-acs-compliance-catalog.json";
+import { flightFamilyFor, sequenceFlightTasks } from "./flight-sequence";
 
 type CatalogEntry = Record<string, unknown>;
 
@@ -303,7 +304,10 @@ function buildTasks(
     ),
   );
 
-  return result.map((task, index) => ({
+  // Flight order, not ACS order (Kele, Nov 12 2026): preflight, first takeoff, en route, maneuvers,
+  // emergencies, ground reference, pattern work, postflight (IFR and ATP have their own flow).
+  const family = flightFamilyFor(allowedPrefixes?.length ? allowedPrefixes : result.map((task) => task.acs_task_code_snapshot.split(".")[0]));
+  return sequenceFlightTasks(result, family).map((task, index) => ({
     ...task,
     sort_order: (index + 1) * 10,
   }));

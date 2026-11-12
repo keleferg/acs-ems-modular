@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   Suspense,
   useEffect,
   useMemo,
@@ -31,6 +32,7 @@ import {
   deriveAllFlightTasksFromAcsCatalog,
   type FlightTaskDraft,
 } from "@/lib/poa/flight-tasks";
+import { flightFamilyFor, flightPlacement } from "@/lib/poa/flight-sequence";
 
 function savedPoaComplianceParentCode(reference: string) {
   const cleaned = reference.trim().toUpperCase();
@@ -435,6 +437,7 @@ function GeneratedPoaEditContent() {
 
   const [flightTasks, setFlightTasks] =
     useState<FlightTaskSnapshot[]>([]);
+  const flightFamily = flightFamilyFor(flightTasks.map((task) => task.acs_task_code_snapshot.split(".")[0]));
 
 
 
@@ -4271,9 +4274,16 @@ function GeneratedPoaEditContent() {
                   draggedFlightTaskIndex !==
                     index;
 
+                // Flight event set header when the set changes (Kele, Nov 12 2026).
+                const flightSet = flightPlacement(task.task_name_snapshot, flightFamily).set;
+                const previousSet = index > 0 ? flightPlacement(flightTasks[index - 1].task_name_snapshot, flightFamily).set : null;
+
                 return (
+                  <Fragment key={taskUiKey}>
+                  {previousSet?.code !== flightSet.code ? (
+                    <p className="pt-3 text-xs font-bold uppercase tracking-wide text-sky-800">{flightSet.name}</p>
+                  ) : null}
                   <article
-                    key={taskUiKey}
                     onDragOver={(event) => {
                       event.preventDefault();
 
@@ -4526,6 +4536,7 @@ function GeneratedPoaEditContent() {
                       </div>
                     ) : null}
                   </article>
+                  </Fragment>
                 );
               },
             )}

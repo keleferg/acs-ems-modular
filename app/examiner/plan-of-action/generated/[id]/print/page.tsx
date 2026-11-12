@@ -1,8 +1,10 @@
 "use client";
 
 import { orderPrintedEventSets } from "@/lib/poa/print-event-order";
+import { flightFamilyFor, flightPlacement } from "@/lib/poa/flight-sequence";
 
 import {
+  Fragment,
   Suspense,
   useEffect,
   useMemo,
@@ -360,6 +362,7 @@ function GeneratedPoaPrintContent() {
 
   const [flightTasks, setFlightTasks] =
     useState<GeneratedFlightTask[]>([]);
+  const flightFamily = flightFamilyFor(flightTasks.map((task) => task.acs_task_code_snapshot.split(".")[0]));
 
   const [testType, setTestType] =
     useState<PracticalTestType | null>(null);
@@ -1379,8 +1382,15 @@ function GeneratedPoaPrintContent() {
             ) : (
               flightTasks.map(
                 (task, index) => (
+                  <Fragment key={task.id}>
+                  {index === 0 ||
+                  flightPlacement(flightTasks[index - 1].task_name_snapshot, flightFamily).set.code !==
+                    flightPlacement(task.task_name_snapshot, flightFamily).set.code ? (
+                    <h3 className="task-title" style={{ marginTop: "14px", color: "#075985" }}>
+                      {flightPlacement(task.task_name_snapshot, flightFamily).set.name.toUpperCase()}
+                    </h3>
+                  ) : null}
                   <article
-                    key={task.id}
                     className="task-block"
                   >
                     <h3 className="task-title">
@@ -1451,6 +1461,7 @@ function GeneratedPoaPrintContent() {
                       Examiner Notes: ________________________________________________
                     </div>
                   </article>
+                  </Fragment>
                 ),
               )
             )}
