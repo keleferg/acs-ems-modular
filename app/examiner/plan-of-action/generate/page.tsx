@@ -6,7 +6,6 @@ import {
   Check,
   Loader2,
   RefreshCw,
-  Shuffle,
   TriangleAlert,
 } from "lucide-react";
 
@@ -1571,6 +1570,28 @@ export default function GeneratePoaPage() {
     return true;
   }
 
+  // One button (Kele, Nov 12 2026): building by hand starts from a compliant draft as soon as
+  // the scenario and choices above are set, instead of separate Build buttons. Each set of
+  // choices is drafted once; changing the scenario, equipment or rating held drafts again.
+  const draftedFor = useRef<string | null>(null);
+  const draftKey = [
+    testType?.id,
+    selectedScenarioId,
+    poaEquipment,
+    additionalRatingHeld,
+    generatorEventSets.map((eventSet) => eventSet.id).join(","),
+  ].join("|");
+  useEffect(() => {
+    if (useTemplate || loading || loadingTimeline || scenarioTimeline) return;
+    if (!testType || !selectedScenarioId || equipmentMissing) return;
+    if (isAdditionalIssuance && !additionalRatingHeld) return;
+    if (!generatorEventSets.length || !requiredComplianceCodes.length) return;
+    if (draftedFor.current === draftKey) return;
+    draftedFor.current = draftKey;
+    void buildScenarioTimeline(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useTemplate, loading, loadingTimeline, scenarioTimeline, draftKey, equipmentMissing, isAdditionalIssuance, requiredComplianceCodes.length]);
+
   async function buildScenarioTimeline(automaticallyPopulate = false) {
     if (!testType) {
       return;
@@ -2667,6 +2688,10 @@ export default function GeneratePoaPage() {
                   onChange={(event) =>
                     setScenarioAltitude(Number(event.target.value))
                   }
+                  onBlur={() => {
+                    // Keeps the questions and triggers already picked.
+                    if (scenarioTimeline && !loadingTimeline) void buildScenarioTimeline();
+                  }}
                   className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500"
                 />
 
@@ -2674,36 +2699,35 @@ export default function GeneratePoaPage() {
               </div>
             </label>
 
-            <button
-              type="button"
-              onClick={() => void buildScenarioTimeline(true)}
-              disabled={loading || loadingTimeline || !testType || !selectedScenarioId || generatorEventSets.length === 0 || requiredComplianceCodes.length === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loadingTimeline ? "Building…" : "Build Compliant POA"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void buildScenarioTimeline()}
-              disabled={loadingTimeline || !testType}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loadingTimeline ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Shuffle className="h-4 w-4" />
-              )}
-
-              {scenarioTimeline ? "Regenerate Timeline" : "Build Timeline"}
-            </button>
+            {scenarioTimeline || (!loadingTimeline && !generateBlockers.length && generatorEventSets.length > 0) ? (
+              <button
+                type="button"
+                onClick={() => void buildScenarioTimeline(true)}
+                disabled={loadingTimeline}
+                className="pb-2 text-xs font-semibold text-slate-600 underline hover:text-slate-900 disabled:opacity-50"
+              >
+                {scenarioTimeline ? "Start over with a fresh draft" : "Build the draft again"}
+              </button>
+            ) : null}
           </div>
         </div>
 
         {!scenarioTimeline ? (
           <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm text-slate-600">
-            Build the timeline after selecting a scenario, then drag questions and triggers into its event sets. The engine
-            will determine whether Cross-Country Flight Planning belongs in this
-            test before inserting it into the scenario.
+            {loadingTimeline ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Building a draft that covers every ACS task…
+              </span>
+            ) : (
+              <>
+                {generateBlockers.length
+                  ? `Choose ${generateBlockers.join(", ")} above and a draft that covers every ACS task appears here.`
+                  : !generatorEventSets.length
+                    ? "This scenario has no event sets for this test yet, so a draft can't be built. Pick another scenario."
+                    : "A draft that covers every ACS task appears here."}{" "}
+                Then drag questions and triggers to change it.
+              </>
+            )}
           </div>
         ) : (
           <>
