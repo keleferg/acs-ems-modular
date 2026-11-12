@@ -10,7 +10,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { validateEditableDraft } from "@/lib/poa/validate-editable-draft";
 import { questionEventTargets } from "@/lib/poa/question-event-targets";
@@ -23,6 +23,13 @@ import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
 import { PoaLocationsPanel } from "@/components/poa/poa-locations-panel";
 import { locationFills, locationSnapshot, parseLegNm, type PoaLocations } from "@/lib/poa/locations";
+import { FOCUS_SOURCE_LABEL, chainEndIndex, planFocus, type FocusSource } from "@/lib/poa/focus";
+import { loadFocusAreas, type FocusSummary } from "@/lib/poa/focus-load";
+import acsTaskNamesJson from "@/data/acs-task-names.json";
+
+const ACS_TASK_NAMES = acsTaskNamesJson as Record<string, string>;
+/** "PA.I.D.K3C" or "PA.I.D" → the Task's plain name. */
+const acsTaskName = (code: string) => ACS_TASK_NAMES[code.split(".").slice(0, 3).join(".")] ?? "";
 import { buildIfrContext, IFR_FILL_KEYS, type IfrContext } from "@/lib/poa/ifr-context";
 import { loadIfrInputs } from "@/lib/poa/ifr-load";
 
@@ -275,6 +282,8 @@ type LoadedPoaTemplate = {
   previousVariants: TemplateVariants | null;
   /** Scenarios written for this template's story; empty means any scenario for the test. */
   scenarioIds: string[];
+  /** Scenario of the examiner's last POA for this test, so the auto-pick rotates. */
+  previousScenarioId: string | null;
 };
 
 type CompatibleTrigger = {
@@ -1759,11 +1768,12 @@ export default function GeneratePoaPage() {
       if (cancelled || itemResult.error) return;
 
       let previousVariants: TemplateVariants | null = null;
+      let previousScenarioId: string | null = null;
       const userId = userResult.data.user?.id;
       if (userId) {
         const { data: lastPoa } = await supabase
           .from("generated_plan_of_actions")
-          .select("template_variants")
+          .select("template_variants, scenario_id")
           .eq("examiner_profile_id", userId)
           .eq("practical_test_type_id", testType.id)
           .not("template_variants", "is", null)
@@ -1771,6 +1781,7 @@ export default function GeneratePoaPage() {
           .limit(1)
           .maybeSingle();
         previousVariants = (lastPoa?.template_variants as TemplateVariants | null) ?? null;
+        previousScenarioId = (lastPoa?.scenario_id as string | null) ?? null;
       }
       if (cancelled) return;
 
@@ -1811,6 +1822,7 @@ export default function GeneratePoaPage() {
         eventSetNames: Object.fromEntries((eventSetResult.data ?? []).map((row) => [row.id, row.name])),
         previousVariants,
         scenarioIds: (templateScenarios ?? []).map((row) => String(row.scenario_id)),
+        previousScenarioId,
       });
     }
     void loadPoaTemplate();
@@ -1833,6 +1845,44 @@ export default function GeneratePoaPage() {
     if (!selectedScenarioId || loadingScenarios) return;
     if (!visibleScenarioOptions.some((scenario) => scenario.id === selectedScenarioId)) setSelectedScenarioId("");
   }, [visibleScenarioOptions, selectedScenarioId, loadingScenarios]);
+
+  // Least input (Kele, Nov 11 2026): with a script, the scenario is picked for you, rotating away
+  // from the last POA's. The examiner can still change it.
+  const autoPickedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!useTemplate || !poaTemplate || loadingScenarios || !visibleScenarioOptions.length) return;
+    if (selectedScenarioId || autoPickedFor.current === poaTemplate.id) return;
+    autoPickedFor.current = poaTemplate.id;
+    const fresh = visibleScenarioOptions.filter((scenario) => scenario.id !== poaTemplate.previousScenarioId);
+    const pool = fresh.length ? fresh : visibleScenarioOptions;
+    setSelectedScenarioId(pool[Math.floor(Math.random() * pool.length)].id);
+  }, [useTemplate, poaTemplate, loadingScenarios, visibleScenarioOptions, selectedScenarioId]);
+
+  // The applicant's weak areas (Kele, Nov 11 2026): knowledge test, previous attempt, and what tests
+  // with the same instructor, school and US state often miss. Generic POAs (no request) have none.
+  const [focus, setFocus] = useState<FocusSummary | null>(null);
+  const [focusLoading, setFocusLoading] = useState(false);
+  const [focusOff, setFocusOff] = useState<FocusSource[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setFocus(null);
+    if (!linkedRequest || !testType) return;
+    setFocusLoading(true);
+    void loadFocusAreas(createClient(), linkedRequest.id, complianceAcsPrefixes[0] ?? "")
+      .then((summary) => {
+        if (!cancelled) setFocus(summary);
+      })
+      .finally(() => {
+        if (!cancelled) setFocusLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedRequest, testType, complianceAcsPrefixes]);
+  const activeFocusAreas = useMemo(
+    () => (focus?.areas ?? []).filter((area) => !focusOff.includes(area.source)),
+    [focus, focusOff],
+  );
 
   const selectedScenario = useMemo(
     () =>
@@ -2562,13 +2612,80 @@ export default function GeneratePoaPage() {
         )
       : null;
     const variants = pickTemplateVariants(poaTemplate.items, poaTemplate.previousVariants, Math.random, fillCheck);
-    const sequence = buildTemplateSequence(poaTemplate.items, {
+    const scriptSequence = buildTemplateSequence(poaTemplate.items, {
       variants,
       equipment: poaEquipment,
       classCode: testType.class_code,
       requiredTaskParents,
       fillCheck,
     }) as PoaTemplateRow[];
+
+    // Weak areas: tag the script questions that already cover them, add one question for the rest
+    // right after the script's chain on the same Task (or Area).
+    const certificateName = testType.certificate_name;
+    const referencesOf = (rows: Array<{ acs_reference: string; certificate_name?: string | null }>) =>
+      rows
+        .filter((row) => !row.certificate_name || row.certificate_name === certificateName)
+        .flatMap((row) => splitAcsReferences(row.acs_reference))
+        .map((ref) => ref.toUpperCase());
+    const focusPlan = planFocus(
+      activeFocusAreas,
+      scriptSequence.map((item) => ({
+        id: item.id,
+        event_set_id: item.event_set_id,
+        parent_item_id: item.parent_item_id,
+        question_id: item.question_id,
+        references: referencesOf(item.poa_questions?.poa_question_acs_applicability ?? []),
+      })),
+      questions.map((question) => ({
+        id: question.id,
+        references: referencesOf(question.poa_question_acs_applicability ?? []),
+        isTrigger: (question.question_type ?? "").toLowerCase().includes("trigger"),
+      })),
+    );
+    const focusByItem = new Map<string, FocusSource[]>(Object.entries(focusPlan.tagged));
+    const insertAfter = new Map<number, PoaTemplateRow[]>();
+    const firstEventSet = scriptSequence.find((item) => item.item_kind !== "seed")?.event_set_id ?? "";
+    for (const entry of focusPlan.added) {
+      const question = questions.find((candidate) => candidate.id === entry.questionId);
+      if (!question) continue;
+      const rows = (question.poa_question_acs_applicability ?? []).filter(
+        (row) => !row.certificate_name || row.certificate_name === certificateName,
+      );
+      const id = `focus-${question.id}`;
+      const index = entry.afterItemId ? chainEndIndex(scriptSequence, entry.afterItemId) : scriptSequence.length - 1;
+      const list = insertAfter.get(index) ?? [];
+      list.push({
+        id,
+        event_set_id: entry.eventSetId || firstEventSet,
+        parent_item_id: null,
+        sort_order: 0,
+        depth: 0,
+        item_kind: "question",
+        script_text: question.question,
+        question_id: question.id,
+        is_optional: false,
+        condition_note: null,
+        aircraft_equipment: null,
+        class_codes: null,
+        rotation_slot: null,
+        rotation_variant: 1,
+        poa_questions: {
+          id: question.id,
+          question: question.question,
+          answer: question.answer,
+          reference: question.reference,
+          acs_reference: rows.map((row) => row.acs_reference).join("; "),
+          task_name: question.task_name,
+          topic: question.topic,
+          question_type: question.question_type,
+          poa_question_acs_applicability: rows,
+        },
+      });
+      insertAfter.set(index, list);
+      focusByItem.set(id, entry.sources);
+    }
+    const sequence = scriptSequence.flatMap((item, index) => [item, ...(insertAfter.get(index) ?? [])]);
     const fills = poaFills;
 
     const coveredCodes = new Set(
@@ -2611,6 +2728,17 @@ export default function GeneratePoaPage() {
           practical_test_request_id: linkedRequest?.id ?? null,
           location_snapshot: poaLocations ? locationSnapshot(poaLocations) : null,
           ifr_snapshot: ifrContext ? { ...ifrContext.snapshot, fills: ifrContext.fills } : null,
+          focus_snapshot: focus
+            ? {
+                areas: activeFocusAreas,
+                turned_off: focusOff,
+                uncovered: focusPlan.uncovered,
+                added: focusPlan.added.length,
+                instructor: focus.instructorName,
+                school: focus.schoolName,
+                state: focus.stateName,
+              }
+            : null,
           status: "ready",
           notes: `Built from the ${poaTemplate.name} POA template (v${poaTemplate.version}) for ${testType.display_name}.`,
         })
@@ -2671,8 +2799,9 @@ export default function GeneratePoaPage() {
             acs_references_snapshot: references,
             event_set_id: item.event_set_id,
             sort_order: position,
-            template_item_id: item.id,
+            template_item_id: item.id.startsWith("focus-") ? null : item.id,
             template_depth: item.depth,
+            focus_sources: focusByItem.get(item.id) ?? null,
           });
         } else {
           timelineRows.push({
@@ -2712,8 +2841,11 @@ export default function GeneratePoaPage() {
 
       setGeneratedPoaId(generated.id);
       const triggerCount = timelineRows.filter((row) => row.timeline_kind === "trigger").length + questionRows.filter((row) => String(row.question_snapshot).startsWith("TRIGGER: ")).length;
+      const focusNote = focusByItem.size
+        ? ` ${focusByItem.size} question${focusByItem.size === 1 ? "" : "s"} focus on the applicant's weak areas (${focusPlan.added.length} added).`
+        : "";
       setMessage(
-        `${title.trim()} generated from the ${poaTemplate.name} template with ${questionRows.length} questions, ${triggerCount} triggers and ${flightTasks.length} flight tasks.`,
+        `${title.trim()} is ready: ${questionRows.length} questions, ${triggerCount} triggers and ${flightTasks.length} flight tasks.${focusNote}`,
       );
       setPoaTemplate((current) => (current ? { ...current, previousVariants: variants } : current));
     } catch (error) {
@@ -2993,6 +3125,70 @@ export default function GeneratePoaPage() {
         />
       ) : null}
 
+
+      {!loading && testType && useTemplate && poaTemplate ? (
+        linkedRequest ? (
+          <section className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-5 shadow-sm">
+            <p className="text-sm font-bold text-slate-900">
+              Why this POA{linkedRequest.applicant_name_snapshot ? `: ${linkedRequest.applicant_name_snapshot}` : ""}
+            </p>
+            {focusLoading ? (
+              <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> Looking at the knowledge test and past results…
+              </p>
+            ) : !focus || focus.areas.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-700">
+                {focus?.knowledgeTestFound
+                  ? "No weak areas found, so this POA follows your script as written."
+                  : "No knowledge test report or past results to draw on yet, so this POA follows your script as written."}
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-sm text-slate-700">
+                  These areas get extra questions. Uncheck any you don&apos;t want.
+                </p>
+                <div className="mt-3 space-y-3">
+                  {(Object.keys(FOCUS_SOURCE_LABEL) as FocusSource[])
+                    .filter((source) => focus.areas.some((area) => area.source === source))
+                    .map((source) => {
+                      const list = focus.areas.filter((area) => area.source === source);
+                      const on = !focusOff.includes(source);
+                      const who =
+                        source === "instructor" ? focus.instructorName : source === "school" ? focus.schoolName : source === "state" ? focus.stateName : null;
+                      return (
+                        <label key={source} className={`flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-3 ${on ? "border-sky-300" : "border-slate-200 opacity-60"}`}>
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => setFocusOff((current) => (on ? [...current, source] : current.filter((item) => item !== source)))}
+                            className="mt-1 h-5 w-5"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-bold text-slate-900">
+                              {FOCUS_SOURCE_LABEL[source]}
+                              {who ? ` (${who})` : ""}: {list.length} area{list.length === 1 ? "" : "s"}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-slate-600">
+                              {list.map((area) => {
+                                const name = acsTaskName(area.code);
+                                return `${area.code}${name ? ` ${name}` : ""}${source === "knowledge_test" || source === "retest" ? "" : ` (${area.detail})`}`;
+                              }).join("; ")}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                </div>
+              </>
+            )}
+          </section>
+        ) : (
+          <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-600">
+            Generic POA: no applicant, so it follows your script as written. To add an applicant&apos;s weak areas, open the
+            POA from their request.
+          </p>
+        )
+      ) : null}
 
       {!loading && testType && useTemplate && poaTemplate ? (
         <section className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 shadow-sm">
@@ -3326,16 +3522,16 @@ export default function GeneratePoaPage() {
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <a
-                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/edit`}
-                      className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/print`}
+                      className="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800"
                     >
-                      Open and edit this POA
+                      Print POA
                     </a>
                     <a
-                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/print`}
-                      className="inline-flex items-center rounded-lg border border-emerald-700 px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
+                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/edit`}
+                      className="inline-flex items-center rounded-xl border border-emerald-700 bg-white px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
                     >
-                      Print
+                      Review and change (drag and drop)
                     </a>
                   </div>
                 </>

@@ -197,8 +197,18 @@ type SnapshotQuestion = {
   event_set_id?: string | null;
   template_item_id?: string | null;
   template_depth?: number;
+  /** Weak areas this question covers (lib/poa/focus.ts), e.g. ["knowledge_test"]. */
+  focus_sources?: string[] | null;
   // Stable key for the timeline editor (the row id once saved).
   client_key?: string;
+};
+
+const FOCUS_LABEL: Record<string, string> = {
+  knowledge_test: "Knowledge test",
+  retest: "Previous attempt",
+  instructor: "Instructor trend",
+  school: "School trend",
+  state: "State trend",
 };
 
 function mapSnapshotRow(question: Record<string, unknown>): SnapshotQuestion {
@@ -225,6 +235,9 @@ function mapSnapshotRow(question: Record<string, unknown>): SnapshotQuestion {
     event_set_id: text(question.event_set_id) || null,
     template_item_id: text(question.template_item_id) || null,
     template_depth: Number(question.template_depth) || 0,
+    focus_sources: Array.isArray(question.focus_sources)
+      ? question.focus_sources.filter((value): value is string => typeof value === "string")
+      : null,
   };
 }
 
@@ -243,7 +256,8 @@ const SNAPSHOT_COLUMNS = `
   sort_order,
   event_set_id,
   template_item_id,
-  template_depth
+  template_depth,
+  focus_sources
 `;
 
 function mapTriggerRow(row: Record<string, unknown>): GeneratedPoaTrigger {
@@ -1714,7 +1728,11 @@ function GeneratedPoaEditContent() {
       ...questions.map((question) => ({
         id: questionTimelineKey(question),
         title: question.question_snapshot.replace(/^TRIGGER:\s*/, "") || "Untitled question",
-        label: question.question_snapshot.startsWith("TRIGGER: ") ? "Trigger question" : undefined,
+        label: question.question_snapshot.startsWith("TRIGGER: ")
+          ? "Trigger question"
+          : question.focus_sources?.length
+            ? `Focus: ${question.focus_sources.map((source) => FOCUS_LABEL[source] ?? source).join(", ")}`
+            : undefined,
         depth: question.template_depth ?? 0,
         eventSetIds: allEditorEventSetIds,
         assignedEventSetId: question.event_set_id ?? undefined,

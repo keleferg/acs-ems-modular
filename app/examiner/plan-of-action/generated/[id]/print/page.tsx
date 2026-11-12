@@ -39,6 +39,15 @@ type GeneratedQuestion = {
   trigger_option_id: string | null;
   sort_order: number | null;
   template_depth?: number | null;
+  focus_sources?: string[] | null;
+};
+
+const FOCUS_LABEL: Record<string, string> = {
+  knowledge_test: "Knowledge test",
+  retest: "Previous attempt",
+  instructor: "Instructor trend",
+  school: "School trend",
+  state: "State trend",
 };
 
 type GeneratedPoaTrigger = {
@@ -484,7 +493,8 @@ function GeneratedPoaPrintContent() {
             trigger_option_id,
             event_set_id,
             sort_order,
-            template_depth
+            template_depth,
+            focus_sources
           `)
           .eq(
             "generated_plan_of_action_id",
@@ -1128,6 +1138,11 @@ function GeneratedPoaPrintContent() {
                     {question.task_name_snapshot
                       ? ` — ${question.task_name_snapshot}`
                       : ""}
+                    {question.focus_sources?.length ? (
+                      <span style={{ marginLeft: "8px", padding: "1px 6px", borderRadius: "4px", background: "#e0f2fe", color: "#075985" }}>
+                        Focus: {question.focus_sources.map((source) => FOCUS_LABEL[source] ?? source).join(", ")}
+                      </span>
+                    ) : null}
                   </div>
 
                   {conditionalTrigger ? (
