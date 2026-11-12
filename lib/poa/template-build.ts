@@ -32,7 +32,15 @@ export type TemplateItem = {
   task_parents?: string[];
   /** Fill-ins this item needs beyond the ones in its own text (poa_template_items.requires_fills). */
   requires_fills?: string[] | null;
+  /** Missions (scenario versions of the story) this item is for, e.g. ["photo"]; null = every mission. */
+  mission_codes?: string[] | null;
+  /** This item's answer when it differs from the library question's (may use fill-ins). */
+  answer_text?: string | null;
 };
+
+/** Whether an item belongs to the scenario's mission (Kele, Nov 11 2026: photo / ferry / on-demand). */
+export const missionAllows = (item: Pick<TemplateItem, "mission_codes">, mission: string | null | undefined) =>
+  !item.mission_codes?.length || (Boolean(mission) && item.mission_codes.includes(mission as string));
 
 /**
  * Fill-ins an item needs (Kele, Nov 11 2026): the IFR fill-ins in its text plus requires_fills.
@@ -73,16 +81,21 @@ export function pickTemplateVariants(
   previous: TemplateVariants | null | undefined,
   random: () => number = Math.random,
   fillCheck?: FillCheck | null,
+  mission?: string | null,
 ): TemplateVariants {
   const picks: TemplateVariants = {};
   // A variant is usable only if its trigger and everything under it have the fill-ins they need.
   const unusable = new Set<string>();
-  if (fillCheck) {
-    for (const item of items) {
-      if (item.rotation_slot && !satisfied(item, fillCheck)) unusable.add(`${item.rotation_slot}:${item.rotation_variant}`);
-    }
+  // A variant written for another mission never applies (it isn't a fallback either).
+  const otherMission = new Set<string>();
+  for (const item of items) {
+    if (!item.rotation_slot) continue;
+    if (fillCheck && !satisfied(item, fillCheck)) unusable.add(`${item.rotation_slot}:${item.rotation_variant}`);
+    if (!missionAllows(item, mission)) otherMission.add(`${item.rotation_slot}:${item.rotation_variant}`);
   }
-  for (const [slot, all] of Object.entries(slotVariants(items))) {
+  for (const [slot, every] of Object.entries(slotVariants(items))) {
+    const mine = every.filter((variant) => !otherMission.has(`${slot}:${variant}`));
+    const all = mine.length ? mine : every;
     const usable = all.filter((variant) => !unusable.has(`${slot}:${variant}`));
     const variants = usable.length ? usable : all;
     const fresh = variants.filter((variant) => variant !== previous?.[slot]);
@@ -100,6 +113,8 @@ export type TemplateBuildOptions = {
   requiredTaskParents?: Set<string> | null;
   /** Skip items whose IFR fill-ins this POA can't supply. */
   fillCheck?: FillCheck | null;
+  /** The scenario's mission: items written for other missions are skipped. */
+  mission?: string | null;
 };
 
 /**
@@ -121,6 +136,7 @@ export function buildTemplateSequence(
     if (item.aircraft_equipment && !options.equipment) return false;
     if (item.class_codes?.length && options.classCode && !item.class_codes.includes(options.classCode.toUpperCase())) return false;
     if (!satisfied(item, options.fillCheck)) return false;
+    if (!missionAllows(item, options.mission)) return false;
     return true;
   };
 
@@ -162,13 +178,24 @@ export function buildTemplateSequence(
   return ordered.filter((item) => keep.has(item.id));
 }
 
-/** Replace [destination] and similar fill-ins with the scenario's details. */
+/**
+ * Replace [destination] and similar fill-ins with the scenario's details. A fill-in written with a
+ * capital ([Passenger]) starts with a capital ("The photographer"). A value may itself use fill-ins
+ * ("the lake at [destination]"), so this runs a few passes.
+ */
 export function fillTemplateText(
   text: string,
   fills: Record<string, string | null | undefined>,
 ): string {
-  return text.replace(/\[([a-z ]+)\]/gi, (match, key: string) => {
-    const value = fills[key.trim().toLowerCase()];
-    return value ? value : match;
-  });
+  let out = text;
+  for (let pass = 0; pass < 3; pass += 1) {
+    const next = out.replace(/\[([a-z ]+)\]/gi, (match, key: string) => {
+      const value = fills[key.trim().toLowerCase()];
+      if (!value) return match;
+      return /^[A-Z]/.test(key) ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+    });
+    if (next === out) break;
+    out = next;
+  }
+  return out;
 }

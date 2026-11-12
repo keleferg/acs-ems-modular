@@ -13,8 +13,10 @@ import {
   departureOptions,
   destinationOptions,
   distanceNm,
+  hasFuel,
   patternAirportOptions,
   pickPoaLocations,
+  pickStops,
   placeLabel,
   practiceAreaOptions,
   type LocationNeeds,
@@ -151,7 +153,7 @@ export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChan
   useEffect(() => {
     void repick();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [testAirport, nearTest, scenarioKey, needs.destinationKind, needs.instrument]);
+  }, [testAirport, nearTest, scenarioKey, needs.destinationKind, needs.instrument, (needs.stops ?? []).join(","), needs.preferRiver]);
 
   const options = useMemo(() => {
     if (!testAirport || !locations) return null;
@@ -175,6 +177,13 @@ export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChan
     if (!airport) return;
     const from = slot === "alternate" && locations.destination ? locations.destination : locations.departure;
     const picked: PickedPlace = { ...airport, distance_nm: Math.round(distanceNm(from, airport)), from: from.ident };
+    if (slot === "destination" && needs.stops?.length) {
+      // A new destination moves the course, so the ferry stops are picked again.
+      const warnings: string[] = [];
+      const stops = pickStops(locations.departure, airport, nearDep, needs.stops, Boolean(needs.preferRiver), Math.random, warnings);
+      update({ ...locations, destination: picked, stops, warnings });
+      return;
+    }
     update({ ...locations, [slot]: picked });
   }
 
@@ -280,6 +289,22 @@ export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChan
               </label>
             );
           })}
+        </div>
+      ) : null}
+
+      {locations?.stops?.length ? (
+        <div className="mt-3 text-xs text-slate-700">
+          <p className="font-semibold">Ferry stops (pick again for others)</p>
+          <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+            {locations.stops.map((stop) => (
+              <li key={stop.id}>
+                {placeLabel(stop)} · {stop.distance_nm} NM from {stop.from} ·{" "}
+                <span className={hasFuel(stop) ? "text-emerald-700" : "text-amber-700"}>
+                  {hasFuel(stop) ? `fuel: ${stop.fuel_types}` : "no fuel"}
+                </span>
+              </li>
+            ))}
+          </ol>
         </div>
       ) : null}
 

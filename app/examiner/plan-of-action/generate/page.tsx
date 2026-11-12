@@ -22,7 +22,7 @@ import { hasCompleteTaskCoverage } from "@/lib/poa/generation-readiness";
 import { FlightTaskSequenceEditor } from "@/components/poa/flight-task-sequence-editor";
 import { TimelineEventEditor } from "@/components/poa/timeline-event-editor";
 import { PoaLocationsPanel } from "@/components/poa/poa-locations-panel";
-import { locationFills, locationSnapshot, parseLegNm, type PoaLocations } from "@/lib/poa/locations";
+import { STOP_FILL_KEYS, locationFills, locationSnapshot, parseLegNm, type PoaLocations, type StopNeed } from "@/lib/poa/locations";
 import { FOCUS_SOURCE_LABEL, chainEndIndex, planFocus, type FocusSource } from "@/lib/poa/focus";
 import { loadFocusAreas, type FocusSummary } from "@/lib/poa/focus-load";
 import acsTaskNamesJson from "@/data/acs-task-names.json";
@@ -257,6 +257,12 @@ type GeneratorScenarioOption = {
   aircraft: string | null;
   initial_conditions: string | null;
   examiner_notes: string | null;
+  /** Which version of the template story (photo, ferry, on_demand). Null = the template as written. */
+  mission_code?: string | null;
+  /** Fill-ins the scenario supplies, e.g. {"passenger": "the photographer"}. */
+  fills?: Record<string, string> | null;
+  /** Extra places, e.g. {"stops": ["fuel", "no_fuel"], "prefer_river": true}. */
+  location_needs?: { stops?: StopNeed[]; prefer_river?: boolean } | null;
 };
 
 type PoaTemplateQuestion = {
@@ -1510,7 +1516,10 @@ export default function GeneratePoaPage() {
           leg_nm,
           aircraft,
           initial_conditions,
-          examiner_notes
+          examiner_notes,
+          mission_code,
+          fills,
+          location_needs
         `,
         )
         .eq("is_active", true)
@@ -1756,7 +1765,7 @@ export default function GeneratePoaPage() {
           .from("poa_template_items")
           .select(`
             id, event_set_id, parent_item_id, sort_order, depth, item_kind, script_text, question_id,
-            is_optional, condition_note, aircraft_equipment, class_codes, rotation_slot, rotation_variant, requires_fills,
+            is_optional, condition_note, aircraft_equipment, class_codes, rotation_slot, rotation_variant, requires_fills, mission_codes, answer_text,
             poa_questions ( id, question, answer, reference, acs_reference, task_name, topic, question_type,
               poa_question_acs_applicability ( certificate_name, acs_reference ) )
           `)
@@ -1909,6 +1918,8 @@ export default function GeneratePoaPage() {
         testType?.certificate_code === "INSTRUMENT" ||
         testType?.certificate_code === "ATP" ||
         ratingCode.startsWith("CFII"),
+      stops: selectedScenario?.location_needs?.stops ?? [],
+      preferRiver: Boolean(selectedScenario?.location_needs?.prefer_river),
     };
   }, [testType, selectedScenario]);
   const aircraftFill = useMemo(() => {
@@ -1935,14 +1946,27 @@ export default function GeneratePoaPage() {
         departure: selectedScenario?.departure ?? null,
       }),
       aircraft: selectedScenario?.aircraft || aircraftFill,
+      // Words for the template that depend on the job (Kele, Nov 11 2026): [passenger], [landing site], ...
+      ...(selectedScenario?.fills ?? {}),
+      ...(selectedScenario?.location_needs?.stops?.length && !poaLocations?.stops?.length
+        ? { "ferry stops": "the stops you plan along the route" }
+        : {}),
       ...(ifrContext?.fills ?? {}),
     }),
     [poaLocations, selectedScenario, aircraftFill, ifrContext],
   );
+  const poaMission = selectedScenario?.mission_code ?? null;
   /** Items needing IFR fill-ins this POA can't supply are skipped (no made-up fixes). */
   const fillCheck = useMemo(
-    () => ({ keys: IFR_FILL_KEYS, available: new Set(Object.keys(ifrContext?.fills ?? {})) }),
-    [ifrContext],
+    () => ({
+      keys: [...IFR_FILL_KEYS, ...STOP_FILL_KEYS],
+      // Ferry-stop fill-ins count only when real stops were picked.
+      available: new Set([
+        ...Object.keys(ifrContext?.fills ?? {}),
+        ...Object.keys(locationFills(poaLocations, {})).filter((key) => (STOP_FILL_KEYS as readonly string[]).includes(key)),
+      ]),
+    }),
+    [ifrContext, poaLocations],
   );
   const fillText = useCallback(
     (text: string | null | undefined) => (text ? fillTemplateText(text, poaFills) : text ?? null),
@@ -2611,13 +2635,14 @@ export default function GeneratePoaPage() {
             .filter((code): code is string => Boolean(code)),
         )
       : null;
-    const variants = pickTemplateVariants(poaTemplate.items, poaTemplate.previousVariants, Math.random, fillCheck);
+    const variants = pickTemplateVariants(poaTemplate.items, poaTemplate.previousVariants, Math.random, fillCheck, poaMission);
     const scriptSequence = buildTemplateSequence(poaTemplate.items, {
       variants,
       equipment: poaEquipment,
       classCode: testType.class_code,
       requiredTaskParents,
       fillCheck,
+      mission: poaMission,
     }) as PoaTemplateRow[];
 
     // Weak areas: tag the script questions that already cover them, add one question for the rest
@@ -2791,7 +2816,8 @@ export default function GeneratePoaPage() {
             // Element codes, like the rule-based builder stores, so the compliance view can count K and R.
             acs_reference_snapshot: references.join("; ") || question.acs_reference,
             question_snapshot: item.item_kind === "trigger" ? `TRIGGER: ${text}` : text,
-            answer_snapshot: question.answer ? fillTemplateText(question.answer, fills) : question.answer,
+            // The script's own answer wins when the mission changes it (Part 91 ferry vs Part 135 charter).
+            answer_snapshot: (item.answer_text ?? question.answer) ? fillTemplateText(item.answer_text ?? question.answer ?? "", fills) : question.answer,
             reference_snapshot: question.reference,
             topic_snapshot: question.topic,
             task_name_snapshot: question.task_name,
@@ -3014,7 +3040,7 @@ export default function GeneratePoaPage() {
                 </p>
 
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                  {selectedScenario.scenario_brief ||
+                  {fillText(selectedScenario.scenario_brief) ||
                     "No scenario brief entered."}
                 </p>
 

@@ -25,8 +25,13 @@ export type PoaAirport = {
   longest_hard_runway_ft: number | null;
   has_turf_runway: boolean | null;
   approach_kinds: string[] | null; // ILS, LOC, RNAV, LPV, VOR, NDB, ... (null = no approach data loaded)
+  /** NASR FUEL_TYPES, e.g. "100LL,MOGAS"; null/empty = no fuel listed. Undefined when fuel data isn't loaded. */
+  fuel_types?: string | null;
   is_exception?: boolean;
 };
+
+/** Ferry stops (Kele, Nov 11 2026): each stop either sells fuel, doesn't, or either. */
+export type StopNeed = "fuel" | "no_fuel" | "any";
 
 export type LocationKind = "airport" | "seaplane" | "either";
 
@@ -40,6 +45,10 @@ export type LocationNeeds = {
   approachDataLoaded: boolean;
   /** Whether faa_airport_runways has been loaded (land destinations then need a hard runway). */
   runwayDataLoaded?: boolean;
+  /** En-route stops between the departure and the destination (ferry flights), in order. */
+  stops?: StopNeed[];
+  /** Prefer places on rivers (by name) for the stops and destination. */
+  preferRiver?: boolean;
 };
 
 /** Shortest hard-surface runway a land destination or pattern airport needs, once runway data is loaded. */
@@ -54,8 +63,64 @@ export type PoaLocations = {
   alternate: PickedPlace | null;
   practice_area: PickedPlace | null;
   pattern_airport: PickedPlace | null;
+  /** En-route stops, in order; distance_nm is from the previous point. */
+  stops?: PickedPlace[];
   warnings: string[];
 };
+
+export const hasFuel = (a: PoaAirport) => Boolean((a.fuel_types ?? "").trim());
+const onRiver = (a: PoaAirport) => /\bRIVER\b/i.test(a.airport_name);
+
+/** Where along the line from a to b (fraction 0..1) a point lies, and how far off the line it is. */
+function alongTrack(a: PoaAirport, b: PoaAirport, p: PoaAirport) {
+  const total = distanceNm(a, b) || 1;
+  const fromA = distanceNm(a, p);
+  const toB = distanceNm(p, b);
+  // Projection on the a→b line (flat-earth is fine at these distances).
+  const fraction = (fromA * fromA - toB * toB + total * total) / (2 * total * total);
+  const off = Math.sqrt(Math.max(0, fromA * fromA - (fraction * total) ** 2));
+  return { fraction, off };
+}
+
+/**
+ * En-route stops for a ferry flight: seaplane bases near the course at even spacing, each with or
+ * without fuel as the scenario asks. Public bases first; private only when nothing else fits.
+ */
+export function pickStops(departure: PoaAirport, destination: PoaAirport, near: PoaAirport[], needs: StopNeed[], preferRiver: boolean, rng: Rng, warnings: string[]): PickedPlace[] {
+  const picked: PickedPlace[] = [];
+  const total = distanceNm(departure, destination);
+  const used = new Set([departure.id, destination.id]);
+  let previous = departure;
+  needs.forEach((need, index) => {
+    const target = (index + 1) / (needs.length + 1);
+    // Fuel stops are rare, so they get a wider window along the course.
+    const window = need === "fuel" ? 0.3 : 0.22;
+    const maxLeg = Math.max(120, (total / (needs.length + 1)) * 1.8);
+    const fits = (a: PoaAirport) => {
+      if (!isSeaplane(a) || used.has(a.id)) return false;
+      if (need === "fuel" && !hasFuel(a)) return false;
+      if (need === "no_fuel" && hasFuel(a)) return false;
+      const { fraction, off } = alongTrack(departure, destination, a);
+      const leg = distanceNm(previous, a);
+      return fraction > target - window && fraction < target + window && off <= Math.max(40, total * 0.25) && leg >= 25 && leg <= maxLeg;
+    };
+    const candidates = near.filter(fits);
+    const pool = candidates.some(isPublic) ? candidates.filter((a) => isPublic(a) || a.is_exception) : candidates;
+    const choice = pick(pool, rng, (a) => {
+      const { fraction, off } = alongTrack(departure, destination, a);
+      return (preferRiver && onRiver(a) ? 3 : 1) / (1 + Math.abs(fraction - target) * 10 + off / 20);
+    });
+    if (!choice) {
+      warnings.push(`No seaplane base ${need === "fuel" ? "with fuel " : need === "no_fuel" ? "without fuel " : ""}near the course for stop ${index + 1}.`);
+      return;
+    }
+    if (!isPublic(choice)) warnings.push(`Stop ${index + 1} (${choice.ident}) is a private seaplane base: the applicant would need permission to land there.`);
+    used.add(choice.id);
+    picked.push(place(choice, previous));
+    previous = choice;
+  });
+  return picked;
+}
 
 const R_NM = 3440.065;
 export function distanceNm(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
@@ -222,7 +287,20 @@ export function pickPoaLocations(
     if (!inWindow.length && needs.legNm) {
       warnings.push(`No ${needs.destinationKind === "seaplane" ? "seaplane base" : "airport"} about ${needs.legNm} NM from ${departureAirport.ident}; using the closest match.`);
     }
-    destination = needs.instrument && needs.approachDataLoaded ? pick(pool, rng, (a) => (hasPrecisionish(a) ? 3 : 1)) : pick(pool, rng);
+    destination = needs.instrument && needs.approachDataLoaded
+      ? pick(pool, rng, (a) => (hasPrecisionish(a) ? 3 : 1))
+      : pick(pool, rng, needs.preferRiver ? (a) => (onRiver(a) ? 3 : 1) : undefined);
+    // Ferry flights: a destination is only good if the stops the scenario needs exist on the way.
+    if (needs.stops?.length && destination) {
+      const order = [destination, ...[...(inWindow.length ? inWindow : destChoices)].sort(() => rng() - 0.5)];
+      let best: { airport: PoaAirport; found: number } | null = null;
+      for (const candidate of order.slice(0, 60)) {
+        const found = pickStops(departureAirport, candidate, around, needs.stops, Boolean(needs.preferRiver), rng, []).length;
+        if (!best || found > best.found) best = { airport: candidate, found };
+        if (found === needs.stops.length) break;
+      }
+      if (best) destination = best.airport;
+    }
   } else {
     warnings.push(
       needs.destinationKind === "seaplane"
@@ -240,6 +318,13 @@ export function pickPoaLocations(
     if (!alternate) warnings.push(`No alternate within 150 NM of ${destination.ident}.`);
   }
 
+  const stops = destination && needs.stops?.length
+    ? pickStops(departureAirport, destination, around, needs.stops, Boolean(needs.preferRiver), rng, warnings)
+    : [];
+  if (needs.stops?.length && around.some(isSeaplane) && around.every((a) => a.fuel_types === undefined)) {
+    warnings.push("Seaplane-base fuel data isn't loaded yet, so the stops may not match the scenario's fuel.");
+  }
+
   const practice = pick(practiceAreaOptions(departureAirport, nearTest.concat(around)), rng);
   const patternAll = patternAirportOptions(departureAirport, around, needs);
   const patternChoices = patternAll.filter((a) => a.id !== practice?.id);
@@ -252,6 +337,7 @@ export function pickPoaLocations(
     alternate: alternate && destination ? place(alternate, destination) : null,
     practice_area: practice ? place(practice, departureAirport) : null,
     pattern_airport: pattern ? place(pattern, departureAirport) : null,
+    stops,
     warnings,
   };
 }
@@ -273,7 +359,27 @@ export function locationFills(
         ? `practice area near ${prettyAirportName(locations.departure.airport_name)}`
         : null,
     "pattern airport": locations?.pattern_airport ? placeLabel(locations.pattern_airport) : departure,
+    ...stopFills(locations),
   };
+}
+
+/** Fill-ins for ferry stops; absent when the POA has no stops (items needing them are skipped). */
+export const STOP_FILL_KEYS = ["ferry stops", "fuel stop", "no fuel stop"] as const;
+function stopFills(locations: PoaLocations | null): Record<string, string> {
+  const stops = locations?.stops ?? [];
+  if (!stops.length) return {};
+  const fuelNote = (a: PickedPlace) => (hasFuel(a) ? `fuel: ${a.fuel_types}` : "no fuel");
+  const list = stops.map((a) => `${placeLabel(a)}, ${a.distance_nm} NM, ${fuelNote(a)}`);
+  if (locations?.destination) {
+    const last = stops[stops.length - 1];
+    list.push(`then ${placeLabel(locations.destination)}, ${Math.round(distanceNm(last, locations.destination))} NM`);
+  }
+  const out: Record<string, string> = { "ferry stops": list.join("; ") };
+  const withFuel = stops.find(hasFuel);
+  const without = stops.find((a) => !hasFuel(a));
+  if (withFuel) out["fuel stop"] = placeLabel(withFuel);
+  if (without) out["no fuel stop"] = placeLabel(without);
+  return out;
 }
 
 /** What is stored on generated_plan_of_actions.location_snapshot. */
@@ -296,6 +402,7 @@ export function locationSnapshot(locations: PoaLocations) {
     alternate: slim(locations.alternate),
     practice_area: slim(locations.practice_area),
     pattern_airport: slim(locations.pattern_airport),
+    stops: (locations.stops ?? []).map((a) => ({ ...slim(a), fuel: a.fuel_types ?? null })),
     warnings: locations.warnings,
   };
 }
