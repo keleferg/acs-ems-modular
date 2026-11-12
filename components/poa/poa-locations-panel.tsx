@@ -3,7 +3,7 @@
 // Real places for the POA (Kele, Nov 11 2026): departure within 200 NM of the test airport,
 // destination within 500 NM of the departure, farther only from approved exceptions.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, MapPin, RefreshCw, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -24,6 +24,7 @@ import {
   type PoaAirport,
   type PoaLocations,
 } from "@/lib/poa/locations";
+import type { SavedLocations } from "@/lib/poa/location-rewrite";
 
 type DataStatus = { runways: boolean; approaches: boolean; seaplane_bases: boolean };
 type ExceptionRow = { id: string; airport_id: string; note: string | null; faa_airports: { icao_identifier: string | null; faa_identifier: string; airport_name: string } | null };
@@ -35,6 +36,8 @@ type Props = {
   /** Changes when the scenario changes, so the places are picked again. */
   scenarioKey: string;
   onChange: (locations: PoaLocations | null) => void;
+  /** A saved POA's places: shown as they are instead of picking new ones (edit page). */
+  initial?: SavedLocations | null;
 };
 
 type Slot = "departure" | "destination" | "alternate" | "practice_area" | "pattern_airport";
@@ -56,7 +59,10 @@ async function airportsNear(centerId: string, radius: number, testAirportId: str
   return (data ?? []) as PoaAirport[];
 }
 
-export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChange }: Props) {
+export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChange, initial }: Props) {
+  // Used once, on the first load of the test airport.
+  const restoreRef = useRef<SavedLocations | null>(initial?.departure ? initial : null);
+  const startAirportId = requestAirportId ?? initial?.test_airport?.id ?? null;
   const [testAirport, setTestAirport] = useState<PoaAirport | null>(null);
   const [testIdent, setTestIdent] = useState("");
   const [nearTest, setNearTest] = useState<PoaAirport[]>([]);
@@ -127,8 +133,55 @@ export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChan
   );
 
   useEffect(() => {
-    if (requestAirportId) void loadTest(requestAirportId);
-  }, [requestAirportId, loadTest]);
+    if (startAirportId) void loadTest(startAirportId);
+  }, [startAirportId, loadTest]);
+
+  /** The saved places, looked up again so they can be changed. False when one can't be found. */
+  const restore = useCallback(
+    async (saved: SavedLocations) => {
+      if (!testAirport) return false;
+      const wanted = [saved.departure, saved.destination, saved.alternate, saved.practice_area, saved.pattern_airport, ...(saved.stops ?? [])]
+        .filter((place): place is NonNullable<typeof place> => Boolean(place));
+      let pool = nearTest;
+      const dep = pool.find((a) => a.id === saved.departure?.id);
+      if (!dep) return false;
+      if (wanted.some((place) => !pool.some((a) => a.id === place.id))) {
+        // An alternate or stop can sit past the test airport's ring.
+        try {
+          const extra = await airportsNear(dep.id, LEG_RADIUS_NM + 200, testAirport.id);
+          pool = [...pool, ...extra.filter((a) => !pool.some((b) => b.id === a.id))];
+        } catch {
+          return false;
+        }
+      }
+      const byId = new Map(pool.map((a) => [a.id, a]));
+      const at = (place: { id: string } | null | undefined, from: PoaAirport): PickedPlace | null => {
+        const airport = place ? byId.get(place.id) : null;
+        return airport ? { ...airport, distance_nm: Math.round(distanceNm(from, airport)), from: from.ident } : null;
+      };
+      const departure = at(saved.departure, testAirport)!;
+      const destination = at(saved.destination, dep);
+      let previous: PoaAirport = dep;
+      const stops = (saved.stops ?? []).flatMap((stop) => {
+        const picked = at(stop, previous);
+        if (picked) previous = picked;
+        return picked ? [picked] : [];
+      });
+      setNearDep(pool.filter((a) => a.is_exception || distanceNm(dep, a) <= LEG_RADIUS_NM));
+      update({
+        test_airport: testAirport,
+        departure,
+        destination,
+        alternate: destination ? at(saved.alternate, destination) : null,
+        practice_area: at(saved.practice_area, dep),
+        pattern_airport: at(saved.pattern_airport, dep),
+        stops,
+        warnings: saved.warnings ?? [],
+      });
+      return true;
+    },
+    [testAirport, nearTest, update],
+  );
 
   const repick = useCallback(
     async (fixedDepartureId?: string | null) => {
@@ -149,8 +202,17 @@ export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChan
     [testAirport, nearTest, fullNeeds, update],
   );
 
-  // New test airport, data or scenario: pick again.
+  // New test airport, data or scenario: pick again (a saved POA first shows its own places).
   useEffect(() => {
+    if (!testAirport || !nearTest.length) return;
+    const saved = restoreRef.current;
+    if (saved) {
+      restoreRef.current = null;
+      void restore(saved).then((ok) => {
+        if (!ok) void repick();
+      });
+      return;
+    }
     void repick();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testAirport, nearTest, scenarioKey, needs.destinationKind, needs.instrument, (needs.stops ?? []).join(","), needs.preferRiver]);

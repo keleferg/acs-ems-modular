@@ -3,6 +3,7 @@
 import {
   Fragment,
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -18,6 +19,7 @@ import {
   ChevronUp,
   GripVertical,
   Loader2,
+  MapPin,
   Plus,
   Printer,
   Save,
@@ -33,6 +35,26 @@ import {
   type FlightTaskDraft,
 } from "@/lib/poa/flight-tasks";
 import { flightFamilyFor, flightPlacement } from "@/lib/poa/flight-sequence";
+import { PoaLocationsPanel } from "@/components/poa/poa-locations-panel";
+import {
+  hasFuel,
+  locationFills,
+  locationSnapshot,
+  parseLegNm,
+  placeLabel,
+  type PoaLocations,
+  type StopNeed,
+} from "@/lib/poa/locations";
+import {
+  fillChanges,
+  rewriteForNewPlaces,
+  savedLocationFills,
+  savedPlaceLabel,
+  staleValues,
+  type SavedLocations,
+} from "@/lib/poa/location-rewrite";
+import { buildIfrContext, type IfrContext } from "@/lib/poa/ifr-context";
+import { loadIfrInputs } from "@/lib/poa/ifr-load";
 
 function savedPoaComplianceParentCode(reference: string) {
   const cleaned = reference.trim().toUpperCase();
@@ -162,6 +184,8 @@ type ScenarioLibraryOption = {
   aircraft: string | null;
   initial_conditions: string | null;
   examiner_notes: string | null;
+  leg_nm?: number | null;
+  location_needs?: { stops?: StopNeed[]; prefer_river?: boolean } | null;
 };
 
 type EditPoaVersionOption = {
@@ -181,6 +205,18 @@ type GeneratedPlan = {
   status: string | null;
   notes: string | null;
   created_at: string;
+  location_snapshot?: SavedLocations | null;
+  ifr_snapshot?: { fills?: Record<string, string> } & Record<string, unknown> | null;
+  aircraft_equipment?: string | null;
+  practical_test_request_id?: string | null;
+};
+
+/** The applicant's request this POA was built for (aircraft and test airport). */
+type LinkedRequest = {
+  aircraft_make: string | null;
+  aircraft_model: string | null;
+  aircraft_registration: string | null;
+  flight_airport_id: string | null;
 };
 
 type SnapshotQuestion = {
@@ -330,6 +366,7 @@ type PracticalTestType = {
   class_name: string | null;
   certificate_code?: string | null;
   class_code?: string | null;
+  rating_code?: string | null;
 };
 
 function snapshotFromLibrary(
@@ -584,7 +621,11 @@ function GeneratedPoaEditContent() {
           selection_method,
           status,
           notes,
-          created_at
+          created_at,
+          location_snapshot,
+          ifr_snapshot,
+          aircraft_equipment,
+          practical_test_request_id
         `)
         .eq("id", id)
         .eq("examiner_profile_id", user.id)
@@ -631,7 +672,8 @@ function GeneratedPoaEditContent() {
             category_name,
             class_name,
             certificate_code,
-            class_code
+            class_code,
+            rating_code
           `)
           .eq(
             "id",
@@ -1343,7 +1385,9 @@ function GeneratedPoaEditContent() {
           destination,
           aircraft,
           initial_conditions,
-          examiner_notes
+          examiner_notes,
+          leg_nm,
+          location_needs
         `)
         .eq("is_active", true)
         .order("scenario_name", {
@@ -1412,6 +1456,186 @@ function GeneratedPoaEditContent() {
         selectedScenarioId,
       ],
     );
+
+  // This POA's own places and aircraft (Kele, Nov 12 2026). The library
+  // scenario leaves them blank; they're picked for each POA and can be changed here.
+  const [linkedRequest, setLinkedRequest] = useState<LinkedRequest | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLinkedRequest(null);
+    const requestId = plan?.practical_test_request_id;
+    if (!requestId) return;
+    void createClient()
+      .from("practical_test_requests")
+      .select("aircraft_make, aircraft_model, aircraft_registration, flight_airport_id")
+      .eq("id", requestId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setLinkedRequest((data as LinkedRequest | null) ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [plan?.practical_test_request_id]);
+
+  const [changingPlaces, setChangingPlaces] = useState(false);
+  /** Places picked on this page and not saved yet. */
+  const [newPlaces, setNewPlaces] = useState<PoaLocations | null>(null);
+  const [newIfr, setNewIfr] = useState<IfrContext | null>(null);
+  const [placesBusy, setPlacesBusy] = useState(false);
+  /** Wording the new places couldn't supply, so it still names the old ones. */
+  const [placeLeftovers, setPlaceLeftovers] = useState<string[]>([]);
+  /** The fill-ins the question and trigger wording currently uses. */
+  const [appliedFills, setAppliedFills] = useState<Record<string, string | null> | null>(null);
+
+  const placesInstrument = useMemo(() => {
+    const ratingCode = (testType?.rating_code ?? "").trim().toUpperCase();
+    return (
+      testType?.certificate_code === "INSTRUMENT" ||
+      testType?.certificate_code === "ATP" ||
+      ratingCode.startsWith("CFII")
+    );
+  }, [testType]);
+
+  const placeNeeds = useMemo(() => {
+    const classCode = (testType?.class_code ?? "").trim().toUpperCase();
+    return {
+      legNm: selectedScenario?.leg_nm ?? parseLegNm(selectedScenario?.destination),
+      destinationKind: (["ASES", "AMES"].includes(classCode) ? "seaplane" : "airport") as "seaplane" | "airport",
+      instrument: placesInstrument,
+      stops: selectedScenario?.location_needs?.stops ?? [],
+      preferRiver: Boolean(selectedScenario?.location_needs?.prefer_river),
+    };
+  }, [testType, selectedScenario, placesInstrument]);
+
+  const aircraftText = useMemo(() => {
+    const made = [linkedRequest?.aircraft_make, linkedRequest?.aircraft_model].filter(Boolean).join(" ").trim();
+    const registration = linkedRequest?.aircraft_registration?.trim();
+    const equipment =
+      plan?.aircraft_equipment === "taa"
+        ? "glass cockpit (TAA)"
+        : plan?.aircraft_equipment === "six_pack"
+          ? "six-pack instruments"
+          : "";
+    const name = [made, registration ? `(${registration})` : ""].filter(Boolean).join(" ");
+    return [name, equipment].filter(Boolean).join(" · ") || null;
+  }, [linkedRequest, plan?.aircraft_equipment]);
+
+  /** What the box shows: places changed here, else the saved ones. */
+  const shownPlaces = useMemo(() => {
+    if (newPlaces) {
+      const at = (place: { distance_nm: number; from: string } & Parameters<typeof placeLabel>[0] | null) =>
+        place ? `${placeLabel(place)} · ${place.distance_nm} NM from ${place.from}` : null;
+      return {
+        departure: placeLabel(newPlaces.departure),
+        destination: at(newPlaces.destination),
+        alternate: at(newPlaces.alternate),
+        practice: newPlaces.practice_area ? placeLabel(newPlaces.practice_area) : null,
+        pattern: newPlaces.pattern_airport ? placeLabel(newPlaces.pattern_airport) : null,
+        stops: (newPlaces.stops ?? []).map(
+          (stop) => `${placeLabel(stop)} · ${stop.distance_nm} NM · ${hasFuel(stop) ? `fuel: ${stop.fuel_types}` : "no fuel"}`,
+        ),
+      };
+    }
+    const saved = plan?.location_snapshot ?? null;
+    if (!saved?.departure) return null;
+    const at = (place: SavedLocations["destination"]) =>
+      place ? `${savedPlaceLabel(place)}${place.distance_nm != null ? ` · ${place.distance_nm} NM from ${place.from}` : ""}` : null;
+    return {
+      departure: savedPlaceLabel(saved.departure),
+      destination: at(saved.destination),
+      alternate: at(saved.alternate),
+      practice: saved.practice_area ? savedPlaceLabel(saved.practice_area) : null,
+      pattern: saved.pattern_airport ? savedPlaceLabel(saved.pattern_airport) : null,
+      stops: (saved.stops ?? []).map(
+        (stop) => `${savedPlaceLabel(stop)}${stop.distance_nm != null ? ` · ${stop.distance_nm} NM` : ""} · ${(stop.fuel ?? "").trim() ? `fuel: ${stop.fuel}` : "no fuel"}`,
+      ),
+    };
+  }, [newPlaces, plan?.location_snapshot]);
+
+  const changePlaces = useCallback(
+    async (next: PoaLocations | null) => {
+      if (!next || !plan) return;
+      setPlacesBusy(true);
+      try {
+        let ifr: IfrContext | null = null;
+        if (placesInstrument && next.destination) {
+          const equipment = plan.aircraft_equipment === "taa" || plan.aircraft_equipment === "six_pack" ? plan.aircraft_equipment : null;
+          const inputs = await loadIfrInputs(createClient(), next, equipment);
+          ifr = inputs ? buildIfrContext(inputs) : null;
+        }
+        const before =
+          appliedFills ?? {
+            ...savedLocationFills(plan.location_snapshot ?? null, {
+              departure: selectedScenario?.departure ?? null,
+              destination: selectedScenario?.destination ?? null,
+            }),
+            ...(plan.ifr_snapshot?.fills ?? {}),
+          };
+        const after: Record<string, string | null> = {
+          ...locationFills(next, {
+            departure: selectedScenario?.departure ?? null,
+            destination: selectedScenario?.destination ?? null,
+          }),
+          ...(ifr?.fills ?? {}),
+        };
+        const changes = fillChanges(before, after);
+        const rewrite = (text: string) => rewriteForNewPlaces(text, changes, after);
+        setQuestions((current) =>
+          current.map((question) => ({
+            ...question,
+            question_snapshot: rewrite(question.question_snapshot),
+            answer_snapshot: rewrite(question.answer_snapshot),
+          })),
+        );
+        setPoaTriggers((current) =>
+          current.map((trigger) => ({
+            ...trigger,
+            trigger_text_snapshot: rewrite(trigger.trigger_text_snapshot),
+            trigger_narrative_snapshot: rewrite(trigger.trigger_narrative_snapshot),
+          })),
+        );
+        // Wording that named something the new places don't have (an ILS, a stop with fuel).
+        const stale = staleValues(before, after);
+        const leftovers = new Set<string>();
+        const look = (title: string, ...texts: string[]) => {
+          if (stale.some(({ value }) => texts.some((text) => text.includes(value)))) leftovers.add(title);
+        };
+        questions.forEach((question) => look(question.question_snapshot, question.question_snapshot, question.answer_snapshot));
+        poaTriggers.forEach((trigger) => look(trigger.trigger_text_snapshot, trigger.trigger_text_snapshot, trigger.trigger_narrative_snapshot));
+        setPlaceLeftovers([...leftovers]);
+        setAppliedFills(after);
+        setNewIfr(ifr);
+        setNewPlaces(next);
+      } finally {
+        setPlacesBusy(false);
+      }
+    },
+    // questions/poaTriggers are read only to list leftovers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plan, placesInstrument, appliedFills, selectedScenario, questions, poaTriggers],
+  );
+
+  // The panel calls back with the saved places first; only a real change rewrites anything.
+  const savedPlaceIds = useMemo(() => {
+    const saved = plan?.location_snapshot;
+    return saved?.departure
+      ? [saved.departure, saved.destination, saved.alternate, saved.practice_area, saved.pattern_airport, ...(saved.stops ?? [])]
+          .map((place) => place?.id ?? "")
+          .join("|")
+      : null;
+  }, [plan?.location_snapshot]);
+  const onPanelPlaces = useCallback(
+    (next: PoaLocations | null) => {
+      if (!next) return;
+      const ids = [next.departure, next.destination, next.alternate, next.practice_area, next.pattern_airport, ...(next.stops ?? [])]
+        .map((place) => place?.id ?? "")
+        .join("|");
+      if (!newPlaces && ids === savedPlaceIds) return;
+      void changePlaces(next);
+    },
+    [changePlaces, newPlaces, savedPlaceIds],
+  );
 
   function selectScenarioFromLibrary(
     scenarioId: string,
@@ -2423,6 +2647,15 @@ function GeneratedPoaEditContent() {
           notes:
             plan.notes?.trim() ||
             null,
+          // Airports changed on this page (the wording below was already swapped).
+          ...(newPlaces
+            ? {
+                location_snapshot: locationSnapshot(newPlaces),
+                ...(placesInstrument
+                  ? { ifr_snapshot: newIfr ? { ...newIfr.snapshot, fills: newIfr.fills } : null }
+                  : {}),
+              }
+            : {}),
           updated_at:
             new Date().toISOString(),
         })
@@ -2785,6 +3018,24 @@ function GeneratedPoaEditContent() {
       );
 
       setTimelineOrder({});
+
+      if (newPlaces) {
+        const savedSnapshot = locationSnapshot(newPlaces) as unknown as SavedLocations;
+        setPlan((current) =>
+          current
+            ? {
+                ...current,
+                location_snapshot: savedSnapshot,
+                ...(placesInstrument
+                  ? { ifr_snapshot: newIfr ? { ...newIfr.snapshot, fills: newIfr.fills } : null }
+                  : {}),
+              }
+            : current,
+        );
+        setNewPlaces(null);
+        setNewIfr(null);
+        setChangingPlaces(false);
+      }
 
       setQuestions(
         refreshedQuestions,
@@ -3424,37 +3675,7 @@ function GeneratedPoaEditContent() {
                 </p>
               </div>
 
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Departure
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {selectedScenario.departure ||
-                    "Not specified"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Destination
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {selectedScenario.destination ||
-                    "Not specified"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Aircraft
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {selectedScenario.aircraft ||
-                    "Not specified"}
-                </p>
-              </div>
-
-              <div>
+              <div className="lg:col-span-2">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   Initial Conditions
                 </p>
@@ -3477,6 +3698,99 @@ function GeneratedPoaEditContent() {
             </div>
           </div>
         ) : null}
+
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <MapPin className="h-4 w-4 text-sky-700" /> This POA&apos;s airports and aircraft
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                Picked for this POA. Change them and the questions and triggers are reworded to match.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChangingPlaces((open) => !open)}
+              disabled={!testType || loadingScenarioOptions}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {changingPlaces ? "Done" : shownPlaces ? "Change airports" : "Pick airports"}
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {([
+              ["Departure", shownPlaces?.departure],
+              ["Destination", shownPlaces?.destination],
+              ...(placesInstrument ? [["Alternate", shownPlaces?.alternate] as [string, string | null | undefined]] : []),
+              ["Practice area near", shownPlaces?.practice],
+              ["Pattern work at", shownPlaces?.pattern],
+              ["Aircraft", aircraftText],
+            ] as Array<[string, string | null | undefined]>).map(([label, value]) => (
+              <div key={label}>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+                <p className={`mt-1 text-sm font-semibold ${value ? "text-slate-800" : "text-slate-400"}`}>
+                  {value || (label === "Aircraft" ? "From the applicant's request (none linked)" : "Not picked yet")}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {shownPlaces?.stops.length ? (
+            <div className="mt-4 text-sm text-slate-800">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Ferry stops</p>
+              <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+                {shownPlaces.stops.map((stop) => (
+                  <li key={stop}>{stop}</li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+
+          {!shownPlaces ? (
+            <p className="mt-4 text-xs text-amber-800">
+              This POA was built before airports were picked for each POA. Click Pick airports to choose
+              real ones; the wording is updated to match.
+            </p>
+          ) : null}
+
+          {changingPlaces && testType && !loadingScenarioOptions ? (
+            <PoaLocationsPanel
+              requestAirportId={linkedRequest?.flight_airport_id ?? null}
+              needs={placeNeeds}
+              scenarioKey={selectedScenarioId}
+              initial={plan.location_snapshot ?? null}
+              onChange={onPanelPlaces}
+            />
+          ) : null}
+
+          {placesBusy ? (
+            <p className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+              <Loader2 className="h-4 w-4 animate-spin" /> Updating the wording…
+            </p>
+          ) : null}
+
+          {newPlaces && !placesBusy ? (
+            <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-900">
+              Airports changed and the wording updated. Click Save Changes to keep them.
+            </p>
+          ) : null}
+
+          {placeLeftovers.length ? (
+            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p className="font-semibold">
+                These still mention something the new airports don&apos;t have (an approach, a fix or a stop).
+                Edit or remove them:
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {placeLeftovers.map((title) => (
+                  <li key={title}>{title.length > 140 ? `${title.slice(0, 140)}…` : title}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
       </section>
 
 

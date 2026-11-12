@@ -404,5 +404,7 @@ export function locationSnapshot(locations: PoaLocations) {
     pattern_airport: slim(locations.pattern_airport),
     stops: (locations.stops ?? []).map((a) => ({ ...slim(a), fuel: a.fuel_types ?? null })),
     warnings: locations.warnings,
+    // The wording the POA was built with, so a later change of airports can swap it (Kele, Nov 12 2026).
+    fills: locationFills(locations, {}),
   };
 }
