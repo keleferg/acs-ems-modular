@@ -49,13 +49,20 @@ const SLOT_LABEL: Record<Slot, string> = {
   pattern_airport: "Pattern work at",
 };
 
+const NOT_SET_UP =
+  "Real airports aren't set up on the database yet, so this POA uses the scenario's own places. They'll appear here once the airport update is installed.";
+
 async function airportsNear(centerId: string, radius: number, testAirportId: string) {
   const { data, error } = await createClient().rpc("examiner_poa_airports_near", {
     p_center_id: centerId,
     p_radius_nm: radius,
     p_test_airport_id: testAirportId,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // The airport function comes with the poa_locations migration; before it's applied, say so plainly.
+    if (error.code === "PGRST202" || /schema cache|does not exist/i.test(error.message)) throw new Error(NOT_SET_UP);
+    throw new Error(error.message);
+  }
   return (data ?? []) as PoaAirport[];
 }
 
@@ -321,8 +328,10 @@ export function PoaLocationsPanel({ requestAirportId, needs, scenarioKey, onChan
         </div>
       </div>
 
-      {error ? <p className="mt-3 text-xs font-semibold text-red-700">{error}</p> : null}
-      {!testAirport && !loading ? (
+      {error ? (
+        <p className={`mt-3 text-xs font-semibold ${error === NOT_SET_UP ? "text-slate-600" : "text-red-700"}`}>{error}</p>
+      ) : null}
+      {!testAirport && !loading && error !== NOT_SET_UP ? (
         <p className="mt-3 text-xs font-semibold text-amber-700">Enter the test airport to pick the POA&apos;s places.</p>
       ) : null}
 
