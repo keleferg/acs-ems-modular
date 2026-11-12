@@ -206,6 +206,8 @@ type GeneratedPlan = {
   notes: string | null;
   created_at: string;
   location_snapshot?: SavedLocations | null;
+  /** What the generator required for this test (additional ratings need only some Tasks). */
+  compliance_snapshot?: { required?: string[] } | null;
   ifr_snapshot?: { fills?: Record<string, string> } & Record<string, unknown> | null;
   aircraft_equipment?: string | null;
   practical_test_request_id?: string | null;
@@ -624,6 +626,7 @@ function GeneratedPoaEditContent() {
           created_at,
           location_snapshot,
           ifr_snapshot,
+          compliance_snapshot,
           aircraft_equipment,
           practical_test_request_id
         `)
@@ -1106,6 +1109,25 @@ function GeneratedPoaEditContent() {
   }, [questions, flightTasks]);
 
   const savedPoaComplianceCodes = useMemo(() => {
+    // The Tasks this test requires, as worked out when the POA was generated (Kele, Nov 12 2026).
+    // Counting every element of every ACS a question mentions showed 175 "missing" on an
+    // additional-rating POA that needs 52.
+    const savedRequired = (plan?.compliance_snapshot?.required ?? [])
+      .map((code) => String(code).trim().toUpperCase())
+      .filter((code) => /\.(K|R|S)$/.test(code));
+    if (savedRequired.length) {
+      const codes = new Set(savedRequired);
+      const catalogCodes = new Set(
+        faaAcsComplianceCatalog.entries.map((entry) => String(entry.code ?? "").trim().toUpperCase()),
+      );
+      // Skill elements of the same Tasks (the snapshot lists Knowledge and Risk).
+      for (const code of savedRequired) {
+        const skill = code.replace(/\.(K|R)$/, ".S");
+        if (catalogCodes.has(skill)) codes.add(skill);
+      }
+      return [...codes].sort(compareSavedPoaComplianceCodes);
+    }
+
     const prefixSet =
       new Set(savedPoaPrefixes);
 
@@ -1133,7 +1155,7 @@ function GeneratedPoaEditContent() {
     return [...codes].sort(
       compareSavedPoaComplianceCodes,
     );
-  }, [savedPoaPrefixes]);
+  }, [savedPoaPrefixes, plan?.compliance_snapshot]);
 
   const savedPoaCoveredComplianceCodes =
     useMemo(() => {
