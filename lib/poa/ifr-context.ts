@@ -8,7 +8,7 @@
 // Pure functions: the Generate page loads the rows and calls buildIfrContext. A fill this module
 // can't supply is left out, and template items that need it (requires_fills) are skipped.
 
-import { distanceNm, prettyAirportName } from "@/lib/poa/locations";
+import { distanceNm, prettyAirportName } from "./locations";
 
 export type IfrAirport = {
   ident: string; // ICAO if it has one

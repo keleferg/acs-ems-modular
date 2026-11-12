@@ -46,7 +46,12 @@ async function inChunks<T>(ids: string[], load: (chunk: string[]) => Promise<T[]
   return out;
 }
 
-export async function loadFocusAreas(supabase: SupabaseClient, requestId: string, testPrefix: string): Promise<FocusSummary | null> {
+export async function loadFocusAreas(
+  supabase: SupabaseClient,
+  requestId: string,
+  testPrefix: string,
+  options: { examinerId?: string | null } = {},
+): Promise<FocusSummary | null> {
   const { data: request } = await supabase.from("practical_test_requests").select(REQUEST_FIELDS).eq("id", requestId).maybeSingle();
   if (!request) return null;
   const current = request as RequestRow;
@@ -60,8 +65,11 @@ export async function loadFocusAreas(supabase: SupabaseClient, requestId: string
   const missed = (reports ?? []).flatMap((row) => (row.missed_codes as string[] | null) ?? []);
   areas.push(...knowledgeTestAreas(missed, prefix));
 
-  // History: every other request the examiner can see for the same ACS.
-  const { data: history } = await supabase.from("practical_test_requests").select(REQUEST_FIELDS).neq("id", requestId).limit(10000);
+  // History: every other request the examiner can see for the same ACS. The automatic build runs
+  // with the service key, so it limits itself to the examiner's own requests like the page does.
+  let historyQuery = supabase.from("practical_test_requests").select(REQUEST_FIELDS).neq("id", requestId).limit(10000);
+  if (options.examinerId) historyQuery = historyQuery.eq("assigned_examiner_profile_id", options.examinerId);
+  const { data: history } = await historyQuery;
   const sameAcs = ((history ?? []) as RequestRow[]).filter(
     (row) => acsPrefixFor(row.certificate_sought, row.category_sought, row.rating_sought) === prefix,
   );

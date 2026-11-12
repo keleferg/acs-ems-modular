@@ -1,4 +1,4 @@
-import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
+import faaAcsComplianceCatalog from "../../data/faa-acs-compliance-catalog.json";
 
 type CatalogEntry = Record<string, unknown>;
 

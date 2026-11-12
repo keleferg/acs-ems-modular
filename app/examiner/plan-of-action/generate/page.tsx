@@ -44,253 +44,29 @@ import {
 // FAA additional-rating ACS task maps: a reference-data snapshot owned by EMS
 // (generated from the former public/ems config; verified identical).
 import ADDITIONAL_MAPS from "@/data/acs-additional-rating-maps.json";
-
-function acsPrefix(reference: string) {
-  const cleaned = reference.trim().toUpperCase();
-
-  const match = cleaned.match(/^([A-Z]{1,5})\./);
-
-  return match?.[1] ?? null;
-}
-
-function faaAcsPrefixesForTestType(testType: PracticalTestType) {
-  const certificateCode = (testType.certificate_code ?? "")
-    .trim()
-    .toUpperCase();
-
-  const ratingCode = (testType.rating_code ?? "").trim().toUpperCase();
-
-  const categoryCode = (testType.category_code ?? "").trim().toUpperCase();
-
-  const classCode = (testType.class_code ?? "").trim().toUpperCase();
-
-  const certificate = (testType.certificate_name ?? "").trim().toLowerCase();
-
-  const category = (testType.category_name ?? "").trim().toLowerCase();
-
-  const rating = (testType.rating_name ?? "").trim().toLowerCase();
-
-  const display = (testType.display_name ?? "").trim().toLowerCase();
-
-  const combined = `${certificate} ${category} ${rating} ${display}`;
-
-  /*
-   * AIRPLANE
-   */
-
-  if (certificateCode === "PRIVATE" && categoryCode === "AIRPLANE") {
-    return ["PA"];
-  }
-
-  if (certificateCode === "COMMERCIAL" && categoryCode === "AIRPLANE") {
-    return ["CA"];
-  }
-
-  if (certificateCode === "ATP" && categoryCode === "AIRPLANE") {
-    return ["AA"];
-  }
-
-  if (
-    certificateCode === "INSTRUMENT" &&
-    ratingCode === "INSTRUMENT_AIRPLANE"
-  ) {
-    return ["IR"];
-  }
-
-  if (
-    certificateCode === "FLIGHT_INSTRUCTOR" &&
-    categoryCode === "AIRPLANE" &&
-    ratingCode !== "CFII"
-  ) {
-    return ["FI", "AI"];
-  }
-
-  /*
-   * CFII Airplane is still tested to the PTS (FAA-S-8081-9E), which has no
-   * ACS codes. EMS codes its Tasks IF.<Area>.<Task>.K/S (K = objective
-   * elements 1-2 and ground Tasks, S = demonstration and analysis); the
-   * entries are in data/faa-acs-compliance-catalog.json. The prefix must stay
-   * two letters for complianceParentCode.
-   */
-  if (certificateCode === "FLIGHT_INSTRUCTOR" && ratingCode === "CFII") {
-    return ["IF"];
-  }
-
-  /*
-   * HELICOPTER
-   */
-
-  if (certificateCode === "PRIVATE" && classCode === "HELICOPTER") {
-    return ["PH"];
-  }
-
-  if (certificateCode === "COMMERCIAL" && classCode === "HELICOPTER") {
-    return ["CH"];
-  }
-
-  if (
-    certificateCode === "INSTRUMENT" &&
-    ratingCode === "INSTRUMENT_HELICOPTER"
-  ) {
-    return ["IH"];
-  }
-
-  /*
-   * FAA-S-ACS-29:
-   * Flight Instructor Rotorcraft Helicopter uses HI.
-   */
-  if (
-    certificateCode === "FLIGHT_INSTRUCTOR" &&
-    ratingCode === "CFI_HELICOPTER"
-  ) {
-    return ["FI", "HI"];
-  }
-
-  /*
-   * CFII Helicopter remains PTS-based under FAA-S-8081-9E.
-   */
-  if (
-    certificateCode === "FLIGHT_INSTRUCTOR" &&
-    ratingCode === "CFII_HELICOPTER"
-  ) {
-    return [];
-  }
-
-  /*
-   * AVIATION MECHANIC
-   *
-   * FAA-S-ACS-1 uses the AM prefix throughout:
-   *
-   * AM.I   = General
-   * AM.II  = Airframe
-   * AM.III = Powerplant
-   */
-
-  if (certificateCode === "MECHANIC") {
-    return ["AM"];
-  }
-
-  /*
-   * REMOTE PILOT — SMALL UAS
-   * FAA-S-ACS-10B uses UA.
-   *
-   * These are future-safe mappings; there is not
-   * currently a Remote Pilot practical_test_type.
-   */
-
-  if (
-    certificateCode === "REMOTE_PILOT" ||
-    combined.includes("remote pilot") ||
-    combined.includes("unmanned aircraft")
-  ) {
-    return ["UA"];
-  }
-
-  /*
-   * COMMERCIAL PILOT — MILITARY COMPETENCE
-   * FAA-S-ACS-12 uses MC.
-   *
-   * There is not currently a Military Competence
-   * practical_test_type in EMS.
-   */
-
-  if (
-    certificateCode === "MILITARY_COMPETENCE" ||
-    combined.includes("military competence")
-  ) {
-    return ["MC"];
-  }
-
-  /*
-   * LEGACY / FUTURE FALLBACKS
-   */
-
-  if (combined.includes("private pilot") && combined.includes("airplane")) {
-    return ["PA"];
-  }
-
-  if (combined.includes("commercial pilot") && combined.includes("airplane")) {
-    return ["CA"];
-  }
-
-  if (
-    combined.includes("airline transport pilot") &&
-    combined.includes("airplane")
-  ) {
-    return ["AA"];
-  }
-
-  if (
-    combined.includes("instrument") &&
-    combined.includes("airplane") &&
-    !combined.includes("instructor")
-  ) {
-    return ["IR"];
-  }
-
-  if (
-    combined.includes("flight instructor") &&
-    combined.includes("airplane") &&
-    !combined.includes("instrument instructor")
-  ) {
-    return ["AI"];
-  }
-
-  return [];
-}
-
-function complianceParentCode(reference: string) {
-  const cleaned = reference.trim().toUpperCase();
-
-  const match = cleaned.match(/^([A-Z]{2}\.[IVX]+\.[A-Z]+\.[KRS])/);
-
-  return match?.[1] ?? null;
-}
-
-type GeneratorScenarioOption = {
-  id: string;
-  scenario_name: string;
-  scenario_brief: string | null;
-  departure: string | null;
-  destination: string | null;
-  leg_nm: number | null;
-  aircraft: string | null;
-  initial_conditions: string | null;
-  examiner_notes: string | null;
-  /** Which version of the template story (photo, ferry, on_demand). Null = the template as written. */
-  mission_code?: string | null;
-  /** Fill-ins the scenario supplies, e.g. {"passenger": "the photographer"}. */
-  fills?: Record<string, string> | null;
-  /** Extra places, e.g. {"stops": ["fuel", "no_fuel"], "prefer_river": true}. */
-  location_needs?: { stops?: StopNeed[]; prefer_river?: boolean } | null;
-};
-
-type PoaTemplateQuestion = {
-  id: string;
-  question: string;
-  answer: string | null;
-  reference: string | null;
-  acs_reference: string;
-  task_name: string | null;
-  topic: string | null;
-  question_type: string | null;
-  poa_question_acs_applicability: Array<{ acs_reference: string; certificate_name?: string | null }>;
-};
-
-type PoaTemplateRow = TemplateItem & { poa_questions: PoaTemplateQuestion | null };
-
-type LoadedPoaTemplate = {
-  id: string;
-  name: string;
-  version: number;
-  items: PoaTemplateRow[];
-  eventSetNames: Record<string, string>;
-  previousVariants: TemplateVariants | null;
-  /** Scenarios written for this template's story; empty means any scenario for the test. */
-  scenarioIds: string[];
-  /** Scenario of the examiner's last POA for this test, so the auto-pick rotates. */
-  previousScenarioId: string | null;
-};
+import {
+  acsPrefix,
+  assembleTemplatePoa,
+  compareAcsReferences,
+  complianceParentCode,
+  crossCountryTaskParentsForPrefixes,
+  faaAcsPrefixesForTestType,
+  hasSameRatingContent,
+  isOriginalIssuance,
+  loadPoaTemplate as loadSharedPoaTemplate,
+  saveTemplatePoa,
+  splitAcsReferences,
+  taskParentFromReference,
+  type AcsApplicability,
+  type AircraftEquipment,
+  type GeneratorScenarioOption,
+  type LibraryQuestion,
+  type LoadedPoaTemplate,
+  type PoaTemplateQuestion,
+  type PoaTemplateRow,
+  type PracticalTestType,
+  type QuestionTestTypeJoin,
+} from "@/lib/poa/generate-core";
 
 type CompatibleTrigger = {
   id: string;
@@ -355,65 +131,6 @@ type SavedGeneratedPoa = {
   created_at: string;
 };
 
-type PracticalTestType = {
-  id: string;
-
-  certificate_code?: string | null;
-  issuance_code?: string | null;
-  category_code?: string | null;
-  class_code?: string | null;
-  rating_code?: string | null;
-
-  certificate_name: string;
-  issuance_name: string;
-
-  category_name: string | null;
-  class_name: string | null;
-
-  rating_name: string;
-  display_name: string;
-};
-
-type AcsApplicability = {
-  id: string;
-  certificate_name: string;
-  acs_reference: string;
-};
-
-type QuestionTestTypeJoin = {
-  practical_test_type_id: string;
-};
-
-type LibraryQuestion = {
-  id: string;
-  question: string;
-
-  answer: string | null;
-
-  reference: string | null;
-
-  topic: string | null;
-
-  task_name: string | null;
-
-  question_type: string;
-  difficulty: string;
-
-  poa_question_acs_applicability: AcsApplicability[];
-
-  poa_question_practical_test_types: QuestionTestTypeJoin[];
-
-  /** Aircraft equipment the question is written for; null = any. */
-  aircraft_equipment?: AircraftEquipment | null;
-};
-
-/**
- * The flight instruments in the airplane the test is flown in. Questions and
- * trigger options can be written for one of them (vacuum system vs AHRS/ADC);
- * untagged ones apply to both.
- */
-type AircraftEquipment = "six_pack" | "taa";
-
 const AIRCRAFT_EQUIPMENT_OPTIONS: { value: AircraftEquipment; label: string; detail: string }[] = [
   { value: "six_pack", label: "Standard six-pack instruments", detail: "Vacuum or electric gyros, pitot-static instruments" },
   { value: "taa", label: "Technically advanced (glass cockpit, e.g., G1000)", detail: "PFD/MFD with AHRS and air data computer" },
@@ -472,108 +189,6 @@ function practicalTestDescription(testType: PracticalTestType) {
   ]
     .filter(Boolean)
     .join(" • ");
-}
-
-function splitAcsReferences(value: string | null | undefined) {
-  return String(value ?? "")
-    .split(/[,;\n]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function compareAcsReferences(a: string, b: string) {
-  return a.localeCompare(b, undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
-}
-
-function taskParentFromReference(reference: string) {
-  const cleaned = reference.trim().toUpperCase();
-  const match = cleaned.match(/^([A-Z]{1,5}\.[IVX]+\.[A-Z0-9/]+)/);
-  return match?.[1] ?? null;
-}
-
-function isOriginalIssuance(testType: PracticalTestType) {
-  const code = (testType.issuance_code ?? "").trim().toUpperCase();
-  const name = (testType.issuance_name ?? "").trim().toLowerCase();
-
-  return (
-    code === "ORIGINAL" ||
-    code === "INITIAL" ||
-    name.includes("original") ||
-    name.includes("initial")
-  );
-}
-
-function hasSameRatingContent(
-  candidate: PracticalTestType,
-  selected: PracticalTestType,
-) {
-  const normalize = (value: string | null | undefined) =>
-    (value ?? "").trim().toUpperCase();
-
-  return (
-    normalize(candidate.certificate_code || candidate.certificate_name) ===
-      normalize(selected.certificate_code || selected.certificate_name) &&
-    normalize(candidate.category_code || candidate.category_name) ===
-      normalize(selected.category_code || selected.category_name) &&
-    normalize(candidate.class_code || candidate.class_name) ===
-      normalize(selected.class_code || selected.class_name) &&
-    normalize(candidate.rating_code || candidate.rating_name) ===
-      normalize(selected.rating_code || selected.rating_name)
-  );
-}
-
-function crossCountryTaskParentsForPrefixes(prefixes: string[]) {
-  const allowed = new Set(prefixes.map((value) => value.trim().toUpperCase()));
-
-  const parents = new Set<string>();
-
-  const entries = faaAcsComplianceCatalog.entries as unknown as Array<
-    Record<string, unknown>
-  >;
-
-  for (const raw of entries) {
-    const code = String(raw.code ?? raw.acs_reference ?? raw.reference ?? "")
-      .trim()
-      .toUpperCase();
-
-    const prefix = acsPrefix(code);
-
-    if (!prefix || !allowed.has(prefix)) {
-      continue;
-    }
-
-    const parent = taskParentFromReference(code);
-
-    if (!parent) {
-      continue;
-    }
-
-    const taskLabelCandidates = [
-      raw.task_name,
-      raw.taskName,
-      raw.task,
-      raw.name,
-      raw.title,
-      raw.label,
-    ];
-
-    const taskLabel = taskLabelCandidates.find(
-      (value) => typeof value === "string" && value.trim().length > 0,
-    );
-
-    if (
-      String(taskLabel ?? "")
-        .toLowerCase()
-        .includes("cross-country flight planning")
-    ) {
-      parents.add(parent);
-    }
-  }
-
-  return [...parents].sort(compareAcsReferences);
 }
 
 export default function GeneratePoaPage() {
@@ -1746,93 +1361,9 @@ export default function GeneratePoaPage() {
       setPoaTemplate(null);
       if (!testType?.id || !testType.certificate_code) return;
       const supabase = createClient();
-      let templateQuery = supabase
-        .from("poa_templates")
-        .select("id, name, version, class_code")
-        .eq("status", "approved")
-        .eq("certificate_code", testType.certificate_code)
-        .order("version", { ascending: false })
-        .limit(1);
-      templateQuery = testType.class_code
-        ? templateQuery.eq("class_code", testType.class_code)
-        : templateQuery.is("class_code", null);
-      const { data: templates, error: templateError } = await templateQuery;
-      const template = templates?.[0];
-      if (cancelled || templateError || !template) return;
-
-      const [itemResult, eventSetResult, userResult] = await Promise.all([
-        supabase
-          .from("poa_template_items")
-          .select(`
-            id, event_set_id, parent_item_id, sort_order, depth, item_kind, script_text, question_id,
-            is_optional, condition_note, aircraft_equipment, class_codes, rotation_slot, rotation_variant, requires_fills, mission_codes, answer_text,
-            poa_questions ( id, question, answer, reference, acs_reference, task_name, topic, question_type,
-              poa_question_acs_applicability ( certificate_name, acs_reference ) )
-          `)
-          .eq("template_id", template.id)
-          .order("sort_order", { ascending: true }),
-        supabase.from("poa_event_sets").select("id, name"),
-        supabase.auth.getUser(),
-      ]);
-      if (cancelled || itemResult.error) return;
-
-      let previousVariants: TemplateVariants | null = null;
-      let previousScenarioId: string | null = null;
-      const userId = userResult.data.user?.id;
-      if (userId) {
-        const { data: lastPoa } = await supabase
-          .from("generated_plan_of_actions")
-          .select("template_variants, scenario_id")
-          .eq("examiner_profile_id", userId)
-          .eq("practical_test_type_id", testType.id)
-          .not("template_variants", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        previousVariants = (lastPoa?.template_variants as TemplateVariants | null) ?? null;
-        previousScenarioId = (lastPoa?.scenario_id as string | null) ?? null;
-      }
-      if (cancelled) return;
-
-      const { data: templateScenarios } = await supabase
-        .from("poa_template_scenarios")
-        .select("scenario_id")
-        .eq("template_id", template.id);
-      if (cancelled) return;
-
-      // Keep only the ACS codes for this test's certificate (a question can carry Private and Commercial codes).
-      const certificateName = testType.certificate_name;
-      const items = ((itemResult.data ?? []) as unknown as PoaTemplateRow[]).map((raw) => ({
-        ...raw,
-        poa_questions: raw.poa_questions
-          ? {
-              ...raw.poa_questions,
-              poa_question_acs_applicability: (raw.poa_questions.poa_question_acs_applicability ?? []).filter(
-                (row) => !row.certificate_name || row.certificate_name === certificateName,
-              ),
-            }
-          : null,
-      })).map((item) => ({
-        ...item,
-        task_parents: [
-          ...new Set(
-            (item.poa_questions?.poa_question_acs_applicability ?? [])
-              .flatMap((row) => splitAcsReferences(row.acs_reference))
-              .map(taskParentFromReference)
-              .filter((code): code is string => Boolean(code)),
-          ),
-        ],
-      }));
-      setPoaTemplate({
-        id: template.id,
-        name: template.name,
-        version: template.version,
-        items,
-        eventSetNames: Object.fromEntries((eventSetResult.data ?? []).map((row) => [row.id, row.name])),
-        previousVariants,
-        scenarioIds: (templateScenarios ?? []).map((row) => String(row.scenario_id)),
-        previousScenarioId,
-      });
+      const { data: userData } = await supabase.auth.getUser();
+      const loaded = await loadSharedPoaTemplate(supabase, testType, userData.user?.id ?? null);
+      if (!cancelled && loaded) setPoaTemplate(loaded);
     }
     void loadPoaTemplate();
     return () => { cancelled = true; };
@@ -2635,92 +2166,20 @@ export default function GeneratePoaPage() {
             .filter((code): code is string => Boolean(code)),
         )
       : null;
-    const variants = pickTemplateVariants(poaTemplate.items, poaTemplate.previousVariants, Math.random, fillCheck, poaMission);
-    const scriptSequence = buildTemplateSequence(poaTemplate.items, {
-      variants,
+    const assembled = assembleTemplatePoa({
+      template: poaTemplate,
+      testType,
+      scenario: selectedScenario,
+      questions,
       equipment: poaEquipment,
-      classCode: testType.class_code,
-      requiredTaskParents,
+      fills: poaFills,
       fillCheck,
-      mission: poaMission,
-    }) as PoaTemplateRow[];
-
-    // Weak areas: tag the script questions that already cover them, add one question for the rest
-    // right after the script's chain on the same Task (or Area).
-    const certificateName = testType.certificate_name;
-    const referencesOf = (rows: Array<{ acs_reference: string; certificate_name?: string | null }>) =>
-      rows
-        .filter((row) => !row.certificate_name || row.certificate_name === certificateName)
-        .flatMap((row) => splitAcsReferences(row.acs_reference))
-        .map((ref) => ref.toUpperCase());
-    const focusPlan = planFocus(
-      activeFocusAreas,
-      scriptSequence.map((item) => ({
-        id: item.id,
-        event_set_id: item.event_set_id,
-        parent_item_id: item.parent_item_id,
-        question_id: item.question_id,
-        references: referencesOf(item.poa_questions?.poa_question_acs_applicability ?? []),
-      })),
-      questions.map((question) => ({
-        id: question.id,
-        references: referencesOf(question.poa_question_acs_applicability ?? []),
-        isTrigger: (question.question_type ?? "").toLowerCase().includes("trigger"),
-      })),
-    );
-    const focusByItem = new Map<string, FocusSource[]>(Object.entries(focusPlan.tagged));
-    const insertAfter = new Map<number, PoaTemplateRow[]>();
-    const firstEventSet = scriptSequence.find((item) => item.item_kind !== "seed")?.event_set_id ?? "";
-    for (const entry of focusPlan.added) {
-      const question = questions.find((candidate) => candidate.id === entry.questionId);
-      if (!question) continue;
-      const rows = (question.poa_question_acs_applicability ?? []).filter(
-        (row) => !row.certificate_name || row.certificate_name === certificateName,
-      );
-      const id = `focus-${question.id}`;
-      const index = entry.afterItemId ? chainEndIndex(scriptSequence, entry.afterItemId) : scriptSequence.length - 1;
-      const list = insertAfter.get(index) ?? [];
-      list.push({
-        id,
-        event_set_id: entry.eventSetId || firstEventSet,
-        parent_item_id: null,
-        sort_order: 0,
-        depth: 0,
-        item_kind: "question",
-        script_text: question.question,
-        question_id: question.id,
-        is_optional: false,
-        condition_note: null,
-        aircraft_equipment: null,
-        class_codes: null,
-        rotation_slot: null,
-        rotation_variant: 1,
-        poa_questions: {
-          id: question.id,
-          question: question.question,
-          answer: question.answer,
-          reference: question.reference,
-          acs_reference: rows.map((row) => row.acs_reference).join("; "),
-          task_name: question.task_name,
-          topic: question.topic,
-          question_type: question.question_type,
-          poa_question_acs_applicability: rows,
-        },
-      });
-      insertAfter.set(index, list);
-      focusByItem.set(id, entry.sources);
-    }
-    const sequence = scriptSequence.flatMap((item, index) => [item, ...(insertAfter.get(index) ?? [])]);
-    const fills = poaFills;
-
-    const coveredCodes = new Set(
-      sequence.flatMap((item) =>
-        (item.poa_questions?.poa_question_acs_applicability ?? [])
-          .flatMap((row) => splitAcsReferences(row.acs_reference))
-          .map(complianceParentCode)
-          .filter((code): code is string => Boolean(code)),
-      ),
-    );
+      requiredComplianceCodes,
+      requiredTaskParents,
+      complianceAcsPrefixes,
+      focusAreas: activeFocusAreas,
+    });
+    const { variants, focusPlan, focusByItem, questionRows, triggerCount } = assembled;
     const flightTasks = (selectedFlightTaskDrafts.length
       ? selectedFlightTaskDrafts
       : flightTaskLibrary.filter((task) => task.is_required)
@@ -2732,20 +2191,16 @@ export default function GeneratePoaPage() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("You must be signed in as an examiner.");
 
-      const { data: generated, error: generatedError } = await supabase
-        .from("generated_plan_of_actions")
-        .insert({
+      const generated = await saveTemplatePoa(
+        supabase,
+        {
           examiner_profile_id: user.id,
           practical_test_type_id: testType.id,
           title: title.trim(),
           scenario_name: selectedScenario.scenario_name,
           scenario_id: selectedScenario.id,
-          compliance_snapshot: {
-            required: requiredComplianceCodes,
-            covered: requiredComplianceCodes.filter((code) => coveredCodes.has(code)),
-            missing: requiredComplianceCodes.filter((code) => !coveredCodes.has(code)),
-          },
-          cross_country_required: crossCountryTaskParentsForPrefixes(complianceAcsPrefixes).length > 0,
+          compliance_snapshot: assembled.complianceSnapshot,
+          cross_country_required: assembled.crossCountryRequired,
           selection_method: "template",
           template_id: poaTemplate.id,
           template_variants: variants,
@@ -2766,107 +2221,12 @@ export default function GeneratePoaPage() {
             : null,
           status: "ready",
           notes: `Built from the ${poaTemplate.name} POA template (v${poaTemplate.version}) for ${testType.display_name}.`,
-        })
-        .select("id")
-        .single();
-      if (generatedError || !generated) {
-        throw new Error(generatedError?.message || "The generated POA record could not be created.");
-      }
-
-      const removeGenerated = async () => {
-        await supabase.from("generated_plan_of_actions").delete().eq("id", generated.id);
-      };
-
-      const questionRows: Record<string, unknown>[] = [];
-      const timelineRows: Record<string, unknown>[] = [];
-      let position = 0;
-      let currentEventSet: string | null = null;
-      for (const item of sequence) {
-        position += 10;
-        const text = fillTemplateText(item.script_text, fills);
-        if (item.item_kind === "seed") {
-          timelineRows.push({
-            timeline_kind: "scenario",
-            placement_section: "oral",
-            phase: "preflight",
-            trigger_text_snapshot: selectedScenario.scenario_name,
-            trigger_narrative_snapshot: fillTemplateText(selectedScenario.scenario_brief ?? selectedScenario.scenario_name, fills),
-            sort_order: position,
-            template_item_id: item.id,
-          });
-          continue;
-        }
-        if (item.event_set_id !== currentEventSet) {
-          currentEventSet = item.event_set_id;
-          timelineRows.push({
-            timeline_kind: "event_set",
-            placement_section: "oral",
-            event_set_id: item.event_set_id,
-            trigger_text_snapshot: poaTemplate.eventSetNames[item.event_set_id] ?? "Event Set",
-            sort_order: position,
-          });
-          position += 10;
-        }
-        const question = item.poa_questions;
-        if (question) {
-          const references = (question.poa_question_acs_applicability ?? []).flatMap((row) => splitAcsReferences(row.acs_reference));
-          questionRows.push({
-            generated_plan_of_action_id: generated.id,
-            question_library_id: question.id,
-            // Element codes, like the rule-based builder stores, so the compliance view can count K and R.
-            acs_reference_snapshot: references.join("; ") || question.acs_reference,
-            question_snapshot: item.item_kind === "trigger" ? `TRIGGER: ${text}` : text,
-            // The script's own answer wins when the mission changes it (Part 91 ferry vs Part 135 charter).
-            answer_snapshot: (item.answer_text ?? question.answer) ? fillTemplateText(item.answer_text ?? question.answer ?? "", fills) : question.answer,
-            reference_snapshot: question.reference,
-            topic_snapshot: question.topic,
-            task_name_snapshot: question.task_name,
-            question_type_snapshot: question.question_type,
-            acs_references_snapshot: references,
-            event_set_id: item.event_set_id,
-            sort_order: position,
-            template_item_id: item.id.startsWith("focus-") ? null : item.id,
-            template_depth: item.depth,
-            focus_sources: focusByItem.get(item.id) ?? null,
-          });
-        } else {
-          timelineRows.push({
-            timeline_kind: item.item_kind === "trigger" ? "trigger" : "scene",
-            placement_section: "oral",
-            event_set_id: item.event_set_id,
-            trigger_text_snapshot: text,
-            trigger_narrative_snapshot: text,
-            sort_order: position,
-            template_item_id: item.id,
-            template_depth: item.depth,
-          });
-        }
-      }
-
-      const { error: questionError } = await supabase.from("generated_plan_of_action_questions").insert(questionRows);
-      if (questionError) {
-        await removeGenerated();
-        throw new Error(`Question snapshots could not be saved: ${questionError.message}`);
-      }
-      const { error: flightTaskError } = await supabase.rpc("examiner_replace_generated_poa_flight_tasks", {
-        p_generated_plan_of_action_id: generated.id,
-        p_tasks: flightTasks,
-      });
-      if (flightTaskError) {
-        await removeGenerated();
-        throw new Error(`Flight task snapshots could not be saved: ${flightTaskError.message}`);
-      }
-      const { error: timelineError } = await supabase.rpc("examiner_replace_generated_poa_triggers", {
-        p_generated_plan_of_action_id: generated.id,
-        p_triggers: timelineRows,
-      });
-      if (timelineError) {
-        await removeGenerated();
-        throw new Error(`Scenario timeline snapshots could not be saved: ${timelineError.message}`);
-      }
+        },
+        assembled,
+        flightTasks,
+      );
 
       setGeneratedPoaId(generated.id);
-      const triggerCount = timelineRows.filter((row) => row.timeline_kind === "trigger").length + questionRows.filter((row) => String(row.question_snapshot).startsWith("TRIGGER: ")).length;
       const focusNote = focusByItem.size
         ? ` ${focusByItem.size} question${focusByItem.size === 1 ? "" : "s"} focus on the applicant's weak areas (${focusPlan.added.length} added).`
         : "";

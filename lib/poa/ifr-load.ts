@@ -1,10 +1,10 @@
 // Loads the FAA rows buildIfrContext needs for a POA's airports (Kele, Nov 11 2026).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PoaLocations, PoaAirport } from "@/lib/poa/locations";
-import { distanceNm } from "@/lib/poa/locations";
+import type { PoaLocations, PoaAirport } from "./locations";
+import { distanceNm } from "./locations";
 import type {
   AlternateCandidate, AtcFacility, ApproachRow, DepartureProcedure, FrequencyRow, IfrAirport, IfrInputs, IlsRow, NavaidRow, NearbyAirport,
-} from "@/lib/poa/ifr-context";
+} from "./ifr-context";
 
 const VOID_RADIUS_NM = 60;
 const ALTERNATE_RADIUS_NM = 120;

@@ -3390,3 +3390,141 @@ export function buildOpenOfferRequestedExaminerEmail(input: OpenOfferRequestedEx
 
   return { subject, html, text };
 }
+
+// Scenario assignment (Kele, Nov 12 2026): sent automatically when the applicant submits the
+// pretest qualification and EMS builds their Plan of Action. Only the scenario and the planning
+// assignment go to the applicant: never the POA's questions or triggers.
+type ScenarioAssignmentApplicantEmailInput = {
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  examinerName: string | null;
+  scheduledStartAt: string | null;
+  scheduledLocation: string | null;
+  scenarioName: string;
+  /** Filled scenario brief; paragraphs separated by blank lines ("Reason for the flight: …"). */
+  scenarioBrief: string;
+  planning: string[];
+  bring: string[];
+  portalUrl: string;
+};
+
+export function buildScenarioAssignmentApplicantEmail(input: ScenarioAssignmentApplicantEmailInput) {
+  const applicantFirstName = firstName(input.applicantName);
+  const date = input.scheduledStartAt ? formatScheduledAppointmentDate(input.scheduledStartAt) : "To be confirmed";
+  const time = input.scheduledStartAt ? formatScheduledAppointmentTime(input.scheduledStartAt) : "To be confirmed";
+  const location = input.scheduledLocation?.trim() || "As scheduled";
+  const subject = `Your Practical Test Scenario — ${input.scenarioName} (${input.requestNumber})`;
+
+  const paragraphs = input.scenarioBrief
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const briefHtml = paragraphs
+    .map((part) => {
+      const match = part.match(/^([A-Z][A-Za-z ]{2,30}):\s*([\s\S]*)$/);
+      return match
+        ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.65;color:#1e293b;"><strong>${escapeHtml(match[1])}:</strong> ${escapeHtml(match[2])}</p>`
+        : `<p style="margin:0 0 12px;font-size:15px;line-height:1.65;color:#1e293b;">${escapeHtml(part)}</p>`;
+    })
+    .join("");
+  const list = (items: string[]) =>
+    `<ul style="margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.65;color:#334155;">${items
+      .map((item) => `<li style="margin:0 0 6px;">${escapeHtml(item)}</li>`)
+      .join("")}</ul>`;
+
+  const html = qualificationEmailShell(
+    "Your Practical Test Scenario",
+    `
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">
+                  Thank you for submitting your pretest qualification. ${escapeHtml(yourExaminer(input.examinerName))} will use the
+                  scenario below for your practical test. Plan the flight as described and bring your planning with you.
+                </p>
+                <div style="margin:0 0 20px;padding:18px;border-radius:12px;background:#f0f9ff;border:1px solid #bae6fd;">
+                  <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#075985;">Scenario</div>
+                  <div style="margin:6px 0 12px;font-size:18px;font-weight:700;color:#0f172a;">${escapeHtml(input.scenarioName)}</div>
+                  ${briefHtml}
+                </div>
+                <div style="margin:0 0 20px;">
+                  <div style="font-size:16px;font-weight:700;color:#0f172a;">Planning assignment</div>
+                  ${list(input.planning)}
+                </div>
+                <div style="margin:0 0 8px;font-size:16px;font-weight:700;color:#0f172a;">Test day</div>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                  ${qualificationEmailRow("Request Number", input.requestNumber)}
+                  ${qualificationEmailRow("Practical Test", `${input.certificateSought} — ${input.ratingSought}`)}
+                  ${qualificationEmailRow("Date", date)}
+                  ${qualificationEmailRow("Time", time)}
+                  ${qualificationEmailRow("Location", location, true)}
+                </table>
+                <div style="margin-top:16px;padding:16px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;">
+                  <div style="font-size:14px;font-weight:700;">Bring with you</div>
+                  ${list(input.bring)}
+                </div>
+                <div style="margin-top:26px;">
+                  <a href="${escapeHtml(input.portalUrl)}" style="display:inline-block;padding:12px 18px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                    Open My Requests
+                  </a>
+                </div>
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+                  Questions about the scenario? Reply to this email to reach your examiner.
+                </p>`,
+  );
+
+  const text = [
+    `Aloha ${applicantFirstName},`,
+    "",
+    `Thank you for submitting your pretest qualification. ${yourExaminer(input.examinerName)} will use the scenario below for your practical test. Plan the flight as described and bring your planning with you.`,
+    "",
+    `SCENARIO: ${input.scenarioName}`,
+    "",
+    ...paragraphs.flatMap((part) => [part, ""]),
+    "PLANNING ASSIGNMENT",
+    ...input.planning.map((item) => `- ${item}`),
+    "",
+    "TEST DAY",
+    `Request Number: ${input.requestNumber}`,
+    `Practical Test: ${input.certificateSought} — ${input.ratingSought}`,
+    `Date: ${date}`,
+    `Time: ${time}`,
+    `Location: ${location}`,
+    "",
+    "Bring with you:",
+    ...input.bring.map((item) => `- ${item}`),
+    "",
+    `My Requests: ${input.portalUrl}`,
+    "",
+    "Questions about the scenario? Reply to this email to reach your examiner.",
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+type AutoPoaExaminerNoticeInput = {
+  examinerName: string | null;
+  applicantName: string;
+  requestNumber: string;
+  heading: string;
+  lines: string[];
+  requestUrl: string;
+};
+
+/** Tells the examiner what the automatic POA build did (or why it couldn't run). */
+export function buildAutoPoaExaminerNoticeEmail(input: AutoPoaExaminerNoticeInput) {
+  const subject = `${input.heading} — ${input.applicantName} (${input.requestNumber})`;
+  const html = qualificationEmailShell(
+    input.heading,
+    `
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(input.examinerName?.trim() ? firstName(input.examinerName) : "Examiner")},</p>
+                ${input.lines.map((line) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.65;color:#334155;">${escapeHtml(line)}</p>`).join("")}
+                <div style="margin-top:22px;">
+                  <a href="${escapeHtml(input.requestUrl)}" style="display:inline-block;padding:12px 18px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                    Open the Request
+                  </a>
+                </div>`,
+  );
+  const text = [`Aloha ${input.examinerName?.trim() ? firstName(input.examinerName) : "Examiner"},`, "", ...input.lines.flatMap((line) => [line, ""]), `Open the request: ${input.requestUrl}`].join("\n");
+  return { subject, html, text };
+}

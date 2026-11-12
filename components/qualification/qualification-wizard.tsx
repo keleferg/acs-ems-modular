@@ -1163,6 +1163,15 @@ export function QualificationWizard({ preview = false }: { preview?: boolean }) 
         submittedMessage = "Qualification package submitted, but your instructor could not be emailed. Please let your examiner know.";
       }
 
+      // EMS builds the Plan of Action from the knowledge test results and emails the scenario
+      // (Kele, Nov 12 2026). Runs on the server; a scheduled job retries if this call is lost.
+      void fetch("/api/poa/auto-build", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId: selectedRequest.id }),
+        keepalive: true,
+      }).catch(() => undefined);
+
       await loadQualification(
         selectedRequest.id,
       );
