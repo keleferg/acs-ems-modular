@@ -1823,12 +1823,29 @@ export default function GeneratePoaPage() {
     return ids.length ? scenarioOptions.filter((scenario) => ids.includes(scenario.id)) : scenarioOptions;
   }, [poaTemplate, scenarioOptions]);
 
+  // One page, one flow (Kele, Nov 11 2026): generate from the examiner's script when one exists;
+  // building by hand (timeline, flight tasks, compliance) is the fallback.
+  const [buildMode, setBuildMode] = useState<"template" | "manual">("template");
+  const useTemplate = buildMode === "template" && Boolean(poaTemplate);
+  const templateLimitsScenarios = Boolean(poaTemplate?.scenarioIds?.length);
+  const visibleScenarioOptions = useTemplate ? templateScenarioOptions : scenarioOptions;
+  useEffect(() => {
+    if (!selectedScenarioId || loadingScenarios) return;
+    if (!visibleScenarioOptions.some((scenario) => scenario.id === selectedScenarioId)) setSelectedScenarioId("");
+  }, [visibleScenarioOptions, selectedScenarioId, loadingScenarios]);
+
   const selectedScenario = useMemo(
     () =>
       scenarioOptions.find((scenario) => scenario.id === selectedScenarioId) ??
       null,
     [scenarioOptions, selectedScenarioId],
   );
+
+  const generateBlockers = [
+    !selectedScenarioId ? "a scenario" : null,
+    equipmentMissing ? "the aircraft equipment" : null,
+    isAdditionalIssuance && !additionalRatingHeld ? "the rating already held" : null,
+  ].filter((item): item is string => Boolean(item));
 
   // Real places for the POA (Kele, Nov 11 2026): picked near the request's test airport.
   const [poaLocations, setPoaLocations] = useState<PoaLocations | null>(null);
@@ -2791,14 +2808,14 @@ export default function GeneratePoaPage() {
         </div>
       </section>
 
-      {!loading && testType ? (
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
-              <div>
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  POA Version
-                </span>
 
+      {!loading && testType ? (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mt-1 text-xl font-bold text-slate-900">Title and scenario</h2>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div>
+              <span className="mb-2 block text-sm font-semibold text-slate-700">POA Version</span>
                 <select
                   value={selectedPoaVersionId}
                   onChange={(event) => selectPoaVersion(event.target.value)}
@@ -2817,99 +2834,46 @@ export default function GeneratePoaPage() {
                     </option>
                   ))}
                 </select>
-
-                <label className="mt-4 block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">
-                    New POA Title
-                  </span>
-
-                  <input
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
-                  />
-                </label>
-              </div>
-
-              <div>
-                <p className="mb-2 text-sm font-semibold text-slate-700">
-                  Selected Questions
-                </p>
-
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-2xl font-bold text-slate-900">
-                  {selectedIds.length}
-                </div>
-              </div>
-            </div>
-          </section>
-      ) : null}
-
-      {testType ? (
-        <PoaLocationsPanel
-          requestAirportId={linkedRequest?.flight_airport_id ?? null}
-          needs={locationNeeds}
-          scenarioKey={selectedScenarioId}
-          onChange={setPoaLocations}
-        />
-      ) : null}
-
-      <div className="mt-6 flex gap-1 border-b border-slate-300" role="tablist" aria-label="POA generator views">
-        {(["timeline", "flight_tasks", "compliance"] as const).map((tab) => (
-          <button key={tab} type="button" role="tab" id={`poa-tab-${tab}`} aria-controls={`poa-panel-${tab}`} aria-selected={generatorTab === tab} onClick={() => setGeneratorTab(tab)} className={`border-b-2 px-6 py-3 text-sm font-bold ${generatorTab === tab ? "border-sky-700 text-sky-800" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
-            {tab === "timeline" ? "Timeline" : tab === "flight_tasks" ? "Flight Tasks" : "Compliance"}
-          </button>
-        ))}
-      </div>
-
-
-
-      {testType && generatorTab === "timeline" ? (
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
-                Scenario Library Selection
-              </p>
-
-              <h2 className="mt-1 text-xl font-bold text-slate-900">
-                Scenario
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-600">
-                Select the scenario that will organize this Plan of Action
-                chronologically.
-              </p>
             </div>
 
-            <div className="mt-5">
-              <label>
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  Scenario
-                </span>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-700">Title</span>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-sky-500"
+              />
+            </label>
+          </div>
 
-                <select
-                  value={selectedScenarioId}
-                  onChange={(event) =>
-                    setSelectedScenarioId(event.target.value)
-                  }
-                  disabled={loadingScenarios}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
-                >
-                  <option value="">
-                    {loadingScenarios
-                      ? "Loading scenarios…"
-                      : scenarioOptions.length === 0
-                        ? "No scenarios assigned to this practical test"
-                        : "Select a scenario…"}
-                  </option>
-
-                  {scenarioOptions.map((scenario) => (
-                    <option key={scenario.id} value={scenario.id}>
-                      {scenario.scenario_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+          <label className="mt-4 block">
+            <span className="mb-2 block text-sm font-semibold text-slate-700">Scenario (reason for the flight)</span>
+            <select
+              value={selectedScenarioId}
+              onChange={(event) => setSelectedScenarioId(event.target.value)}
+              disabled={loadingScenarios}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-sky-500"
+            >
+              <option value="">
+                {loadingScenarios
+                  ? "Loading scenarios…"
+                  : visibleScenarioOptions.length === 0
+                    ? "No scenarios assigned to this practical test"
+                    : "Select a scenario…"}
+              </option>
+              {visibleScenarioOptions.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>
+                  {scenario.scenario_name}
+                </option>
+              ))}
+            </select>
+            {useTemplate && templateLimitsScenarios ? (
+              <span className="mt-1 block text-xs text-slate-500">
+                Showing the {visibleScenarioOptions.length} scenarios written for your {poaTemplate?.name} script.
+                Build by hand to use any of the {scenarioOptions.length} scenarios for this test.
+              </span>
+            ) : null}
+          </label>
 
             {selectedScenario ? (
               <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -2935,12 +2899,159 @@ export default function GeneratePoaPage() {
                 ) : null}
               </div>
             ) : null}
-          </section>
+        </section>
+      ) : null}
 
+      {!loading && isAirplaneTest ? (
+        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
+            <div>
+              <p className="text-sm font-bold text-slate-900">Aircraft equipment</p>
+
+              <p className="mt-1 text-xs text-slate-600">
+                Systems questions and triggers follow the airplane&apos;s flight instruments.
+              </p>
+
+              {linkedRequest ? (
+                <p className="mt-2 text-xs text-slate-700">
+                  From request {linkedRequest.request_number ?? ""}
+                  {linkedRequest.applicant_name_snapshot ? ` (${linkedRequest.applicant_name_snapshot})` : ""}:{" "}
+                  {[linkedRequest.aircraft_make, linkedRequest.aircraft_model, linkedRequest.aircraft_registration].filter(Boolean).join(" ")}
+                  {" "}{linkedRequest.aircraft_is_taa ? "marked TAA" : "not marked TAA"}. Change it here if needed.
+                </p>
+              ) : (
+                <p className="mt-2 text-xs font-semibold text-amber-700">
+                  {aircraftEquipment ? "" : "Select one before building the POA."}
+                </p>
+              )}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Aircraft equipment">
+              {AIRCRAFT_EQUIPMENT_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                    aircraftEquipment === option.value ? "border-slate-900 bg-slate-50" : "border-slate-300 bg-white"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="aircraft-equipment"
+                    value={option.value}
+                    checked={aircraftEquipment === option.value}
+                    onChange={() => setAircraftEquipment(option.value)}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-800">{option.label}</span>
+                    <span className="block text-xs text-slate-500">{option.detail}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {testType && isAdditionalIssuance ? (
+        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
+            <div>
+              <p className="text-sm font-bold text-slate-900">
+                Rating Already Held
+              </p>
+
+              <p className="mt-1 text-xs text-slate-600">
+                Required to determine the correct FAA Additional Rating
+                flight-task matrix.
+              </p>
+            </div>
+
+            <select
+              value={additionalRatingHeld}
+              onChange={(event) => setAdditionalRatingHeld(event.target.value)}
+              className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
+            >
+              <option value="">Select rating already held</option>
+
+              {additionalHeldOptions.map((held) => (
+                <option key={held} value={held}>
+                  {held}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && testType ? (
+        <PoaLocationsPanel
+          requestAirportId={linkedRequest?.flight_airport_id ?? null}
+          needs={locationNeeds}
+          scenarioKey={selectedScenarioId}
+          onChange={setPoaLocations}
+        />
       ) : null}
 
 
+      {!loading && testType && useTemplate && poaTemplate ? (
+        <section className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900">
+                Generate from your script: {poaTemplate.name} (v{poaTemplate.version})
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                Your script in flight order, with follow-ups kept with their questions.{" "}
+                {Object.keys(slotVariants(poaTemplate.items)).length} trigger spots rotate; each uses a
+                different version from your last POA for this test.
+              </p>
+              {generateBlockers.length ? (
+                <p className="mt-2 text-xs font-semibold text-amber-700">Still needed: {generateBlockers.join(", ")}.</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              disabled={generating || generateBlockers.length > 0}
+              onClick={() => void generateFromTemplate()}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {generating ? "Generating…" : "Generate POA"}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBuildMode("manual")}
+            className="mt-4 text-xs font-semibold text-slate-600 underline hover:text-slate-900"
+          >
+            Build by hand instead (pick questions and triggers yourself)
+          </button>
+        </section>
+      ) : null}
 
+
+      {!loading && testType && !useTemplate ? (
+        <>
+          {poaTemplate ? (
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-700">
+              <span>Building by hand. Pick questions and triggers on the timeline, then cover every ACS task.</span>
+              <button
+                type="button"
+                onClick={() => setBuildMode("template")}
+                className="font-semibold text-emerald-800 underline hover:text-emerald-900"
+              >
+                Use my {poaTemplate.name} script instead
+              </button>
+            </div>
+          ) : null}
+      <div className="mt-6 flex gap-1 border-b border-slate-300" role="tablist" aria-label="POA generator views">
+        {(["timeline", "flight_tasks", "compliance"] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" id={`poa-tab-${tab}`} aria-controls={`poa-panel-${tab}`} aria-selected={generatorTab === tab} onClick={() => setGeneratorTab(tab)} className={`border-b-2 px-6 py-3 text-sm font-bold ${generatorTab === tab ? "border-sky-700 text-sky-800" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
+            {tab === "timeline" ? "Timeline" : tab === "flight_tasks" ? "Flight Tasks" : "Compliance"}
+          </button>
+        ))}
+      </div>
       <section id="poa-panel-timeline" role="tabpanel" aria-labelledby="poa-tab-timeline" hidden={generatorTab !== "timeline"} className="mt-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -3062,196 +3173,6 @@ export default function GeneratePoaPage() {
         )}
       </section>
 
-      {isAirplaneTest ? (
-        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
-            <div>
-              <p className="text-sm font-bold text-slate-900">Aircraft Equipment</p>
-
-              <p className="mt-1 text-xs text-slate-600">
-                Systems questions and triggers follow the airplane&apos;s flight instruments.
-              </p>
-
-              {linkedRequest ? (
-                <p className="mt-2 text-xs text-slate-700">
-                  From request {linkedRequest.request_number ?? ""}
-                  {linkedRequest.applicant_name_snapshot ? ` (${linkedRequest.applicant_name_snapshot})` : ""}:{" "}
-                  {[linkedRequest.aircraft_make, linkedRequest.aircraft_model, linkedRequest.aircraft_registration].filter(Boolean).join(" ")}
-                  {" "}{linkedRequest.aircraft_is_taa ? "marked TAA" : "not marked TAA"}. Change it here if needed.
-                </p>
-              ) : (
-                <p className="mt-2 text-xs font-semibold text-amber-700">
-                  {aircraftEquipment ? "" : "Select one before building the POA."}
-                </p>
-              )}
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Aircraft equipment">
-              {AIRCRAFT_EQUIPMENT_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
-                    aircraftEquipment === option.value ? "border-slate-900 bg-slate-50" : "border-slate-300 bg-white"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="aircraft-equipment"
-                    value={option.value}
-                    checked={aircraftEquipment === option.value}
-                    onChange={() => setAircraftEquipment(option.value)}
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="block font-semibold text-slate-800">{option.label}</span>
-                    <span className="block text-xs text-slate-500">{option.detail}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {testType && isAdditionalIssuance ? (
-        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
-            <div>
-              <p className="text-sm font-bold text-slate-900">
-                Rating Already Held
-              </p>
-
-              <p className="mt-1 text-xs text-slate-600">
-                Required to determine the correct FAA Additional Rating
-                flight-task matrix.
-              </p>
-            </div>
-
-            <select
-              value={additionalRatingHeld}
-              onChange={(event) => setAdditionalRatingHeld(event.target.value)}
-              className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-500"
-            >
-              <option value="">Select rating already held</option>
-
-              {additionalHeldOptions.map((held) => (
-                <option key={held} value={held}>
-                  {held}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
-      ) : null}
-
-      {testType && poaTemplate ? (
-        <section className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-slate-900">
-                Build from your template: {poaTemplate.name} (v{poaTemplate.version})
-              </p>
-              <p className="mt-1 text-xs text-slate-600">
-                Your script in flight order, with follow-ups kept with their questions.{" "}
-                {Object.keys(slotVariants(poaTemplate.items)).length} trigger spots rotate; each uses a
-                different version from your last POA for this test.
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <label className="text-xs font-semibold text-slate-700">
-                  Title
-                  <input
-                    id="template-poa-title"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs font-semibold text-slate-700">
-                  Scenario (reason for the flight)
-                  <select
-                    id="template-poa-scenario"
-                    value={selectedScenarioId}
-                    onChange={(event) => setSelectedScenarioId(event.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="">Select a scenario</option>
-                    {templateScenarioOptions.map((scenario) => (
-                      <option key={scenario.id} value={scenario.id}>
-                        {scenario.scenario_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={
-                generating ||
-                !selectedScenarioId ||
-                equipmentMissing ||
-                Boolean(isAdditionalIssuance && !additionalRatingHeld)
-              }
-              onClick={() => void generateFromTemplate()}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              {generating ? "Generating…" : "Generate POA from template"}
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      {message ? (
-        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">
-          <div className="flex items-start gap-3">
-            <Check className="mt-0.5 h-5 w-5 shrink-0" />
-
-            <div>
-              <p className="font-semibold">{message}</p>
-
-              {generatedPoaId ? (
-                <>
-                  <p className="mt-1 text-xs">
-                    Generated POA ID: {generatedPoaId}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <a
-                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/edit`}
-                      className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800"
-                    >
-                      Open and edit this POA
-                    </a>
-                    <a
-                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/print`}
-                      className="inline-flex items-center rounded-lg border border-emerald-700 px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
-                    >
-                      Print
-                    </a>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {errorMessage ? (
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
-          {errorMessage}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">
-          {isPrivatePilotAsel
-            ? "Loading Event Set Plan…"
-            : "Loading Scenario Library…"}
-        </div>
-      ) : null}
-
-      {!loading && testType ? (
-        <>
 
 
 
@@ -3388,6 +3309,54 @@ export default function GeneratePoaPage() {
             </div>
           </section>
         </>
+      ) : null}
+
+      {message ? (
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">
+          <div className="flex items-start gap-3">
+            <Check className="mt-0.5 h-5 w-5 shrink-0" />
+
+            <div>
+              <p className="font-semibold">{message}</p>
+
+              {generatedPoaId ? (
+                <>
+                  <p className="mt-1 text-xs">
+                    Generated POA ID: {generatedPoaId}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <a
+                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/edit`}
+                      className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+                    >
+                      Open and edit this POA
+                    </a>
+                    <a
+                      href={`/examiner/plan-of-action/generated/${encodeURIComponent(generatedPoaId)}/print`}
+                      className="inline-flex items-center rounded-lg border border-emerald-700 px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
+                    >
+                      Print
+                    </a>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">
+          {isPrivatePilotAsel
+            ? "Loading Event Set Plan…"
+            : "Loading Scenario Library…"}
+        </div>
       ) : null}
     </main>
   );
