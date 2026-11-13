@@ -23,10 +23,12 @@ EMS → EMT (EMT reads, never writes):
 - Pretest qualification, shown read-only on the Eligibility tab: `examiner_get_qualification_review()`, `examiner_get_knowledge_test_codes()`
 - Qualification pictures and PDFs for that review: read-only downloads from the `qualification-evidence` storage bucket (the bucket's policy limits them to the request's examiner). EMT deletes its copies once the test is submitted.
 - Question library (written-test review during grading): `poa_questions` with its `poa_question_practical_test_types` and `poa_question_acs_applicability` joins
+- Stage checks: `emt_get_my_access()` (whether the signed-in user is an examiner, an instructor, or both). Pick lists for the stage check's Applicant Information, read-only: `flight_schools`, `faa_aircraft_types`.
 - A link: EMS may link to `NEXT_PUBLIC_EMT_WEB_URL/index.html?request=<id>`. A link is not code sharing.
 
 EMT → EMS (results handoff):
 - `examiner_submit_emt_practical_test()`, `examiner_finalize_emt_practical_test()`, `examiner_complete_ppc_event()`, `examiner_finalize_ppc_8410()`. These database functions are the only way EMT changes a request's status.
+- Stage checks: instructors grade them in the EMT gradesheet. They are not saved. `POST {EMS}/api/email/stage-check` (instructors only, bearer token) — EMS emails the Stage Check Summary Report PDF to the signed-in instructor and the recommending instructor. Allowed origins: `EMT_WEB_ORIGINS`.
 - `POST {EMS}/api/email/practical-test` (event `ppc_completed_applicant`). EMT asks, EMS sends. Allowed origins: `EMT_WEB_ORIGINS`.
 
 EMT-internal grading functions: `examiner_get_ppc_evaluation()`, `examiner_save_ppc_evaluation()`, `examiner_get_ppc_8410_packet()`, `examiner_prepare_type_rating_8410()` (fills a type rating's FAA 8410-1 from its ACS grades).
@@ -40,7 +42,7 @@ Anything not listed here is not part of the interface. Adding to it is a deliber
 | Owner | Tables |
 |---|---|
 | **EMT** (writes) | `practical_tests`, `practical_test_grades`, `practical_test_reports`, `ppc_8410_documents`; buckets `practical-test-reports`, `ppc-8410-documents` |
-| **EMS** (writes) | Everything else: `profiles`, `user_roles`, applicant/instructor/school tables, `practical_test_requests`, request history/audit/proposals/email log/follow-ups, `appointments`, `examiner_*` configuration and availability, fees, locations, qualification tables, all `poa_*` and `generated_plan_of_action*` tables, `faa_aircraft_types`, `faa_airports` |
+| **EMS** (writes) | Everything else: `profiles`, `user_roles`, applicant/instructor/school tables, `practical_test_requests`, request history/audit/proposals/email log/follow-ups, `appointments`, `examiner_*` configuration and availability, fees, locations, qualification tables, all `poa_*` and `generated_plan_of_action*` tables,  `faa_aircraft_types`, `faa_airports` |
 
 New migrations in `dpe-database` start with `-- owner: EMS`, `-- owner: EMT` or `-- owner: SHARED`.
 

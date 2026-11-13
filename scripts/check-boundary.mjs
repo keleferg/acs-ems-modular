@@ -43,6 +43,9 @@ const EMT_READABLE_EMS_TABLES = [
   "examiner_designee_profiles",
   // Question library, for the written-test review during grading (read-only).
   "poa_questions",
+  // Stage check Applicant Information pick lists (read-only).
+  "flight_schools",
+  "faa_aircraft_types",
 ];
 
 // The only database functions EMT may call.
@@ -64,6 +67,8 @@ const EMT_RPC_ALLOWLIST = [
   "examiner_finalize_emt_practical_test",
   "examiner_complete_ppc_event",
   "examiner_finalize_ppc_8410",
+  // Stage checks: who is signed in (examiner gradesheet, stage check, or both)
+  "emt_get_my_access",
 ];
 
 // Grading functions EMS must never call (everything EMT may call except the EMS -> EMT reads).

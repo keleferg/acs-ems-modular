@@ -20,7 +20,7 @@ npx netlify deploy --prod     # build runs the boundary check, then next build
 ```
 Always deploy from an up-to-date `main`. On Oct 16, deploying from an out-of-date copy briefly rolled back the Oct 6–8 releases.
 
-Settings: `NEXT_PUBLIC_EMT_WEB_URL` (where "Open in EMT" goes) and `EMT_WEB_ORIGINS` (EMT sites allowed to call `/api/email/practical-test`).
+Settings: `NEXT_PUBLIC_EMT_WEB_URL` (where "Open in EMT" goes) and `EMT_WEB_ORIGINS` (EMT sites allowed to call `/api/email/practical-test` and `/api/email/stage-check`).
 
 ## Layout
 - `app/applicant/`, `app/examiner/`, `app/admin/`, `app/auth/`, `app/api/`: portals and API routes

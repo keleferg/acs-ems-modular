@@ -3528,3 +3528,61 @@ export function buildAutoPoaExaminerNoticeEmail(input: AutoPoaExaminerNoticeInpu
   const text = [`Aloha ${input.examinerName?.trim() ? firstName(input.examinerName) : "Examiner"},`, "", ...input.lines.flatMap((line) => [line, ""]), `Open the request: ${input.requestUrl}`].join("\n");
   return { subject, html, text };
 }
+
+/* ----------------------------------------------------------------------------
+ * Stage Check Summary Report (Kele, Nov 14 2026). An instructor gives a stage check in the EMT
+ * gradesheet; EMS emails the report PDF to that instructor and to the recommending instructor.
+ * Stage checks are not saved anywhere else.
+ * -------------------------------------------------------------------------- */
+
+export type StageCheckSummaryEmailInput = {
+  studentName: string;
+  stageCheckLabel: string;
+  phaseOfTraining: string;
+  stageCheckDate: string;
+  readinessLabel: string;
+  givenByName: string;
+  recommendingInstructorName: string;
+  flightSchool: string;
+  aircraft: string;
+};
+
+export function buildStageCheckSummaryEmail(input: StageCheckSummaryEmailInput) {
+  const subject = `Stage Check Summary Report — ${input.studentName} (${input.stageCheckLabel}${input.phaseOfTraining ? `, ${input.phaseOfTraining}` : ""})`;
+  const rows = [
+    emailRow("Student", input.studentName, { strong: true }),
+    emailRow("Stage check", input.stageCheckLabel),
+    emailRow("Phase of training", input.phaseOfTraining),
+    emailRow("Date", input.stageCheckDate),
+    emailRow("Readiness", input.readinessLabel, { strong: true }),
+    emailRow("Given by", input.givenByName),
+    emailRow("Recommending instructor", input.recommendingInstructorName),
+    emailRow("Flight school", input.flightSchool),
+    emailRow("Aircraft", input.aircraft, { last: true }),
+  ].join("");
+
+  const html = emailShell(
+    "Stage Check Summary Report",
+    `<p style="margin:0 0 18px;font-size:15px;line-height:1.6;">The Stage Check Summary Report for ${escapeHtml(input.studentName)} is attached as a PDF.</p>
+     ${emailTable(rows)}
+     ${emailNote("Reply to this email to reach the instructor who gave the stage check.")}`,
+  );
+
+  const text = [
+    `The Stage Check Summary Report for ${input.studentName} is attached as a PDF.`,
+    "",
+    `Student: ${input.studentName}`,
+    `Stage check: ${input.stageCheckLabel}`,
+    `Phase of training: ${input.phaseOfTraining}`,
+    `Date: ${input.stageCheckDate}`,
+    `Readiness: ${input.readinessLabel}`,
+    `Given by: ${input.givenByName}`,
+    `Recommending instructor: ${input.recommendingInstructorName}`,
+    `Flight school: ${input.flightSchool}`,
+    `Aircraft: ${input.aircraft}`,
+    "",
+    "Reply to this email to reach the instructor who gave the stage check.",
+  ].join("\n");
+
+  return { subject, html, text };
+}
