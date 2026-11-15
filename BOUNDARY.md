@@ -29,6 +29,7 @@ EMS → EMT (EMT reads, never writes):
 EMT → EMS (results handoff):
 - `examiner_submit_emt_practical_test()`, `examiner_finalize_emt_practical_test()`, `examiner_complete_ppc_event()`, `examiner_finalize_ppc_8410()`. These database functions are the only way EMT changes a request's status.
 - Stage checks: instructors grade them in the EMT gradesheet. They are not saved. `POST {EMS}/api/email/stage-check` (instructors only, bearer token) — EMS emails the Stage Check Summary Report PDF to the signed-in instructor and the recommending instructor. Allowed origins: `EMT_WEB_ORIGINS`.
+- Stage checks, End of Course Ground / Flight Evaluation: `POST {EMS}/api/stage-check/evaluation` (instructors only, bearer token). EMT sends the stage check's ACS Tasks and the student's knowledge-test codes; EMS picks the oral questions from the question library on the server (leaving out questions used in a DPE POA for a request or test in the last 90 days), orders the flight Tasks, and returns only that evaluation. Nothing is saved. Allowed origins: `EMT_WEB_ORIGINS`.
 - `POST {EMS}/api/email/practical-test` (event `ppc_completed_applicant`). EMT asks, EMS sends. Allowed origins: `EMT_WEB_ORIGINS`.
 
 EMT-internal grading functions: `examiner_get_ppc_evaluation()`, `examiner_save_ppc_evaluation()`, `examiner_get_ppc_8410_packet()`, `examiner_prepare_type_rating_8410()` (fills a type rating's FAA 8410-1 from its ACS grades).

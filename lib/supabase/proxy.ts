@@ -67,6 +67,9 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/admin/super-user-return") &&
     // EMS Examiner iPhone app: API calls carry a bearer token instead of a cookie; each route checks it.
     !(request.nextUrl.pathname.startsWith("/api/") && /^Bearer\s+\S+/i.test(request.headers.get("authorization") ?? "")) &&
+    // CORS preflight for the EMT web routes (/api/email/*, /api/stage-check/*): browsers send OPTIONS
+    // without the Authorization header. The route's OPTIONS handler only returns CORS headers.
+    !(request.method === "OPTIONS" && request.nextUrl.pathname.startsWith("/api/")) &&
     // Universal Links: Apple fetches this file without signing in.
     !request.nextUrl.pathname.startsWith("/.well-known/") &&
     // Netlify functions reached without a session: push-dispatch is called by the database (it only
