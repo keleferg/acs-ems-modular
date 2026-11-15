@@ -29,8 +29,11 @@ const EMT_TABLES = [
   "practical_test_grades",
   "practical_test_reports",
   "ppc_8410_documents",
+  // Stage checks the instructor gives in EMT (EMS lists them under Stage Check Records).
+  "stage_checks",
+  "stage_check_grades",
 ];
-const EMT_BUCKETS = ["practical-test-reports", "ppc-8410-documents"];
+const EMT_BUCKETS = ["practical-test-reports", "ppc-8410-documents", "stage-check-reports"];
 
 // EMS-owned data EMT may READ (the published EMS -> EMT interface).
 const EMT_READABLE_EMS_TABLES = [
@@ -69,6 +72,9 @@ const EMT_RPC_ALLOWLIST = [
   "examiner_finalize_ppc_8410",
   // Stage checks: who is signed in (examiner gradesheet, stage check, or both)
   "emt_get_my_access",
+  // Stage checks: save the record and attach its report (EMT-owned)
+  "instructor_submit_stage_check",
+  "instructor_attach_stage_check_report",
 ];
 
 // Grading functions EMS must never call (everything EMT may call except the EMS -> EMT reads).

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronDown,
+  ClipboardCheck,
   FileText,
   GraduationCap,
   LayoutDashboard,
@@ -51,6 +52,11 @@ const instructorNavigation = [
     label: "Reports",
     href: "/instructor/reports",
     icon: FileText,
+  },
+  {
+    label: "Stage Check Records",
+    href: "/instructor/stage-checks",
+    icon: ClipboardCheck,
   },
   {
     label: "My Data",
