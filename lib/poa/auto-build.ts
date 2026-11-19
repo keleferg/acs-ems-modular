@@ -24,6 +24,7 @@ import {
 } from "./generate-core";
 import { buildIfrContext, IFR_FILL_KEYS, type IfrContext } from "./ifr-context";
 import { loadIfrInputs } from "./ifr-load";
+import { loadAirportFacts, PLACE_CONDITION_KEYS, placeConditions } from "./place-conditions";
 import {
   DEPARTURE_RADIUS_NM,
   LEG_RADIUS_NM,
@@ -271,11 +272,14 @@ async function buildForRequest(service: SupabaseClient, request: RequestRow, ori
     ...(scenario.location_needs?.stops?.length && !locations.stops?.length ? { "ferry stops": "the stops you plan along the route" } : {}),
     ...(ifrContext?.fills ?? {}),
   };
+  // Place conditions (Kele, Nov 19 2026): no freezing weather in the tropics, tower events only at towered fields.
+  const placeAvailable = placeConditions(locations, await loadAirportFacts(service, locations));
   const fillCheck = {
-    keys: [...IFR_FILL_KEYS, ...STOP_FILL_KEYS],
+    keys: [...IFR_FILL_KEYS, ...STOP_FILL_KEYS, ...PLACE_CONDITION_KEYS],
     available: new Set([
       ...Object.keys(ifrContext?.fills ?? {}),
       ...Object.keys(locationFills(locations, {})).filter((key) => (STOP_FILL_KEYS as readonly string[]).includes(key)),
+      ...placeAvailable,
     ]),
   };
 

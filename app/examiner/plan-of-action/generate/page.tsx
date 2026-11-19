@@ -31,6 +31,7 @@ const ACS_TASK_NAMES = acsTaskNamesJson as Record<string, string>;
 const acsTaskName = (code: string) => ACS_TASK_NAMES[code.split(".").slice(0, 3).join(".")] ?? "";
 import { buildIfrContext, IFR_FILL_KEYS, type IfrContext } from "@/lib/poa/ifr-context";
 import { loadIfrInputs } from "@/lib/poa/ifr-load";
+import { loadAirportFacts, PLACE_CONDITION_KEYS, placeConditions, type AirportFacts } from "@/lib/poa/place-conditions";
 
 import { createClient } from "@/lib/supabase/client";
 import faaAcsComplianceCatalog from "@/data/faa-acs-compliance-catalog.json";
@@ -1468,6 +1469,17 @@ export default function GeneratePoaPage() {
     })();
     return () => { cancelled = true; };
   }, [poaLocations, poaEquipment, locationNeeds.instrument]);
+  // Place conditions (Kele, Nov 19 2026): climate, towers and LAHSO at the picked airports.
+  const [airportFacts, setAirportFacts] = useState<Map<string, AirportFacts> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setAirportFacts(null);
+    if (!poaLocations) return;
+    void loadAirportFacts(createClient(), poaLocations).then((facts) => {
+      if (!cancelled) setAirportFacts(facts);
+    });
+    return () => { cancelled = true; };
+  }, [poaLocations]);
   /** [departure], [destination], [practice area], [aircraft], [clearance]… for this POA. */
   const poaFills = useMemo(
     () => ({
@@ -1489,14 +1501,16 @@ export default function GeneratePoaPage() {
   /** Items needing IFR fill-ins this POA can't supply are skipped (no made-up fixes). */
   const fillCheck = useMemo(
     () => ({
-      keys: [...IFR_FILL_KEYS, ...STOP_FILL_KEYS],
+      keys: [...IFR_FILL_KEYS, ...STOP_FILL_KEYS, ...PLACE_CONDITION_KEYS],
       // Ferry-stop fill-ins count only when real stops were picked.
       available: new Set([
         ...Object.keys(ifrContext?.fills ?? {}),
         ...Object.keys(locationFills(poaLocations, {})).filter((key) => (STOP_FILL_KEYS as readonly string[]).includes(key)),
+        // No freezing weather in the tropics; tower events only at towered fields.
+        ...placeConditions(poaLocations, airportFacts),
       ]),
     }),
-    [ifrContext, poaLocations],
+    [ifrContext, poaLocations, airportFacts],
   );
   const fillText = useCallback(
     (text: string | null | undefined) => (text ? fillTemplateText(text, poaFills) : text ?? null),
