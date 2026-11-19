@@ -35,6 +35,8 @@ EMT → EMS (results handoff):
 
 EMT-internal grading functions: `examiner_get_ppc_evaluation()`, `examiner_save_ppc_evaluation()`, `examiner_get_ppc_8410_packet()`, `examiner_prepare_type_rating_8410()` (fills a type rating's FAA 8410-1 from its ACS grades).
 
+Live gradesheet (EMT-internal): the examiner shares a test with the recommending instructor with `examiner_set_live_gradesheet()` and sends the gradesheet as it changes with `examiner_push_live_gradesheet()` (grades and comments only); the instructor watches in EMT with `instructor_get_live_gradesheets()` and `instructor_get_live_gradesheet()`.
+
 EMS reads EMT results (read-only) for records and history: `practical_tests`, `practical_test_grades`, `practical_test_reports`, `ppc_8410_documents` and the `practical-test-reports` and `ppc-8410-documents` storage buckets.
 
 Anything not listed here is not part of the interface. Adding to it is a deliberate change: update this file, the guard and both sides together.

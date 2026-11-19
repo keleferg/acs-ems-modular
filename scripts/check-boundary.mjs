@@ -75,6 +75,11 @@ const EMT_RPC_ALLOWLIST = [
   // Stage checks: save the record and attach its report (EMT-owned)
   "instructor_submit_stage_check",
   "instructor_attach_stage_check_report",
+  // Live gradesheet for the recommending instructor (EMT-owned)
+  "examiner_set_live_gradesheet",
+  "examiner_push_live_gradesheet",
+  "instructor_get_live_gradesheets",
+  "instructor_get_live_gradesheet",
 ];
 
 // Grading functions EMS must never call (everything EMT may call except the EMS -> EMT reads).

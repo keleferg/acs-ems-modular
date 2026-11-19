@@ -6,11 +6,19 @@ import { createClient } from "@/lib/supabase/client";
 
 // Examiner settings for the pretest qualification.
 // - Read uploaded qualification pictures automatically (Kele, Oct 30 2026).
-// - Build the Plan of Action and email the scenario when the applicant submits (Kele, Nov 12 2026).
-type SettingKey = "picture_scan_enabled" | "auto_poa_enabled";
+// - Build the Plan of Action and email the scenario when the applicant submits (Kele, Nov 12 2026);
+//   off until the examiner turns it on (Nov 18 2026).
+// - Require the recommending instructor to sign off on the qualification review (Nov 18 2026).
+type SettingKey = "picture_scan_enabled" | "auto_poa_enabled" | "require_instructor_signoff";
 type Settings = Record<SettingKey, boolean>;
 
-const DEFAULTS: Settings = { picture_scan_enabled: false, auto_poa_enabled: true };
+const DEFAULTS: Settings = { picture_scan_enabled: false, auto_poa_enabled: false, require_instructor_signoff: false };
+
+const SAVED_MESSAGES: Record<SettingKey, [string, string]> = {
+  picture_scan_enabled: ["Picture reading is on.", "Picture reading is off."],
+  auto_poa_enabled: ["Automatic scenarios are on.", "Automatic scenarios are off."],
+  require_instructor_signoff: ["Instructor sign-off is required.", "Instructor sign-off is no longer required."],
+};
 
 function Switch({ on, label, disabled, onToggle }: { on: boolean; label: string; disabled: boolean; onToggle: () => void }) {
   return (
@@ -46,14 +54,15 @@ export default function QualificationSettingsPage() {
       if (!user) { if (active) { setError("You must be signed in as an examiner."); setLoading(false); } return; }
       const { data, error: loadError } = await supabase
         .from("examiner_qualification_settings")
-        .select("picture_scan_enabled, auto_poa_enabled")
+        .select("picture_scan_enabled, auto_poa_enabled, require_instructor_signoff")
         .eq("examiner_profile_id", user.id)
         .maybeSingle();
       if (!active) return;
       if (loadError) setError(`Settings could not be loaded: ${loadError.message}`);
       setSettings({
         picture_scan_enabled: Boolean(data?.picture_scan_enabled),
-        auto_poa_enabled: data?.auto_poa_enabled !== false,
+        auto_poa_enabled: Boolean(data?.auto_poa_enabled),
+        require_instructor_signoff: Boolean(data?.require_instructor_signoff),
       });
       setLoading(false);
     }
@@ -72,11 +81,7 @@ export default function QualificationSettingsPage() {
     if (saveError) setError(`The setting could not be saved: ${saveError.message}`);
     else {
       setSettings((current) => ({ ...current, [key]: next }));
-      setMessage(
-        key === "picture_scan_enabled"
-          ? next ? "Picture reading is on." : "Picture reading is off."
-          : next ? "Automatic Plan of Action is on." : "Automatic Plan of Action is off.",
-      );
+      setMessage(SAVED_MESSAGES[key][next ? 0 : 1]);
     }
     setSaving(false);
   }
@@ -90,9 +95,10 @@ export default function QualificationSettingsPage() {
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="max-w-2xl">
-            <h3 className="text-lg font-bold text-slate-900">Build the Plan of Action and email the scenario</h3>
+            <h3 className="text-lg font-bold text-slate-900">Assign the scenario automatically</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              <strong>On:</strong> as soon as an applicant submits the pretest qualification, EMS builds their Plan of Action from your
+              <strong>On:</strong> as soon as an applicant submits the pretest qualification (and, if you require it, their
+              instructor signs off), EMS builds their Plan of Action from your
               template. The areas they answered incorrectly on the knowledge test are added to it. EMS then emails the applicant the
               scenario, a planning assignment and the test-day details, sends you a copy, and logs each step in the request&apos;s History.
               The applicant never sees the questions or triggers.
@@ -110,6 +116,31 @@ export default function QualificationSettingsPage() {
             label="Build the Plan of Action automatically"
             disabled={loading || saving}
             onToggle={() => void save("auto_poa_enabled", !settings.auto_poa_enabled)}
+          />
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-2xl">
+            <h3 className="text-lg font-bold text-slate-900">Require the recommending instructor to sign off</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              <strong>On:</strong> every qualification package you receive goes to the applicant&apos;s recommending instructor after
+              the applicant submits it. The instructor gets an email to review and certify it, and a reminder each day until they do.
+              You can&apos;t accept the package, and no automatic scenario is sent, until the instructor signs off.
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              <strong>Off:</strong> the instructor signs off only on tests whose qualification list asks for it.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              If an instructor can&apos;t be reached, you can still skip the instructor step on the request with a reason.
+            </p>
+          </div>
+          <Switch
+            on={settings.require_instructor_signoff}
+            label="Require the recommending instructor to sign off"
+            disabled={loading || saving}
+            onToggle={() => void save("require_instructor_signoff", !settings.require_instructor_signoff)}
           />
         </div>
       </section>

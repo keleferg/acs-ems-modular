@@ -2346,6 +2346,8 @@ type QualificationReminderApplicantEmailInput = {
   scheduledStartAt: string;
   scheduledLocation: string | null;
   qualificationUrl: string;
+  /** A later daily reminder (not the first one). */
+  isFollowUp?: boolean;
 };
 
 // Sent 4 days before a confirmed or scheduled practical test (Kele, Oct 30 2026), when the
@@ -2358,7 +2360,16 @@ export function buildQualificationReminderApplicantEmail(
   const appointmentTime = formatScheduledAppointmentTime(input.scheduledStartAt);
   const location = input.scheduledLocation?.trim() || "As scheduled";
 
-  const subject = `Action Required — Complete Your Pretest Qualification (${input.requestNumber})`;
+  const subject = input.isFollowUp
+    ? `Reminder — Your Pretest Qualification Is Not Submitted Yet (${input.requestNumber})`
+    : `Action Required — Complete Your Pretest Qualification (${input.requestNumber})`;
+  const heading = input.isFollowUp ? "Pretest Qualification Reminder" : "Pretest Qualification Is Open";
+  const lead = input.isFollowUp
+    ? "Your practical test is coming up and your <strong>pretest qualification worksheet</strong> has not been submitted yet. Please complete and submit it before the test."
+    : "Your practical test is coming up. Please complete your <strong>pretest qualification worksheet</strong>\n                  before the test. It is open now.";
+  const leadText = input.isFollowUp
+    ? "Your practical test is coming up and your pretest qualification worksheet has not been submitted yet. Please complete and submit it before the test."
+    : "Your practical test is coming up. Please complete your pretest qualification worksheet before the test. It is open now.";
 
   const row = (label: string, value: string, last = false) => `
                   <tr>
@@ -2377,15 +2388,14 @@ export function buildQualificationReminderApplicantEmail(
             <tr>
               <td style="background:#0f172a;padding:24px 28px;color:#ffffff;">
                 <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fbbf24;">Aviation Training Solutions</div>
-                <div style="margin-top:7px;font-size:24px;line-height:1.25;font-weight:700;">Pretest Qualification Is Open</div>
+                <div style="margin-top:7px;font-size:24px;line-height:1.25;font-weight:700;">${escapeHtml(heading)}</div>
               </td>
             </tr>
             <tr>
               <td style="padding:28px;">
                 <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(applicantFirstName)},</p>
                 <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">
-                  Your practical test is coming up. Please complete your <strong>pretest qualification worksheet</strong>
-                  before the test. It is open now.
+                  ${lead}
                 </p>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                   ${row("Request Number", input.requestNumber)}
@@ -2421,7 +2431,7 @@ export function buildQualificationReminderApplicantEmail(
   const text = [
     `Aloha ${applicantFirstName},`,
     "",
-    "Your practical test is coming up. Please complete your pretest qualification worksheet before the test. It is open now.",
+    leadText,
     "",
     `Request Number: ${input.requestNumber}`,
     `Date: ${appointmentDate}`,
@@ -2442,6 +2452,8 @@ export function buildQualificationReminderApplicantEmail(
 
 // Pretest qualification: instructor certification (Kele, Oct 31 2026).
 type InstructorReviewRequestEmailInput = {
+  /** A later daily "please sign off" reminder. */
+  isReminder?: boolean;
   instructorName: string;
   applicantName: string;
   requestNumber: string;
@@ -2486,11 +2498,75 @@ function qualificationEmailRow(label: string, value: string, last = false) {
                   </tr>`;
 }
 
+type QualificationReminderInstructorEmailInput = {
+  instructorName: string;
+  applicantName: string;
+  requestNumber: string;
+  certificateSought: string;
+  ratingSought: string;
+  scheduledStartAt: string;
+  scheduledLocation: string | null;
+};
+
+// Daily, from 4 days before the checkride until the student submits (Kele, Nov 18 2026): the same
+// reminder the student gets, addressed to the recommending instructor.
+export function buildQualificationReminderInstructorEmail(input: QualificationReminderInstructorEmailInput) {
+  const instructorFirstName = input.instructorName.trim() ? firstName(input.instructorName) : "Instructor";
+  const testDate = formatScheduledAppointmentDate(input.scheduledStartAt);
+  const testTime = formatScheduledAppointmentTime(input.scheduledStartAt);
+  const location = input.scheduledLocation?.trim() || "As scheduled";
+  const subject = `Reminder — ${input.applicantName} Needs to Submit the Pretest Qualification (${input.requestNumber})`;
+
+  const html = qualificationEmailShell(
+    "Your Student's Pretest Qualification",
+    `
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Aloha ${escapeHtml(instructorFirstName)},</p>
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#334155;">
+                  <strong>${escapeHtml(input.applicantName)}</strong> listed you as their recommending instructor. Their practical
+                  test is coming up and they have <strong>not submitted their pretest qualification</strong> yet. Please remind them
+                  to complete and submit it before the test.
+                </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                  ${qualificationEmailRow("Applicant", input.applicantName)}
+                  ${qualificationEmailRow("Request Number", input.requestNumber)}
+                  ${qualificationEmailRow("Date", testDate)}
+                  ${qualificationEmailRow("Time", testTime)}
+                  ${qualificationEmailRow("Location", location)}
+                  ${qualificationEmailRow("Certificate", input.certificateSought)}
+                  ${qualificationEmailRow("Rating", input.ratingSought, true)}
+                </table>
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+                  After your student submits, you'll get a separate email to review and certify the package if your examiner
+                  requires it. You'll get this reminder once a day until they submit.
+                </p>`,
+  );
+
+  const text = [
+    `Aloha ${instructorFirstName},`,
+    "",
+    `${input.applicantName} listed you as their recommending instructor. Their practical test is coming up and they have not submitted their pretest qualification yet. Please remind them to complete and submit it before the test.`,
+    "",
+    `Applicant: ${input.applicantName}`,
+    `Request Number: ${input.requestNumber}`,
+    `Date: ${testDate}`,
+    `Time: ${testTime}`,
+    `Location: ${location}`,
+    `Certificate: ${input.certificateSought}`,
+    `Rating: ${input.ratingSought}`,
+    "",
+    "After your student submits, you'll get a separate email to review and certify the package if your examiner requires it. You'll get this reminder once a day until they submit.",
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
 export function buildInstructorReviewRequestEmail(input: InstructorReviewRequestEmailInput) {
   const instructorFirstName = input.instructorName.trim() ? firstName(input.instructorName) : "Instructor";
   const testDate = input.scheduledStartAt ? formatScheduledAppointmentDate(input.scheduledStartAt) : "To be scheduled";
   const expires = formatScheduledAppointmentDate(input.expiresAt);
-  const subject = `Instructor Certification Needed — ${input.applicantName} (${input.requestNumber})`;
+  const subject = input.isReminder
+    ? `Reminder — Please Sign Off ${input.applicantName}'s Pretest Qualification (${input.requestNumber})`
+    : `Instructor Certification Needed — ${input.applicantName} (${input.requestNumber})`;
 
   const html = qualificationEmailShell(
     "Pretest Qualification Ready for Your Review",

@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 
-import { buildInstructorDecisionExaminerEmail, buildInstructorReviewRequestEmail } from "@/lib/email/practical-test";
+import { buildInstructorDecisionExaminerEmail, buildInstructorReviewRequestEmail } from "../email/practical-test";
 
 // Server-only helpers for the instructor certification link (Kele, Oct 31 2026).
 // The instructor has no account: a random token in the emailed link is checked against its SHA-256
@@ -50,7 +50,7 @@ function mailer() {
 }
 
 /** Creates a new link for the current revision and emails it to the instructor on the request. */
-export async function sendInstructorReviewLink(service: Service, wizardId: string, origin: string) {
+export async function sendInstructorReviewLink(service: Service, wizardId: string, origin: string, isReminder = false) {
   const { data: wizard, error: wizardError } = await service
     .from("qualification_wizards")
     .select("id, status, current_revision_number, examiner_profile_id, practical_test_request_id")
@@ -100,6 +100,7 @@ export async function sendInstructorReviewLink(service: Service, wizardId: strin
     scheduledStartAt: request?.scheduled_start_at ?? null,
     reviewUrl: `${origin.replace(/\/$/, "")}/instructor-review?t=${encodeURIComponent(token)}`,
     expiresAt,
+    isReminder,
   });
   const { replyTo } = await examinerReplyTo(service, wizard.examiner_profile_id);
   const { resend, from } = mailer();
