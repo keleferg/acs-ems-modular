@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import PaymentBox from "@/components/payments/payment-box";
 
 type PracticalTestRequest = {
   id: string;
@@ -2050,6 +2051,10 @@ export default function ApplicantRequestsPage() {
                                 </button>
                               </section>
                             )
+                          ) : null}
+
+                          {request.fees_finalized_at ? (
+                            <PaymentBox requestId={request.id} viewer="applicant" />
                           ) : null}
 
                           {request.status === "scheduled" &&

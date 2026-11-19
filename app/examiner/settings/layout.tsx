@@ -15,6 +15,11 @@ const settingsLinks = [
     description: "Published practical-test fees",
   },
   {
+    href: "/examiner/settings/payments",
+    label: "Card Payments",
+    description: "Applicants pay you through your own Stripe account",
+  },
+  {
     href: "/examiner/settings/locations",
     label: "Locations",
     description: "Areas for open assignment alerts",

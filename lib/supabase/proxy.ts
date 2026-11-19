@@ -65,6 +65,8 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/open-offers/respond") &&
     // Super user "Return to my account" works after the borrowed session ended; the signed cookie is checked by the API.
     !request.nextUrl.pathname.startsWith("/api/admin/super-user-return") &&
+    // Stripe payment webhook: Stripe is never signed in; the Stripe signature is checked by the route.
+    !request.nextUrl.pathname.startsWith("/api/payments/webhook") &&
     // EMS Examiner iPhone app: API calls carry a bearer token instead of a cookie; each route checks it.
     !(request.nextUrl.pathname.startsWith("/api/") && /^Bearer\s+\S+/i.test(request.headers.get("authorization") ?? "")) &&
     // CORS preflight for the EMT web routes (/api/email/*, /api/stage-check/*): browsers send OPTIONS

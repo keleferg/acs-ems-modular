@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { type QualificationWizardSummary } from "./QualificationReviewPanel";
 import QualificationSummarySection from "./QualificationSummarySection";
+import PaymentBox from "@/components/payments/payment-box";
 
 import OpenAssignmentsPanel from "@/components/portal/OpenAssignmentsPanel";
 import OpenOffersPanel from "@/components/portal/OpenOffersPanel";
@@ -5395,6 +5396,12 @@ export default function ExaminerRequestsPage() {
                               </div>
                             )}
                           </details>
+
+                          {request.fees_finalized_at ? (
+                            <div className="border-t border-slate-200 px-5 py-4">
+                              <PaymentBox requestId={request.id} viewer="examiner" />
+                            </div>
+                          ) : null}
 
                           {/* Kele, Oct 31 2026: only whether the applicant is qualified here; the full
                               review opens on its own page. */}
