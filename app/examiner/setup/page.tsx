@@ -401,7 +401,7 @@ export default function ExaminerSetupPage() {
 
   async function signOut() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     window.location.assign("/auth/login");
   }
 

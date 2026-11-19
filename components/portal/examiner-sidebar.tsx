@@ -251,7 +251,7 @@ export function ExaminerSidebar({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     router.replace("/auth/login");
     router.refresh();
   }

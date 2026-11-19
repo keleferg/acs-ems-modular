@@ -277,7 +277,7 @@ export function ApplicantSidebar({
 
     try {
       await Promise.race([
-        supabase.auth.signOut(),
+        supabase.auth.signOut({ scope: "local" }),
         new Promise((resolve) => window.setTimeout(resolve, 1500)),
       ]);
     } catch (error) {
